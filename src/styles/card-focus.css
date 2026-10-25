@@ -1,0 +1,12 @@
+.configuration-heading{display:flex;align-items:center;gap:12px;padding:10px 16px;flex:none}
+.configuration-heading h1{font-size:16px;margin:0;flex:1}
+.configuration-heading button,.card-focus-toolbar button{min-height:44px;border:0;border-radius:12px;padding:8px 14px;background:var(--color-bg-secondary,#edf0f3);color:var(--color-text-primary,#253440);cursor:pointer;font:inherit}
+.topbar[hidden]{display:none}
+.card-focus-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.card-focus-toolbar button{font-size:12px}
+.card-focus--open{position:fixed;inset:0;z-index:10000;background:var(--color-bg-primary,#f4f5f7);padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));display:flex;flex-direction:column;align-items:center;overflow:auto;overscroll-behavior:contain}
+.card-focus--open .card-focus-toolbar{width:100%;flex:none;justify-content:space-between}
+.card-focus--open .card-focus-content{width:min(100%,calc(100dvh - 100px));margin:auto;flex:none}
+.card-focus--open[data-size=auto] .card-focus-content{width:min(100%,720px);margin:0 auto}
+.card-focus--open :is(.cs-stage,.dil-stage,.cs-deck){max-width:100%;width:100%}
+.card-focus-toolbar small{font-size:12px;color:var(--color-text-secondary,#687580)}

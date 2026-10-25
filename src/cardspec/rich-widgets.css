@@ -1,0 +1,69 @@
+.cs-list { list-style:none; padding:0; margin:0; }
+.cs-card :is(.cs-text,.cs-title,.cs-caption)[data-align=start] { text-align:start; }
+.cs-card :is(.cs-text,.cs-title,.cs-caption)[data-align=center] { text-align:center; }
+.cs-card :is(.cs-text,.cs-title,.cs-caption)[data-align=end] { text-align:end; }
+.cs-control-label { display:block; font-size:12px; margin-bottom:6px; }
+.cs-segmented-field .cs-segmented { display:flex; position:relative; isolation:isolate; flex-wrap:nowrap; overflow-x:auto; padding:4px; gap:4px; border-radius:14px; background:var(--cs-group-mask); scrollbar-width:thin; }
+.cs-stage .cs-card .cs-segmented-field .cs-segmented button { position:relative; flex:1 0 auto; white-space:nowrap; background:transparent; box-shadow:none; z-index:1; min-height:36px; }
+.cs-segmented-thumb { position:absolute; left:0; top:0; border-radius:10px; background:var(--cs-selected-mask); transition:transform 200ms ease,width 200ms ease; pointer-events:none; }
+/* Dense square cards keep short labels beside their choices. No label, option
+   or touch target is removed. Overflow remains swipe/keyboard accessible with
+   the existing edge fades instead of a height-consuming horizontal rail. */
+.cs-stage[data-card-size=square]:is([data-cs-density=compact],[data-cs-density=dense],[data-cs-density=minimum]) .cs-segmented-field[data-short-label=true] { display:flex;align-items:center;gap:6px; }
+.cs-stage[data-card-size=square]:is([data-cs-density=compact],[data-cs-density=dense],[data-cs-density=minimum]) .cs-segmented-field[data-short-label=true]>.cs-control-label { flex:none;margin:0;max-width:5em;overflow-wrap:anywhere; }
+.cs-stage[data-card-size=square]:is([data-cs-density=compact],[data-cs-density=dense],[data-cs-density=minimum]) .cs-segmented-field>.cs-segmented { flex:1;min-width:0;padding:2px;scrollbar-width:none; }
+.cs-stage[data-card-size=square]:is([data-cs-density=compact],[data-cs-density=dense],[data-cs-density=minimum]) .cs-segmented-field>.cs-segmented::-webkit-scrollbar { display:none; }
+.cs-card .cs-select select { width:100%; min-height:44px; border:0; border-radius:12px; padding:10px 12px; color:inherit; background:var(--cs-field-mask); font:inherit; }
+.cs-select option { background:var(--color-bg); color:var(--color-text-prose); }
+.cs-radio-group { display:flex; flex-direction:column; gap:8px; }
+.cs-radio-option { display:flex; align-items:center; gap:10px; min-height:44px; padding:10px 12px; border-radius:12px; background:var(--cs-control-mask); }
+.cs-radio-option[data-selected] { background:var(--cs-group-mask); }
+.cs-radio-option input { appearance:none; margin:0; width:18px; height:18px; flex:none; border:0; border-radius:50%; background:var(--cs-field-mask); }
+.cs-radio-option input:checked { background:var(--cs-selected-mask); box-shadow:inset 0 0 0 5px var(--cs-group-mask); }
+.cs-table-pan { overflow:auto; max-width:100%; border-radius:14px; background:var(--cs-panel-mask); }
+.cs-table { border-collapse:separate; border-spacing:0 4px; width:100%; font-size:13px; }
+.cs-table caption { text-align:start; padding:10px 12px; font-weight:650; }
+.cs-table th,.cs-table td { padding:10px 12px; text-align:start; min-width:70px; max-width:200px; overflow-wrap:anywhere; }
+.cs-table th { position:sticky; top:0; background:var(--cs-field-mask); font-weight:650; }
+.cs-table tbody tr:nth-child(even) { background:var(--cs-control-mask); }
+.cs-table tr[data-selected] { background:var(--cs-group-mask); }
+.cs-table [data-format=number],.cs-table [data-format=currency] { text-align:end; font-variant-numeric:tabular-nums; }
+.cs-code { font-family:ui-monospace,monospace; font-size:.92em; padding:2px 5px; border-radius:5px; background:var(--cs-group-mask); white-space:pre-wrap; }
+.cs-code-block { margin:0; padding:12px; border:0; border-radius:12px; background:var(--cs-panel-mask); overflow:auto; font:12px/1.6 ui-monospace,monospace; }
+.cs-math { max-width:100%; overflow-x:auto; }
+.cs-math[data-block] { display:block; padding:8px; }
+.cs-popover { display:flex; flex-direction:column; gap:10px; position:fixed; inset:auto; margin:0; height:auto; max-height:calc(100dvh - 40px); overflow:auto; width:min(300px,calc(100vw - 24px)); color:var(--color-text-prose); background:var(--cs-field-mask); backdrop-filter:blur(20px); border:0; border-radius:18px; padding:16px; box-shadow:0 15px 50px #0003; }
+.cs-popover:not(:popover-open) { display:none; }
+.cs-popover header,.cs-swipe header,.cs-mermaid header { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.cs-popover::backdrop { background:transparent; }
+.cs-swipe { display:flex; flex-direction:column; gap:10px; }
+.cs-swipe header { font-size:13px; }
+.cs-swipe-deck { position:relative; touch-action:pan-y; }
+.cs-swipe-item { position:absolute; inset:0 0 auto; min-height:104px; padding:18px; border-radius:18px; background:var(--cs-field-mask); transform-origin:50% 100%; box-shadow:0 10px 24px #0001; transition:transform 180ms ease; user-select:none; }
+.cs-swipe-item[data-depth="0"] { background:var(--cs-panel-mask); }
+.cs-swipe-item p { margin:8px 0 0; line-height:1.5; }
+.cs-swipe-actions { display:flex; gap:10px; }
+.cs-swipe-actions button { flex:1; min-height:44px; }
+.cs-celebration { position:absolute; inset:auto 50% 50%; pointer-events:none; z-index:5; }
+.cs-sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+.cs-confetti i { position:absolute; width:6px; height:10px; border-radius:2px; background:var(--color-primary); animation:cs-confetti 1s var(--delay) both; }
+.cs-confetti i:nth-child(3n) { background:var(--color-text-prose); }
+.cs-confetti i:nth-child(3n+1) { background:#edb76f; }
+@keyframes cs-confetti { from { opacity:0;transform:translate(0,0) rotate(0); } 20% { opacity:1; } to { opacity:0;transform:translate(var(--x),-110px) rotate(var(--turn)); } }
+.cs-mermaid { border-radius:16px; padding:10px; background:var(--cs-panel-mask); }
+.cs-mermaid header { flex-wrap:wrap; font-size:13px; margin-bottom:8px; }
+.cs-mermaid header>span { display:flex; gap:4px; }
+.cs-mermaid header button { min-width:34px; padding:4px 7px; }
+.cs-mermaid-pan { max-width:100%; overflow:auto; overscroll-behavior:contain; border-radius:10px; }
+.cs-mermaid-svg { margin-inline:auto; }
+.cs-mermaid-svg svg { display:block; width:100%; height:100%; --_text:var(--fg);--_text-sec:var(--fg);--_text-muted:var(--fg);--_text-faint:var(--fg);--_line:var(--line);--_arrow:var(--accent);--_node-fill:var(--surface);--_node-stroke:transparent;--_group-fill:var(--cs-group-mask);--_group-hdr:var(--cs-control-mask);--_inner-stroke:var(--cs-group-mask);--_key-badge:var(--cs-group-mask); }
+.cs-mermaid-svg text { font-family:system-ui,sans-serif; }
+.cs-mermaid-svg g[role=button] { cursor:pointer; outline:none; }
+.cs-mermaid-svg g[role=button]>:is(rect,polygon,ellipse,circle,path) { transition:fill 150ms ease; }
+.cs-mermaid-svg g[role=button]:hover>:is(rect,polygon,ellipse,circle,path),.cs-mermaid-svg g[data-selected=true]>:is(rect,polygon,ellipse,circle,path) { fill:var(--cs-group-mask); }
+.cs-mermaid-svg g[role=button]:focus-visible>:is(rect,polygon,ellipse,circle,path) { stroke:var(--color-primary); stroke-width:2; }
+.cs-mermaid-svg :is(.edge,.lifeline,.class-relationship,.er-relationship) { opacity:.65; }
+.cs-mermaid-svg [class*=xychart-color-] { fill:var(--color-primary); stroke:var(--color-primary); }
+.cs-mermaid-dialog { width:min(960px,calc(100vw - 32px)); max-width:none; color:var(--color-text-prose); background:var(--color-bg); }
+@media(prefers-reduced-motion:reduce) { .cs-segmented-thumb,.cs-swipe-item,.cs-mermaid-svg * { transition:none!important; } .cs-confetti { display:none; } }
+@media(forced-colors:active) { .cs-radio-option input { appearance:auto; } .cs-segmented button[aria-checked=true] { outline:2px solid Highlight; } }

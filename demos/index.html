@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设计语言 Demo 索引 · cot-genui 渲染升级</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #eceae5; color: #2b2a27; padding: 42px 18px 70px;
+    display: flex; flex-direction: column; align-items: center; gap: 26px;
+  }
+  header { text-align: center; max-width: 620px; display: flex; flex-direction: column; gap: 10px; }
+  h1 { font-size: 21px; letter-spacing: .01em; }
+  p { font-size: 13.5px; line-height: 1.75; color: #6a675f; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(272px, 1fr)); gap: 16px; max-width: 920px; width: 100%; }
+  a.card {
+    display: flex; flex-direction: column; gap: 9px; text-decoration: none;
+    background: #fff; border-radius: 16px; padding: 20px 20px 18px;
+    box-shadow: 0 1px 3px rgba(30,25,15,.08); border: 1px solid #e2dfd8;
+    transition: transform .16s ease, box-shadow .16s ease; color: inherit;
+  }
+  a.card:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(30,25,15,.13); }
+  .no { font: 700 11px/1 ui-monospace, monospace; letter-spacing: .14em; color: #a09a8c; }
+  .nm { font-size: 16.5px; font-weight: 700; }
+  .ds { font-size: 12.5px; line-height: 1.65; color: #6a675f; }
+  .pals { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+  .pal { font-size: 11px; color: #8a867c; border: 1px solid #e2dfd8; border-radius: 999px; padding: 3px 9px; }
+  .sw { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  footer { font-size: 12px; color: #8a867c; max-width: 620px; text-align: center; line-height: 1.8; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>设计语言候选 · 6 种 × 每种 3 套配色</h1>
+    <p>同一份「宇字辈饮料大全」内容、同一个 4:4 正方形画布、同一个自动布局引擎——唯一的变量是视觉语言。
+       每页可切换配色、增加列表行观察引擎自动重排。提炼自 Eleken《Mobile UX Design Examples》的 50+ 案例。</p>
+  </header>
+  <div class="grid">
+    <a class="card" href="editorial.html">
+      <span class="no">01</span>
+      <span class="nm">编辑杂志 Editorial</span>
+      <span class="ds">衬线展示字 · 字距小标 · 发丝线 · 编号索引 · 单一实色强调。纸材质,圆角≈0。参照 Zara / Apple News。</span>
+      <span class="pals">
+        <span class="pal"><i class="sw" style="background:#B23A2C"></i>宣纸朱砂</span>
+        <span class="pal"><i class="sw" style="background:#1D4ED8"></i>冷刊钴蓝</span>
+        <span class="pal"><i class="sw" style="background:#3E6B4A"></i>暖沙墨绿</span>
+      </span>
+    </a>
+    <a class="card" href="soft.html">
+      <span class="no">02</span>
+      <span class="nm">柔和氛围 Soft Ambient</span>
+      <span class="ds">低饱和底色 · 大圆角卡片 · 软弥散阴影 · 胶囊控件 · 轻柔入场。奶油材质。参照 Headspace / Calm / Fabulous。</span>
+      <span class="pals">
+        <span class="pal"><i class="sw" style="background:#F2976B"></i>奶油蜜桃</span>
+        <span class="pal"><i class="sw" style="background:#3FA47C"></i>薄荷奶白</span>
+        <span class="pal"><i class="sw" style="background:#8B7BD8"></i>云朵丁香</span>
+      </span>
+    </a>
+    <a class="card" href="precision.html">
+      <span class="no">03</span>
+      <span class="nm">精密数据 Precision</span>
+      <span class="ds">细边框面板 · 等宽数字 · 微型大写标签 · 刻度进度 · 密网格。石墨/铝材质。参照 Revolut / Linear / Robinhood。</span>
+      <span class="pals">
+        <span class="pal"><i class="sw" style="background:#2563EB"></i>石墨电光蓝</span>
+        <span class="pal"><i class="sw" style="background:#0E9F6E"></i>冷白祖母绿</span>
+        <span class="pal"><i class="sw" style="background:#F5A623"></i>炭黑琥珀</span>
+      </span>
+    </a>
+    <a class="card" href="playful.html">
+      <span class="no">04</span>
+      <span class="nm">玩趣块状 Playful Chunky</span>
+      <span class="ds">粗墨描边 · 硬偏移阴影 · 糖果色 · 贴纸旋转 · 按压位移。积木/贴纸材质。参照 Duolingo / Telegram / Venmo。</span>
+      <span class="pals">
+        <span class="pal"><i class="sw" style="background:#FFE45E"></i>柠檬黄墨线</span>
+        <span class="pal"><i class="sw" style="background:#FF5C8A"></i>糖果粉天蓝</span>
+        <span class="pal"><i class="sw" style="background:#58CC02"></i>草地绿橙</span>
+      </span>
+    </a>
+    <a class="card" href="dark.html">
+      <span class="no">05</span>
+      <span class="nm">暗夜沉浸 Immersive Dark</span>
+      <span class="ds">深色画布 · 玻璃面板 · 霓虹发光强调 · 媒体优先。唯一允许光效渐变的语言。参照 Netflix / Spotify / TikTok。</span>
+      <span class="pals">
+        <span class="pal"><i class="sw" style="background:#22D3EE"></i>午夜霓虹青</span>
+        <span class="pal"><i class="sw" style="background:#E879F9"></i>炭紫品红</span>
+        <span class="pal"><i class="sw" style="background:#A3E635"></i>墨绿酸黄</span>
+      </span>
+    </a>
+    <a class="card" href="minimal.html">
+      <span class="no">06</span>
+      <span class="nm">无感极简 Invisible Minimal</span>
+      <span class="ds">无描边无装饰 · 发丝分隔 · 大留白 · 仅一处颜色 · 层级靠字重与间距。参照 Apple / Waze / Uber 的"invisible UX"。</span>
+      <span class="pals">
+        <span class="pal"><i class="sw" style="background:#0071E3"></i>纯白雾蓝</span>
+        <span class="pal"><i class="sw" style="background:#B4532A"></i>暖纸赭石</span>
+        <span class="pal"><i class="sw" style="background:#0A84FF"></i>石墨冰蓝</span>
+      </span>
+    </a>
+  </div>
+  <footer>所有页面共用一个「自动布局引擎」:组件尺寸由画布边长、同类组件数量、文本长度、父子上下文推导,
+    并整体缩放直到装满 4:4 正方形——模型永远不输出尺寸。<br>
+    <a href="/" style="color:#8a867c">← 返回应用</a></footer>
+</body>
+</html>

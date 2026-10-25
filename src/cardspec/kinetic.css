@@ -1,0 +1,51 @@
+/* Whole-card composition; component data and hit targets remain untouched. */
+.cs-stage[data-material-version='2'][data-visual-style] {container-type:inline-size}
+.cs-stage[data-composition]:not([data-composition=legacy]) .cs-card {
+ background:linear-gradient(140deg,color-mix(in srgb,var(--cs-surface-solid) 78%,transparent),color-mix(in srgb,var(--cs-surface-solid) 94%,transparent));
+ border-radius:var(--cs-control-radius);isolation:isolate;
+}
+.cs-stage[data-composition]:not([data-composition=legacy]) .cs-card :is(.cs-title,.cs-text,.cs-caption),
+.cs-stage[data-composition]:not([data-composition=legacy]) .cs-card > strong {background:transparent;padding:0;box-shadow:none}
+.cs-stage[data-composition]:not([data-composition=legacy]) .cs-card :is(.cs-region-body,.cs-stat,.cs-slide,.cs-collection,.cs-experience,.cs-field,.cs-chips,.cs-clock,.cs-table-pan,.cs-magazine,.cs-logic-panel,.cs-sandbox) {background:transparent;box-shadow:none}
+.cs-stage[data-composition]:not([data-composition=legacy]) .cs-card [data-surface=soft] {background:color-mix(in srgb,var(--cs-accent) 7%,transparent);box-shadow:none}
+.cs-stage[data-composition]:not([data-composition=legacy]) [data-visual-primary] {position:relative;background:var(--cs-sheen),color-mix(in srgb,var(--cs-accent) 5%,var(--cs-surface-solid));border-radius:var(--cs-control-radius);box-shadow:0 9px 24px #0002,inset 0 1px #ffffff16}
+.cs-stage[data-composition]:not([data-composition=legacy]) .cs-card > [data-compose-role=heading] {font-size:clamp(20px,6cqw,28px);line-height:1.12;letter-spacing:-.035em}
+.cs-stage[data-card-size=square][data-composition]:not([data-composition=legacy]) .cs-card > [data-compose-role=heading] {font-size:clamp(19px,5.6cqw,24px);line-height:1.1}
+.cs-stage[data-card-size=square][data-composition]:not([data-composition=legacy]) .cs-diagram header {padding:2px 4px;font-size:12px}
+.cs-stage[data-card-size=auto][data-composition]:not([data-composition=legacy]) .cs-card > .cs-region[data-role=content] > .cs-region-body {max-height:440px;overflow:auto}
+.cs-stage[data-design=pearl][data-composition=visual] .cs-card {background:linear-gradient(180deg,#102b3730 0,#15303b66 60px,#0a202adc 160px,#0a202aee)}
+.cs-stage[data-design=pearl] .cs-host-effect {width:40%;height:29%;right:-2%;top:-6%;opacity:.9}
+.cs-stage[data-card-size=square][data-composition]:not([data-composition=legacy]) .cs-chart-pan svg {height:clamp(72px,calc(40cqw - 60px),124px)}
+.cs-stage[data-card-size=square][data-composition]:not([data-composition=legacy]) .cs-chart > strong {margin-bottom:2px}
+.cs-stage[data-card-size=square][data-composition]:not([data-composition=legacy]) .cs-chart-labels button {flex-direction:row;justify-content:center;gap:6px;min-height:36px}
+.cs-stage[data-card-size=square][data-composition]:not([data-composition=legacy]) .cs-card > [data-compose-role=subject]:has(.cs-diagram) {flex:1;display:flex;flex-direction:column;justify-content:center}
+.cs-stage[data-card-size=square][data-composition]:not([data-composition=legacy]) .cs-collection {gap:6px}
+.cs-stage[data-card-size=square][data-composition]:not([data-composition=legacy]) .compact .cs-collection-item {padding:6px 8px;gap:8px}
+.cs-stage[data-card-size=square][data-composition]:not([data-composition=legacy]) .compact :is(.cs-collection-mark,.cs-collection-item img) {width:34px;height:42px;border-radius:5px}
+.cs-stage[data-card-size=square][data-composition]:not([data-composition=legacy]) .cs-collection-facts {gap:2px 8px;margin-top:3px;font-size:12px}
+.cs-stage[data-card-size=square][data-composition]:not([data-composition=legacy]) .cs-collection-facts span {flex-direction:row;gap:4px;align-items:baseline}
+.cs-stage[data-material-version='2'][data-design=atlas] .cs-card [data-visual-primary] {--cs-reading-mask:#292534;--cs-panel-mask:#292534;--cs-control-mask:#3d344c;--cs-selected-mask:#d9f7ac;--cs-selected-ink:#202819}
+.cs-stage[data-design=atlas][data-composition=visual] [data-visual-primary]:is(.cs-chart,.cs-diagram,.cs-heatmap,.cs-mermaid) {
+ --cs-ink:#f4eefc;--cs-muted:#cec5e1;--cs-accent:#dacaff;--cs-surface-solid:#252332;--cs-field-mask:#393447;--cs-selected-mask:#d9f7ac;--cs-selected-ink:#202819;
+ --color-text-prose:#f4eefc;--color-text-default:#f4eefc;--color-text-secondary:#cec5e1;--color-primary:#dacaff;
+ color:var(--cs-ink);background:radial-gradient(ellipse at 70% 20%,#57457455,transparent 75%),#22212c;
+ padding:8px;box-shadow:0 12px 24px #21192d20;
+}
+.cs-stage[data-design=atlas] [data-visual-primary] .cs-diagram-node {color:var(--cs-ink);background:#3b344c}
+.cs-stage[data-design=atlas] [data-visual-primary] .cs-diagram-node[data-selected=true] {color:#202819;background:#d9f7ac}
+.cs-stage[data-design=rebel] .cs-card > [data-compose-role=heading] {font-style:italic;text-transform:uppercase;text-shadow:2px 2px #0006}
+.cs-stage[data-design=rebel] .cs-card .cs-button[data-variant=primary] {box-shadow:3px 3px 0 #f43355;border-radius:2px}
+.cs-stage[data-design=rebel] [data-visual-primary] {background:radial-gradient(circle,#ffffff0b 1px,transparent 1.5px) 0 0/7px 7px,#211821}
+.cs-stage[data-design=rebel] .cs-background::after {content:'';position:absolute;inset:0;background:radial-gradient(circle,#0005 1px,transparent 1.5px) 0 0/6px 6px;pointer-events:none}
+.cs-host-effect {position:absolute;right:-7%;top:-3%;width:65%;height:64%;max-height:300px;pointer-events:none;opacity:.65;contain:strict}
+.cs-stage[data-card-size=square] .cs-host-effect {width:60%;height:60%;opacity:.5}
+.cs-stage[data-material-version='2'][data-design=pearl] .cs-host-effect {width:40%;height:29%;right:-2%;top:-6%;opacity:.95}
+.cs-stage[data-design=atlas] .cs-host-effect {opacity:.45}
+.cs-stage[data-design=rebel] .cs-card {background:linear-gradient(130deg,#21171bdd,#24171af2)}
+.cs-diagram-edge path {transition:stroke-width var(--cs-motion-duration,280ms),opacity var(--cs-motion-duration,280ms)}
+.cs-heatmap button {transition:background-color var(--cs-motion-duration,280ms),box-shadow var(--cs-motion-duration,280ms);font-variant-numeric:tabular-nums}
+.cs-heatmap button[aria-pressed=true] {box-shadow:inset 0 0 0 2px var(--cs-accent)}
+.cs-progressive-list {min-height:0;min-width:0}
+.cs-progressive-list > nav {justify-content:space-between;flex-wrap:wrap;font-size:12px}
+@media(prefers-reduced-transparency:reduce){.cs-stage[data-composition]:not([data-composition=legacy]) .cs-card{background:var(--cs-surface-solid)}}
+@media(forced-colors:active){.cs-host-effect{display:none}.cs-stage[data-composition]:not([data-composition=legacy]) .cs-card,.cs-stage[data-composition] [data-visual-primary]{background:Canvas!important;color:CanvasText!important}.cs-stage[data-design=rebel] .cs-background::after{display:none}}

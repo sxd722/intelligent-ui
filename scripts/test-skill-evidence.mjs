@@ -1,0 +1,11 @@
+import fs from 'node:fs/promises';import assert from 'node:assert/strict';
+import {check} from '../.trae/skills/interactive-card-baseline/scripts/check-evidence.mjs';
+const dir='artifacts/trae-skill-round2/evidence-validator-test';await fs.mkdir(dir,{recursive:true});
+await fs.writeFile(dir+'/proof.txt','Synthetic validator fixture, NOT browser evidence.');
+const ids=['host-input','core-loop','restore','invalid-state','empty-partial','stale-cancel','local-recovery'];
+const x={caseId:'fixture',artifactHash:'test',hostHash:'test',testVersion:'functional-v2',mode:'fixture',status:'candidate',checks:ids.map(id=>({id,status:'not_tested',reason:'validator fixture'})),layouts:[320,360,432].flatMap(width=>['square','auto'].map(size=>({width,size,screenshot:'proof.txt',mainVisiblePx:200,horizontalOverflow:false,primaryReachable:true})))};
+const file=dir+'/record.json';await fs.writeFile(file,JSON.stringify(x));assert.equal((await check(file)).recordComplete,true);
+x.checks[0]={id:'host-input',status:'pass'};await fs.writeFile(file,JSON.stringify(x));assert.equal((await check(file)).recordComplete,false);
+x.checks[0]={id:'host-input',status:'pass',action:'x',expected:'y',actual:'y',evidence:['missing.png']};await fs.writeFile(file,JSON.stringify(x));assert.equal((await check(file)).recordComplete,false);
+x.checks[0].evidence=['proof.txt'];x.status='accepted';await fs.writeFile(file,JSON.stringify(x));assert.equal((await check(file)).recordComplete,false);
+console.log('4 evidence validation checks passed; not browser acceptance.');

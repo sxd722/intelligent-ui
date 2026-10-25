@@ -1,0 +1,1 @@
+{"name":"cardspec-workbench","displayName":"CardSpec Workbench Bridge","publisher":"local-cardspec","version":"0.1.0","engines":{"vscode":"^1.98.0"},"main":"./extension.cjs","activationEvents":["onStartupFinished"],"description":"Runs explicitly submitted local CardSpec workbench tasks using Trae's selected model."}

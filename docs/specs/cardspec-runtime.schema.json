@@ -1,0 +1,5302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CardSpec v1 compiled runtime — structural schema",
+  "description": "Documentation/export schema, not the production validator or model output format. Expressions, references, component values and semantics require compileCard and validateRichContent.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "cardId",
+    "revision",
+    "context",
+    "theme",
+    "palette",
+    "data",
+    "state",
+    "derived",
+    "bindings",
+    "actions",
+    "children"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "cardId": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "integer"
+    },
+    "context": {
+      "type": "object"
+    },
+    "theme": {
+      "enum": [
+        "editorial",
+        "soft",
+        "precision",
+        "playful",
+        "dark",
+        "minimal"
+      ]
+    },
+    "palette": {
+      "enum": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "design": {
+      "type": "string"
+    },
+    "composition": {
+      "enum": [
+        "auto",
+        "focus",
+        "stage",
+        "menu",
+        "flow"
+      ]
+    },
+    "visualStyle": {
+      "enum": [
+        "photo-glass",
+        "tinted-glass",
+        "liquid-glass",
+        "frosted-glass",
+        "smoked-glass"
+      ]
+    },
+    "actionMode": {
+      "enum": [
+        "snapshot",
+        "sequential"
+      ]
+    },
+    "intro": {
+      "type": "string"
+    },
+    "outro": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/expression"
+      }
+    },
+    "derived": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/expression"
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "type",
+          "initial"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "number",
+              "string",
+              "boolean",
+              "array",
+              "record"
+            ]
+          },
+          "initial": {
+            "$ref": "#/$defs/expression"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "tool",
+          "input",
+          "initial",
+          "load",
+          "refresh",
+          "requires"
+        ],
+        "properties": {
+          "tool": {
+            "type": "string"
+          },
+          "input": {
+            "$ref": "#/$defs/expression"
+          },
+          "initial": {
+            "$ref": "#/$defs/expression"
+          },
+          "load": {
+            "enum": [
+              "manual",
+              "visible"
+            ]
+          },
+          "refresh": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 30,
+                "maximum": 86400
+              }
+            ]
+          },
+          "requires": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 16,
+        "items": {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "set",
+                "toggle",
+                "increment",
+                "append",
+                "update",
+                "remove",
+                "invoke"
+              ]
+            },
+            "target": {
+              "type": "string"
+            },
+            "key": {
+              "$ref": "#/$defs/expression"
+            },
+            "value": {
+              "$ref": "#/$defs/expression"
+            },
+            "when": {
+              "$ref": "#/$defs/expression"
+            },
+            "input": {
+              "$ref": "#/$defs/expression"
+            },
+            "binding": {
+              "type": "string"
+            },
+            "onSuccess": {
+              "type": "string"
+            },
+            "onError": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "children": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "expression": {
+      "description": "Compiler expression AST. This shape schema intentionally leaves AST internals open; use compileCard for expression/semantic validation.",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "node": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "value"
+          ],
+          "properties": {
+            "type": {
+              "const": "run"
+            },
+            "value": {
+              "$ref": "#/$defs/expression"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "experience"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "preset": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: explore|compare|planner|simulator"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "items": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "fields": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "facets": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "groupBy": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "titleKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "visual": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: list|map"
+                },
+                "multiple": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "selectedIds": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "maxSelected": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: number"
+                },
+                "partial": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "onSelect": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "onApply": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "applyLabel": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "map"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "items": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "selectedId": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "onSelect": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "sandbox"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "brief": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "source": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "input": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: object"
+                },
+                "initial": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: object"
+                },
+                "actions": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: object"
+                },
+                "height": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: number"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "collection"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "items": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "titleKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "presentation": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: compact|gallery|timeline|poster|folio|spread"
+                },
+                "revealed": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "timeKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "subtitleKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "fields": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "groupBy": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "partial": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "selectedId": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "detailMode": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: inline|external"
+                },
+                "onSelect": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "logic"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "initial": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: object"
+                },
+                "input": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: object"
+                },
+                "source": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "tickMs": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: number"
+                },
+                "reactive": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "actions": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: object"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "countdown"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "target": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "expiredLabel": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "copy"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "value": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "heatmap"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "rows": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "columns": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "values": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "selectedRow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "selectedColumn": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "onSelect": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "clock"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "timeZone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "format": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: HH:mm|HH:mm:ss"
+                },
+                "showDate": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "slot"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "region"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "space": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: tight|normal|loose"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|stretch|baseline"
+                },
+                "justify": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|between"
+                },
+                "wrap": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "role": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: summary|content|actions"
+                },
+                "overflow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scroll|paginate|details"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "resetKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "navigation": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: auto|external"
+                },
+                "presentation": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|magazine"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "stack"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "space": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: tight|normal|loose"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|stretch|baseline"
+                },
+                "justify": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|between"
+                },
+                "wrap": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "box"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "space": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: tight|normal|loose"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|stretch|baseline"
+                },
+                "justify": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|between"
+                },
+                "wrap": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "row"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "space": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: tight|normal|loose"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|stretch|baseline"
+                },
+                "justify": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|between"
+                },
+                "wrap": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "grid"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "space": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: tight|normal|loose"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|stretch|baseline"
+                },
+                "justify": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|between"
+                },
+                "wrap": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "columns": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: columns"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "grid-item"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "space": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: tight|normal|loose"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|stretch|baseline"
+                },
+                "justify": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|between"
+                },
+                "wrap": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "span": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: columns"
+                },
+                "rowSpan": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: columns"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "title"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "text"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "clamp": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: lines"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "caption"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "strong"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "emphasis"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "code"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "value": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "block": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "language": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "math"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "value": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "block": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "badge"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "icon"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "name": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "divider"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "spacer"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "button"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "onPress": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                },
+                "variant": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: primary|secondary|quiet"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "pressable"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "onPress": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                },
+                "space": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: tight|normal|loose"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|stretch|baseline"
+                },
+                "justify": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|between"
+                },
+                "wrap": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "selected": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "input"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "value": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "placeholder": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "inputType": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: text|number|date|time|datetime-local"
+                },
+                "onChange": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "textarea"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "value": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "placeholder": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "onChange": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "checkbox"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "checked": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "onChange": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "toggle"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "checked": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "onChange": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "chips"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "space": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: tight|normal|loose"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|stretch|baseline"
+                },
+                "justify": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|between"
+                },
+                "wrap": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "chip"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "onPress": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                },
+                "selected": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "segmented"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "value": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "options": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "onChange": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "select"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "value": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "options": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "onChange": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "radio-group"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "value": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "options": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "onChange": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "table"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "columns": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "rows": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "selectedId": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "onSelect": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "popover"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "open": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "onOpenChange": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "swipe-stack"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "items": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "index": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: number"
+                },
+                "onSwipe": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "leftLabel": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "rightLabel": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "confetti"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "trigger": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "mermaid"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "source": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "selectedId": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "detailMode": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: inline|external"
+                },
+                "onSelect": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "progress"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "value": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: number"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "stats"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "columns": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: columns"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "stat"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "value": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "list"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "space": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: tight|normal|loose"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "list-item"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "space": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: tight|normal|loose"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|stretch|baseline"
+                },
+                "justify": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|between"
+                },
+                "wrap": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "onPress": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "carousel"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "index": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: number"
+                },
+                "onIndexChange": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                },
+                "navigation": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: auto|external"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "carousel-item"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "space": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: tight|normal|loose"
+                },
+                "align": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|stretch|baseline"
+                },
+                "justify": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: start|center|end|between"
+                },
+                "wrap": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "navigation"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "target": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "slider"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "value": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: number"
+                },
+                "min": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: number"
+                },
+                "max": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: number"
+                },
+                "step": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: number"
+                },
+                "unit": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "onChange": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "mindmap"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "nodes": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "selectedId": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "direction": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: horizontal|vertical"
+                },
+                "detailMode": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: inline|external"
+                },
+                "onSelect": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "flowchart"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "nodes": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "edges": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "selectedId": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "direction": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: horizontal|vertical"
+                },
+                "detailMode": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: inline|external"
+                },
+                "onSelect": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "chart"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "kind": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: bar|line|stacked|proportion|comparison"
+                },
+                "data": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "scaleMax": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: number"
+                },
+                "unit": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "selectedId": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "onSelect": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "image"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "query": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "assetRef": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "alt": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "mediaRole": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: hero|thumbnail|gallery"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "link"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "url": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "calendar"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "month": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "selectedDate": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "markedDates": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "onSelect": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "onMonthChange": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: action"
+                },
+                "args": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: json"
+                },
+                "label": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: string"
+                },
+                "navigation": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: auto|external"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "maxItems": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "each"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "items": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: array"
+                },
+                "as": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "itemKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "props",
+            "children"
+          ],
+          "properties": {
+            "type": {
+              "const": "if"
+            },
+            "id": {
+              "type": "string"
+            },
+            "props": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: id"
+                },
+                "priority": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: required|supporting|decorative"
+                },
+                "size": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: small|normal|large"
+                },
+                "tone": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: default|muted|success|warning|danger|info"
+                },
+                "visible": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "grow": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                },
+                "motion": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: none|fade|slide|emphasis"
+                },
+                "motionKey": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: scalar"
+                },
+                "surface": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: plain|soft|outlined|bare"
+                },
+                "test": {
+                  "$ref": "#/$defs/expression",
+                  "description": "Evaluated type: boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    }
+  }
+}

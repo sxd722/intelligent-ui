@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test'
+export default defineConfig({testDir:'tests/browser',testMatch:['composition-v2.spec.mjs'],timeout:60000,workers:1,outputDir:'artifacts/composition-v2/trace',reporter:[['list'],['json',{outputFile:'artifacts/composition-v2/browser-results.json'}]],use:{baseURL:'http://127.0.0.1:8787',viewport:{width:1100,height:1000},trace:'on',screenshot:'only-on-failure',launchOptions:{channel:'chrome'}}})

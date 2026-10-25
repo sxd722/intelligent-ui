@@ -1,0 +1,96 @@
+/* ============================================================
+   04 · 玩趣块状 Playful Chunky — Duolingo / Telegram / Venmo
+   新粗野主义的软化为玩具感:粗墨描边、硬偏移阴影、糖果色、
+   贴纸旋转、按压位移。材质:积木/贴纸。
+   ============================================================ */
+.stage[data-theme="playful"] {
+  --bg: #FFE45E; --panel: #FFFEFA; --ink: #17130B; --sec: #6E6650;
+  --accent: #17130B; --accent-ink: #FFFEFA; --pop: #FF6B6B; --stripe: rgba(23, 19, 11, .07);
+  background:
+    repeating-linear-gradient(-45deg, var(--stripe) 0 12px, transparent 12px 24px),
+    var(--bg);
+  color: var(--ink);
+  font-family: ui-rounded, 'Arial Rounded MT Bold', 'Hiragino Maru Gothic ProN',
+    'Microsoft YaHei', system-ui, sans-serif;
+}
+.stage[data-theme="playful"][data-palette="b"] { /* 糖果 Candy */
+  --bg: #FFE9F1; --panel: #FFFEFC; --ink: #241A20; --sec: #8A7480;
+  --accent: #FF5C8A; --accent-ink: #FFFFFF; --pop: #4DA3FF; --stripe: rgba(255, 92, 138, .09);
+}
+.stage[data-theme="playful"][data-palette="c"] { /* 草地 Meadow */
+  --bg: #D9F2C4; --panel: #FDFEF8; --ink: #17240E; --sec: #6D7A5E;
+  --accent: #58CC02; --accent-ink: #FFFFFF; --pop: #FF9600; --stripe: rgba(88, 204, 2, .1);
+}
+
+.stage[data-theme="playful"] .k { font-weight: 800; letter-spacing: .12em; color: var(--ink); opacity: .65; }
+.stage[data-theme="playful"] .ttl {
+  display: inline-block; font-weight: 800; letter-spacing: .01em;
+  background: var(--panel); border: 2.5px solid var(--ink); border-radius: 10px;
+  padding: .08em .28em .1em; transform: rotate(-1.2deg);
+  box-shadow: 3px 3px 0 var(--ink);
+  width: fit-content; max-width: 100%;
+}
+.stage[data-theme="playful"] .seal {
+  background: var(--pop); color: #fff; border: 2.5px solid var(--ink); border-radius: 50%;
+  box-shadow: 3px 3px 0 var(--ink);
+  min-width: calc(var(--u-kick) * 4.4); aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font-size: var(--u-kick); font-weight: 800; line-height: 1.35;
+  transform: rotate(6deg);
+}
+.stage[data-theme="playful"] .seal.pulse { animation: pl-stamp .45s cubic-bezier(.2,.8,.2,1); }
+@keyframes pl-stamp { 40% { transform: rotate(-4deg) scale(1.16); } }
+
+.stage[data-theme="playful"] .car-item {
+  background: var(--panel); border: 2.5px solid var(--ink); border-radius: 14px;
+  padding: calc(var(--u-gap) * .75); box-shadow: 4px 4px 0 var(--ink);
+}
+.stage[data-theme="playful"] .ph {
+  border: 2px solid var(--ink); border-radius: 10px;
+  background: repeating-linear-gradient(-45deg, var(--stripe) 0 10px, transparent 10px 20px), var(--panel);
+}
+.stage[data-theme="playful"] .car-note { color: var(--sec); font-weight: 600; }
+.stage[data-theme="playful"] .car-rate { color: var(--ink); font-weight: 800; }
+
+.stage[data-theme="playful"] .chip {
+  background: var(--panel); border: 2.5px solid var(--ink); border-radius: 999px;
+  font-weight: 800; color: var(--ink);
+  box-shadow: 2.5px 2.5px 0 var(--ink);
+  transition: all .1s ease;
+}
+.stage[data-theme="playful"] .chip:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+.stage[data-theme="playful"] .chip.on { background: var(--accent); color: var(--accent-ink); }
+
+.stage[data-theme="playful"] .radio {
+  border: 2.5px solid var(--ink); border-radius: 999px; overflow: hidden;
+  background: var(--panel); box-shadow: 3px 3px 0 var(--ink);
+}
+.stage[data-theme="playful"] .opt { border-left: 2px dashed var(--stripe); font-weight: 700; color: var(--sec); line-height: calc(var(--u-radio-h) - 5px); }
+.stage[data-theme="playful"] .opt:first-child { border-left: 0; }
+.stage[data-theme="playful"] .opt.on { background: var(--accent); color: var(--accent-ink); }
+
+.stage[data-theme="playful"] .item {
+  background: var(--panel); border: 2px solid var(--ink); border-radius: 12px;
+  padding: calc(var(--u-gap) * .7); box-shadow: 3px 3px 0 var(--ink);
+}
+.stage[data-theme="playful"] .thumb { border: 2px solid var(--ink); border-radius: 10px;
+  background: repeating-linear-gradient(-45deg, var(--stripe) 0 8px, transparent 8px 16px), var(--panel); }
+.stage[data-theme="playful"] .tag { background: var(--pop); color: #fff; border-radius: 6px; padding: 2px 7px; font-weight: 800; }
+.stage[data-theme="playful"] .dot { border: 1.5px solid var(--ink); background: var(--panel); }
+.stage[data-theme="playful"] .dot.on { background: var(--accent); border-color: var(--ink); }
+
+.stage[data-theme="playful"] .bar { background: var(--panel); border: 2px solid var(--ink); border-radius: 999px; }
+.stage[data-theme="playful"] .bar-fill {
+  background: repeating-linear-gradient(45deg, var(--accent) 0 8px, color-mix(in srgb, var(--accent) 72%, white) 8px 16px);
+  border-radius: 999px;
+}
+.stage[data-theme="playful"] .prog-num { font-weight: 800; }
+.stage[data-theme="playful"] .btn {
+  background: var(--accent); color: var(--accent-ink); border: 2.5px solid var(--ink);
+  border-radius: 999px; font-weight: 800;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.stage[data-theme="playful"] .btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+.stage[data-theme="playful"] .car-dots { color: var(--ink); }
+.stage[data-theme="playful"] .car-dots i { width: 7px; height: 7px; border: 1.5px solid var(--ink); background: var(--panel); }
+.stage[data-theme="playful"] .car-dots i.on { background: var(--ink); }

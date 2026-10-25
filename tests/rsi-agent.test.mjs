@@ -1,0 +1,7 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {AGENT_CASES,agentCase,agentTrack} from '../shared/rsi-agent.mjs'
+import {validateFeedback,trainingReadiness} from '../server/rsi-records.mjs'
+test('agent task identifiers separate existing workbench and regression cases',()=>{assert.equal(AGENT_CASES.length,30);assert.equal(new Set(AGENT_CASES.map(x=>x.id)).size,30);assert.throws(()=>agentCase('../secret'));assert.throws(()=>agentTrack('api-fake'))})
+test('feedback cannot attach to regenerated source or another route',()=>{const a={caseId:'x',track:'trae-cardspec',artifactHash:'abc'};assert.throws(()=>validateFeedback({...a,artifactHash:'old'},a));assert.throws(()=>validateFeedback({...a,track:'trae-html'},a));assert.equal(validateFeedback({...a,'视觉表达':'5'},a).trainingEligible,false)})
+test('compile and agent tests never automatically become training approval',()=>{const a={artifactHash:'abc',status:'compiled'},q={artifactHash:'abc',results:[320,360,432].flatMap(width=>['square','auto'].map(size=>({width,size,passed:true})))};assert.equal(trainingReadiness(a,q,{}).eligible,false);assert.equal(trainingReadiness(a,q,{artifactHash:'abc',reviewer:'agent',approved:true,factsVerified:true,taskComplete:true}).eligible,false);assert.equal(trainingReadiness(a,q,{artifactHash:'abc',reviewer:'human',approved:true,factsVerified:true,taskComplete:true}).eligible,true);q.artifactHash='old';assert.equal(trainingReadiness(a,q,{artifactHash:'abc',reviewer:'human',approved:true,factsVerified:true,taskComplete:true}).eligible,false)})

@@ -1,0 +1,93 @@
+/* ============================================================
+   01 · 编辑杂志 Editorial — Zara / Apple News
+   杂志编辑排版:衬线展示字、字距拉开的小标、发丝线、编号索引、
+   唯一实色强调。材质:纸。圆角≈0,无阴影。
+   ============================================================ */
+.stage[data-theme="editorial"] {
+  --bg: #F4EEDF; --panel: #FBF7EC; --ink: #221C11; --sec: #77705E;
+  --accent: #B23A2C; --accent-ink: #FBF7EC; --line: rgba(34, 28, 17, .24);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', Georgia, serif;
+}
+.stage[data-theme="editorial"][data-palette="b"] { /* 冷刊 Cobalt */
+  --bg: #F1F2F4; --panel: #FFFFFF; --ink: #11151A; --sec: #6B7280;
+  --accent: #1D4ED8; --accent-ink: #FFFFFF; --line: rgba(17, 21, 26, .2);
+}
+.stage[data-theme="editorial"][data-palette="c"] { /* 暖沙 Viridian */
+  --bg: #EFE7D6; --panel: #F8F3E7; --ink: #232012; --sec: #75705B;
+  --accent: #3E6B4A; --accent-ink: #F8F3E7; --line: rgba(35, 32, 18, .22);
+}
+
+.stage[data-theme="editorial"] .card { padding-bottom: calc(var(--u-pad) * .8); }
+
+/* header: kicker + serif display + double rule */
+.stage[data-theme="editorial"] .k {
+  font-family: system-ui, sans-serif; letter-spacing: .22em;
+  color: var(--sec); font-weight: 600;
+}
+.stage[data-theme="editorial"] .ttl { font-weight: 700; letter-spacing: .02em; }
+.stage[data-theme="editorial"] .hd { padding-bottom: calc(var(--u-gap) * .7); border-bottom: 1px solid var(--ink); position: relative; }
+.stage[data-theme="editorial"] .hd::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -4px; height: 1px; background: var(--line);
+}
+.stage[data-theme="editorial"] .seal {
+  background: var(--accent); color: var(--accent-ink);
+  border: 1px solid var(--ink);
+  padding: calc(var(--u-kick) * .6) calc(var(--u-kick) * .8);
+  font-size: var(--u-kick); line-height: 1.45; text-align: center;
+  font-weight: 700; transform: rotate(-2deg);
+}
+.stage[data-theme="editorial"] .seal.pulse { animation: ed-stamp .4s ease; }
+@keyframes ed-stamp { 40% { transform: rotate(-6deg) scale(1.12); } }
+
+/* figures */
+.stage[data-theme="editorial"] .ph {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  background-image: repeating-linear-gradient(45deg, var(--line) 0 1px, transparent 1px 7px);
+  background-size: 100% 100%;
+}
+.stage[data-theme="editorial"] .car-name { font-weight: 600; }
+.stage[data-theme="editorial"] .car-note { color: var(--sec); font-style: italic; }
+.stage[data-theme="editorial"] .car-rate { color: var(--accent); font-weight: 600; }
+
+/* chips = magazine section tabs */
+.stage[data-theme="editorial"] .chip {
+  color: var(--sec); letter-spacing: .1em; font-weight: 500;
+  border-bottom: 2px solid transparent; border-radius: 0; padding-bottom: 4px;
+}
+.stage[data-theme="editorial"] .chip.on { color: var(--ink); border-bottom-color: var(--accent); }
+
+.stage[data-theme="editorial"] .radio { border: 1px solid var(--ink); }
+.stage[data-theme="editorial"] .opt { color: var(--sec); border-left: 1px solid var(--line); line-height: calc(var(--u-radio-h) - 2px); }
+.stage[data-theme="editorial"] .opt:first-child { border-left: 0; }
+.stage[data-theme="editorial"] .opt.on { background: var(--ink); color: var(--bg); font-weight: 600; }
+
+/* list: numbered index rows */
+.stage[data-theme="editorial"] .item { border-top: 1px solid var(--line); padding-top: calc(var(--u-gap) * .8); }
+.stage[data-theme="editorial"] .item:first-child { border-top: 0; padding-top: 0; }
+.stage[data-theme="editorial"] .item { counter-increment: idx; position: relative; padding-left: calc(var(--u-kick) * 2.2); }
+.stage[data-theme="editorial"] .item::before {
+  content: counter(idx, decimal-leading-zero);
+  position: absolute; left: 0; top: calc(var(--u-gap) * .8);
+  font-size: var(--u-kick); color: var(--accent); font-weight: 700; letter-spacing: .05em;
+}
+.stage[data-theme="editorial"] .item:first-child::before { top: 0; }
+.stage[data-theme="editorial"] .thumb { border: 1px solid var(--line); background: var(--panel); }
+.stage[data-theme="editorial"] .tag {
+  border: 1px solid var(--line); color: var(--sec); padding: 1px 6px;
+  font-family: system-ui, sans-serif; letter-spacing: .06em;
+}
+.stage[data-theme="editorial"] .dot { border: 1px solid var(--ink); width: calc(var(--u-dot) - 1px); height: calc(var(--u-dot) - 1px); }
+.stage[data-theme="editorial"] .dot.on { background: var(--accent); border-color: var(--accent); }
+
+.stage[data-theme="editorial"] .bar { background: var(--line); }
+.stage[data-theme="editorial"] .bar-fill { background: var(--accent); }
+.stage[data-theme="editorial"] .prog-num { font-variant-numeric: tabular-nums; color: var(--sec); }
+.stage[data-theme="editorial"] .btn {
+  background: var(--ink); color: var(--bg); border-radius: 0;
+  font-family: system-ui, sans-serif; letter-spacing: .14em; font-weight: 600;
+}
+.stage[data-theme="editorial"] .car-dots { color: var(--ink); }
+.stage[data-theme="editorial"] .car-dots i.on { background: var(--accent); }

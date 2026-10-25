@@ -1,0 +1,1 @@
+可先依据工具契约布局，用card_test(source,steps)在无网络mock中调试。steps用click/fill/select/reload和返回的handle或准确控件name，默认只测normal；空/失败场景自动单独检查。测试稿可用后单独调用card_commit(version)提交原稿，不再抄写源码；未测试时仍可直接输出完整CardSpec。DEBUG_SAMPLE/DEBUG_MOCK不是事实，禁止写进源码；不要删除功能规避错误。

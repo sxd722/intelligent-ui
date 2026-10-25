@@ -1,0 +1,36 @@
+.cs-experience{display:flex;flex-direction:column;gap:8px;min-height:224px;min-width:0;max-height:650px;flex:1}
+.cs-experience header,.cs-experience footer,.cs-experience footer nav{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none}
+.cs-experience header small{font-size:11px;opacity:.7}
+/* Keep a usable interaction viewport. Outer layout may scroll as a fallback;
+   compressing the map/results to a thin strip falsely looks like a fit. */
+.cs-experience-body{min-height:100px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:2px}
+.cs-experience-tabs,.cs-experience-facets{display:flex;gap:5px;overflow-x:auto;flex:none;padding:2px}
+.cs-experience button,.cs-point-map button{font:inherit;color:inherit;border:0;border-radius:12px;padding:8px 10px;background:color-mix(in srgb,currentColor 8%,transparent);cursor:pointer}
+.cs-experience button:focus-visible,.cs-point-map button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.cs-experience-tabs button,.cs-experience-facets button{white-space:nowrap;font-size:12px;min-height:36px}
+.cs-experience [aria-pressed=true],.cs-point-map [aria-pressed=true]{background:color-mix(in srgb,var(--cs-accent,#47818e) 28%,transparent)}
+.cs-experience-results{display:grid;gap:7px}
+.cs-experience .cs-experience-item{display:grid;grid-template-columns:42px minmax(0,1fr);gap:9px;text-align:left;padding:9px}
+.cs-experience-item img,.cs-experience-monogram{width:42px;height:54px;border-radius:9px;object-fit:cover;background:color-mix(in srgb,currentColor 9%,transparent);display:grid;place-items:center}
+.cs-experience-item strong{font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cs-experience-item small{font-size:11px;opacity:.8;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-experience-item>span{min-width:0}
+.cs-experience pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}
+.cs-experience-detail,.cs-experience-sources details{padding:8px;background:color-mix(in srgb,currentColor 4%,transparent);border-radius:10px}
+.cs-experience-bars{display:grid;gap:4px}
+.cs-experience-bars button{display:grid;grid-template-columns:70px minmax(0,1fr) 24px;align-items:center;text-align:left;font-size:12px}
+.cs-experience-bars meter{width:100%;height:14px}
+.cs-point-map{min-width:0}
+.cs-point-map-canvas{position:relative;min-height:150px;border-radius:14px;background:linear-gradient(30deg,#649b9b1c,#99ab8233);overflow:hidden}
+.cs-point-map-canvas>button{position:absolute;transform:translate(-50%,-50%);max-width:110px;font-size:11px;background:color-mix(in srgb,var(--cs-bg,#fff) 85%,transparent);box-shadow:0 3px 12px #0002}
+.cs-point-map-north{position:absolute;top:8px;right:10px;font-size:11px}
+.cs-point-map small{font-size:10px;opacity:.7}
+.cs-experience footer button:disabled{opacity:.35;cursor:default}
+@media(prefers-reduced-motion:no-preference){.cs-experience-item{transition:background .16s ease,transform .16s ease}.cs-experience-item:active{transform:scale(.99)}}
+
+.cs-card>.cs-experience{flex:1 1 0;min-height:224px}
+.cs-stage[data-card-size=auto] .cs-experience{flex:none;height:560px;max-height:650px}
+
+.cs-experience .cs-point-map-canvas{min-height:100px;height:130px}
+.cs-point-map-canvas>button{width:36px;height:36px;padding:0;border-radius:50%;font-weight:700}
+.cs-stage[data-card-size=auto] .cs-experience .cs-point-map-canvas{height:220px}

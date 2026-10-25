@@ -1,0 +1,63 @@
+/* ============================================================
+   06 · 无感极简 Invisible Minimal — Apple / Waze / Uber
+   克制到近乎消失:无描边、无装饰、发丝分隔、大量留白、
+   仅一处颜色。材质:空气/玻璃。层级靠字重与间距。
+   ============================================================ */
+.stage[data-theme="minimal"] {
+  --bg: #FFFFFF; --fill: #F4F4F6; --ink: #1D1D1F; --sec: #86868B;
+  --accent: #0071E3; --accent-ink: #FFFFFF; --hair: rgba(0, 0, 0, .08);
+  background: var(--bg); color: var(--ink);
+  font-family: -apple-system, 'SF Pro Text', 'Segoe UI', system-ui,
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+.stage[data-theme="minimal"][data-palette="b"] { /* 暖纸 Warm */
+  --bg: #FAF9F7; --fill: #F0EEE9; --ink: #26221C; --sec: #97907F;
+  --accent: #B4532A; --accent-ink: #FFF9F4; --hair: rgba(38, 34, 28, .09);
+}
+.stage[data-theme="minimal"][data-palette="c"] { /* 石墨 Graphite */
+  --bg: #1D1D1F; --fill: #2C2C2E; --ink: #F5F5F7; --sec: #98989D;
+  --accent: #0A84FF; --accent-ink: #FFFFFF; --hair: rgba(255, 255, 255, .12);
+}
+
+.stage[data-theme="minimal"] .k { color: var(--sec); font-weight: 500; letter-spacing: .04em; }
+.stage[data-theme="minimal"] .ttl { font-weight: 600; letter-spacing: -.022em; }
+.stage[data-theme="minimal"] .seal {
+  color: var(--sec); font-size: var(--u-kick); font-weight: 500;
+  border: 1px solid var(--hair); border-radius: 999px;
+  padding: calc(var(--u-kick) * .55) calc(var(--u-kick) * 1.2); line-height: 1.5;
+  white-space: nowrap; text-align: center;
+}
+.stage[data-theme="minimal"] .seal.pulse { animation: mn-fade .4s ease; }
+@keyframes mn-fade { 40% { color: var(--accent); border-color: var(--accent); } }
+
+.stage[data-theme="minimal"] .car-item { gap: 8px; }
+.stage[data-theme="minimal"] .ph { background: var(--fill); border-radius: 14px; }
+.stage[data-theme="minimal"] .car-note { color: var(--sec); }
+.stage[data-theme="minimal"] .car-rate { color: var(--sec); font-weight: 500; }
+
+.stage[data-theme="minimal"] .chips { gap: calc(var(--u-chip-gap) * .5); }
+.stage[data-theme="minimal"] .chip {
+  border-radius: 999px; color: var(--sec); font-weight: 500; padding-inline: calc(var(--u-chip-px) * .9);
+}
+.stage[data-theme="minimal"] .chip.on { background: var(--fill); color: var(--ink); }
+
+.stage[data-theme="minimal"] .radio { background: var(--fill); border-radius: 12px; padding: 3px; }
+.stage[data-theme="minimal"] .opt { border-radius: 9px; color: var(--sec); font-weight: 500; line-height: calc(var(--u-radio-h) - 6px); }
+.stage[data-theme="minimal"] .opt.on { background: var(--bg); color: var(--ink); box-shadow: 0 1px 4px rgba(0, 0, 0, .1); }
+
+.stage[data-theme="minimal"] .item { gap: calc(var(--u-gap) * 1.15); }
+.stage[data-theme="minimal"] .thumb { background: var(--fill); border-radius: 12px; }
+.stage[data-theme="minimal"] .tag { color: var(--sec); }
+.stage[data-theme="minimal"] .dot { background: var(--hair); }
+.stage[data-theme="minimal"] .dot.on { background: var(--ink); }
+
+.stage[data-theme="minimal"] .bar { background: var(--fill); border-radius: 999px; }
+.stage[data-theme="minimal"] .bar-fill { background: var(--accent); border-radius: 999px; }
+.stage[data-theme="minimal"] .prog-label { color: var(--sec); }
+.stage[data-theme="minimal"] .prog-num { color: var(--ink); font-variant-numeric: tabular-nums; }
+.stage[data-theme="minimal"] .btn {
+  background: var(--accent); color: var(--accent-ink); border-radius: 999px; font-weight: 590;
+}
+.stage[data-theme="minimal"] .btn:active { transform: scale(.97); opacity: .88; }
+.stage[data-theme="minimal"] .car-dots { color: var(--ink); }
+.stage[data-theme="minimal"] .car-dots i.on { background: var(--ink); }

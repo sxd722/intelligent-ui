@@ -1,0 +1,16 @@
+.cs-page-dots{display:flex!important;align-items:center;justify-content:center!important;gap:0!important;min-height:44px;touch-action:pan-y;background:transparent!important;box-shadow:none!important;padding:0!important}
+.cs-page-dots button{display:grid;place-items:center;flex:none;width:32px;min-width:32px;min-height:44px!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;color:inherit!important;border-radius:8px}
+.cs-page-dots button i{display:block;width:6px;height:6px;border-radius:6px;background:currentColor;opacity:.3;transition:width .2s,opacity .2s}
+.cs-page-dots button[aria-current=page] i{width:18px;opacity:.9}
+.cs-page-dots button:hover i{opacity:.7}.cs-page-dots button:focus-visible{outline:2px solid currentColor;outline-offset:-4px}
+.cs-page-dots .cs-page-announcement{position:absolute!important;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.cs-composition-middle{touch-action:pan-y}
+.cs-composition-item:not(:has(.cs-carousel,.cs-swipe-deck,.cs-diagram,.cs-mermaid,.cs-table-pan,table,iframe,canvas)),.cs-tool-card :is(.cs-title,.cs-text,.cs-caption,.cs-stat):not(.cs-carousel *,.cs-swipe-deck *,.cs-diagram *,.cs-mermaid *,.cs-table-pan *,table *){touch-action:pan-y}
+@media(prefers-reduced-motion:reduce){.cs-page-dots button i{transition:none}}
+
+.cs-page-viewport{overflow:clip;position:relative;isolation:isolate}
+.cs-page-viewport>div{min-width:0;width:100%}
+.cs-external-pages:empty{display:none}
+.cs-external-pages .cs-composition-pages{position:static;height:44px;background:transparent;inset:auto}
+.cs-composition-middle{overflow:clip}
+.cs-deck>.cs-page-dots,.cs-tool-card>.cs-page-dots,.cs-external-pages{color:inherit;flex-shrink:0}

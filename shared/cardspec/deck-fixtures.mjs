@@ -1,0 +1,7 @@
+import {compileCard} from './compiler.mjs'
+const rows=Array.from({length:20},(_,i)=>({id:'train'+i,title:'示例班次 '+(i+1),时段:i<10?'上午':'下午',出发:`${8+Math.floor(i/2)}:${i%2?'30':'00'}`,耗时:`${40+i}分钟`,余票:i%3?'有票':'无票'}))
+export const COLLECTION_FIXTURE=`<card><state id="choice" type="string" initial="未选择"/><data id="rows" value={${JSON.stringify(rows)}}/><collection label="示例班次" items={data.rows} fields={["出发","耗时","余票"]} groupBy="时段" presentation="timeline" onSelect="pick"/><caption>{state.choice}</caption><action id="pick"><set target="choice" value={event.item.title}/></action></card>`
+const FORM='<card><title>选择偏好</title><state id="note" type="string" initial=""/><input label="出行备注" value={state.note} onChange="edit"/><action id="edit"><set target="note" value={event.value}/></action></card>'
+export const DECK_FIXTURES={collection:COLLECTION_FIXTURE,deck:FORM}
+export function fixtureDeck(){return [{id:'deck-main',title:'偏好',status:'ready',spec:{...compileCard(FORM,{final:true,cardId:'deck-main'}).spec,generationPlan:{followups:['解释当前偏好','比较其他出行偏好']}}},{id:'deck-results',title:'班次候选',status:'ready',spec:compileCard(COLLECTION_FIXTURE,{final:true,cardId:'deck-results'}).spec},{id:'deck-failed',title:'独立失败示例',goal:'模拟恢复卡片',status:'error',error:'测试用来源不可用；其余卡片保持可用。'}]}
+export async function fixtureTransport(){return {kind:'page',spec:compileCard('<card><title>后续页面</title><text>独立生成成功；返回后备注和选择应保留。</text></card>',{final:true,cardId:'fixture-generated'}).spec,resources:{}}}

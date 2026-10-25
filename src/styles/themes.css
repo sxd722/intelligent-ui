@@ -1,0 +1,909 @@
+/* ==================================================================
+   Design-language themes for generated cards.
+   A card renders inside .dil-stage[data-theme][data-data-palette]; each
+   language re-maps the SAME DIL token names (--color-*, --radius-*,
+   --shadow-card, fonts) that dil.css consumes, then adds a few
+   component-family overrides for its signature shapes.
+   The model only ever picks language+palette names — never values.
+   ================================================================== */
+
+/* ---------------- shared stage chrome ---------------- */
+.dil-stage {
+  position: relative;
+  width: min(432px, 100%);
+  aspect-ratio: 1 / 1;
+  margin-inline: auto;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--color-bg);
+  box-shadow: 0 10px 34px rgba(25, 20, 12, 0.16), 0 2px 8px rgba(25, 20, 12, 0.1);
+}
+.dil-stage .dil-card {
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto; /* engine squeezes first; whatever remains scrolls inside the square */
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+/* structural guarantee: a card is vertical. If the model makes its ROOT a
+   horizontal row, everything would squeeze into side-by-side columns —
+   normalize the root-level direction to column. */
+.dil-card > [data-d-component='row'],
+.dil-card > [data-d-component='box'][data-d-direction='row'] {
+  flex-direction: column !important;
+}
+.dil-stage .dil-card::-webkit-scrollbar {
+  display: none;
+}
+.dil-stage .dil-card [data-d-component='box'][data-d-direction='col']:not([data-d-auto-spacing]) {
+  /* explicit-gap columns still shrink their children when the engine squeezes */
+  min-height: 0;
+}
+/* engine measurement pass: freeze flex shrink so natural height is measurable */
+.dil-stage.al-measuring .dil-card * {
+  flex-shrink: 0 !important;
+  overflow: visible !important;
+}
+.dil-stage.al-measuring .dil-card {
+  overflow: visible !important;
+}
+/* content taller than the square gets a bottom fade (toggled by the engine) */
+.dil-stage.al-scroll::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34px;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--color-bg) 92%, transparent));
+  pointer-events: none;
+  z-index: 2;
+}
+.dil-theme-tag {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 3;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.14);
+  color: inherit;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+/* ================================================================
+   01 · editorial 编辑杂志 — 衬线展示字 / 发丝线 / 编号 / 纸
+   ================================================================ */
+.dil-stage[data-theme='editorial'] {
+  color-scheme: light;
+  --color-bg: #f4eedf;
+  --color-surface: #fbf7ec;
+  --color-surface-secondary: #f1ead8;
+  --color-surface-tertiary: #eae2cc;
+  --color-surface-elevated: #fbf7ec;
+  --color-surface-inverse: #221c11;
+  --color-border: rgba(34, 28, 17, 0.3);
+  --color-border-subtle: rgba(34, 28, 17, 0.16);
+  --color-text-default: #221c11;
+  --color-text-prose: #2a2416;
+  --color-text-secondary: #77705e;
+  --color-text-tertiary: #9b9480;
+  --color-text-emphasis: #171208;
+  --color-primary: #b23a2c;
+  --color-primary-contrast: #fbf7ec;
+  --color-secondary-btn-bg: #fbf7ec;
+  --color-success: #3e6b4a;
+  --color-success-soft: rgba(62, 107, 74, 0.14);
+  --color-danger: #a33227;
+  --color-danger-soft: rgba(163, 50, 39, 0.12);
+  --color-warning: #96682a;
+  --color-warning-soft: rgba(150, 104, 42, 0.14);
+  --color-info: #35558c;
+  --color-info-soft: rgba(53, 85, 140, 0.12);
+  --color-accent: #b23a2c;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 2px;
+  --radius-3xl: 2px;
+  --shadow-card: 0 0 0 1px var(--color-border-subtle);
+  --dil-display: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', Georgia, serif;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.13 0 0 0 0 0.11 0 0 0 0 0.06 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.dil-stage[data-theme='editorial'][data-palette='b'] {
+  --color-bg: #f1f2f4; --color-surface: #ffffff; --color-surface-secondary: #e9ebee;
+  --color-surface-tertiary: #dfe3e9; --color-surface-elevated: #ffffff; --color-surface-inverse: #11151a;
+  --color-border: rgba(17, 21, 26, 0.3); --color-border-subtle: rgba(17, 21, 26, 0.16);
+  --color-text-default: #11151a; --color-text-prose: #181d24; --color-text-secondary: #6b7280;
+  --color-text-tertiary: #9aa1ab; --color-text-emphasis: #0a0d11;
+  --color-primary: #1d4ed8; --color-primary-contrast: #ffffff; --color-accent: #1d4ed8;
+  --color-info: #1d4ed8; --color-info-soft: rgba(29, 78, 216, 0.1);
+}
+.dil-stage[data-theme='editorial'][data-palette='c'] {
+  --color-bg: #efe7d6; --color-surface: #f8f3e7; --color-surface-secondary: #eee6d1;
+  --color-surface-tertiary: #e4dbc2; --color-surface-elevated: #f8f3e7; --color-surface-inverse: #232012;
+  --color-border: rgba(35, 32, 18, 0.3); --color-border-subtle: rgba(35, 32, 18, 0.16);
+  --color-text-default: #232012; --color-text-prose: #2a2718; --color-text-secondary: #75705b;
+  --color-text-tertiary: #9a947e; --color-text-emphasis: #191608;
+  --color-primary: #3e6b4a; --color-primary-contrast: #f8f3e7; --color-accent: #3e6b4a;
+  --color-success: #3e6b4a; --color-success-soft: rgba(62, 107, 74, 0.14);
+}
+
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='title'] {
+  font-family: var(--dil-display);
+  font-weight: 700;
+  letter-spacing: 0.015em;
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='badge'] {
+  border-radius: 2px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  font-family: var(--dil-display);
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='badge'][data-d-color='primary'],
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='badge']:first-child {
+  background: var(--color-accent);
+  color: var(--color-primary-contrast);
+  border-color: var(--color-accent);
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='button'] {
+  border-radius: 0;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='divider'] {
+  background: none;
+  height: 0;
+  border-top: 1px dashed var(--color-border);
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='input'],
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='textarea'] {
+  border-radius: 0;
+  background: var(--color-surface);
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='checkbox'] {
+  border-radius: 2px;
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='checkbox'][data-state='checked'] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='progress'] {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='progress'] > div {
+  border-radius: 0;
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='image'] {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='chip'] {
+  background: none;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.08em;
+  padding-inline: 2px;
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='chip'][data-selected] {
+  background: none;
+  color: var(--color-text-emphasis);
+  border-bottom-color: var(--color-accent);
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='radio'] {
+  background: none;
+  border: 1px solid var(--color-border);
+  padding: 0;
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='radio-option'] {
+  border-left: 1px solid var(--color-border-subtle);
+  border-radius: 0;
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='radio-option']:first-child {
+  border-left: 0;
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='radio-option'][data-selected] {
+  background: var(--color-surface-inverse);
+  color: var(--color-bg);
+  box-shadow: none;
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='carousel-item'] {
+  counter-increment: edv;
+}
+.dil-stage[data-theme='editorial'] .dil-card [data-d-component='carousel'] {
+  counter-reset: edv;
+}
+
+/* ================================================================
+   02 · soft 柔和氛围 — 大圆角 / 软弥散阴影 / 低饱和 / 胶囊
+   ================================================================ */
+.dil-stage[data-theme='soft'] {
+  color-scheme: light;
+  --color-bg: #fff6ee;
+  --color-surface: #ffffff;
+  --color-surface-secondary: #fdf0e4;
+  --color-surface-tertiary: #fbe3d2;
+  --color-surface-elevated: #ffffff;
+  --color-surface-inverse: #4a3b32;
+  --color-border: rgba(196, 116, 74, 0.25);
+  --color-border-subtle: rgba(196, 116, 74, 0.14);
+  --color-text-default: #4a3b32;
+  --color-text-prose: #4a3b32;
+  --color-text-secondary: #a08d7e;
+  --color-text-tertiary: #c2b2a5;
+  --color-text-emphasis: #35271f;
+  --color-primary: #f2976b;
+  --color-primary-contrast: #ffffff;
+  --color-secondary-btn-bg: #ffffff;
+  --color-success: #3fa47c;
+  --color-success-soft: rgba(63, 164, 124, 0.14);
+  --color-danger: #e07856;
+  --color-danger-soft: rgba(224, 120, 86, 0.13);
+  --color-warning: #dfa14e;
+  --color-warning-soft: rgba(223, 161, 78, 0.15);
+  --color-info: #7d94d6;
+  --color-info-soft: rgba(125, 148, 214, 0.13);
+  --color-accent: #f2976b;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 20px;
+  --radius-2xl: 22px;
+  --radius-3xl: 24px;
+  --shadow-card: 0 10px 26px rgba(196, 116, 74, 0.16);
+  --dil-font: ui-rounded, 'Hiragino Maru Gothic ProN', 'Yuanti SC', 'Microsoft YaHei', system-ui, sans-serif;
+  background: radial-gradient(120% 90% at 85% -10%, #fbe3d2 0%, transparent 55%), var(--color-bg);
+  font-family: var(--dil-font);
+}
+.dil-stage[data-theme='soft'][data-palette='b'] {
+  --color-bg: #eff8f2; --color-surface: #ffffff; --color-surface-secondary: #e3f2e9;
+  --color-surface-tertiary: #d9efe3; --color-surface-inverse: #2f4739;
+  --color-border: rgba(45, 130, 95, 0.24); --color-border-subtle: rgba(45, 130, 95, 0.13);
+  --color-text-default: #2f4739; --color-text-prose: #2f4739; --color-text-secondary: #8aa396;
+  --color-text-tertiary: #aec2b6; --color-text-emphasis: #213329;
+  --color-primary: #3fa47c; --color-primary-contrast: #ffffff; --color-accent: #3fa47c;
+  --shadow-card: 0 10px 26px rgba(45, 130, 95, 0.16);
+  background: radial-gradient(120% 90% at 85% -10%, #d9efe3 0%, transparent 55%), var(--color-bg);
+}
+.dil-stage[data-theme='soft'][data-palette='c'] {
+  --color-bg: #f5f1fb; --color-surface: #ffffff; --color-surface-secondary: #ece5f8;
+  --color-surface-tertiary: #e6def8; --color-surface-inverse: #453a5c;
+  --color-border: rgba(120, 104, 196, 0.24); --color-border-subtle: rgba(120, 104, 196, 0.13);
+  --color-text-default: #453a5c; --color-text-prose: #453a5c; --color-text-secondary: #9c93b8;
+  --color-text-tertiary: #bcb4d3; --color-text-emphasis: #332a47;
+  --color-primary: #8b7bd8; --color-primary-contrast: #ffffff; --color-accent: #8b7bd8;
+  --shadow-card: 0 10px 26px rgba(120, 104, 196, 0.18);
+  background: radial-gradient(120% 90% at 85% -10%, #e6def8 0%, transparent 55%), var(--color-bg);
+}
+
+.dil-stage[data-theme='soft'] .dil-card [data-d-component='badge'] {
+  border: 2px solid var(--color-accent);
+  background: var(--color-surface-tertiary);
+  color: var(--color-text-default);
+  font-weight: 700;
+}
+.dil-stage[data-theme='soft'] .dil-card [data-d-component='badge'][data-d-color='success'] {
+  border-color: var(--color-success);
+}
+.dil-stage[data-theme='soft'] .dil-card [data-d-component='button'] {
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+.dil-stage[data-theme='soft'] .dil-card [data-d-component='checkbox'] {
+  border-width: 2px;
+}
+.dil-stage[data-theme='soft'] .dil-card [data-d-component='image'] {
+  border: 0;
+  box-shadow: var(--shadow-card);
+}
+.dil-stage[data-theme='soft'] .dil-card [data-d-component='radio'] {
+  background: var(--color-surface-tertiary);
+  border-radius: var(--radius-full);
+  padding: 4px;
+}
+.dil-stage[data-theme='soft'] .dil-card [data-d-component='radio-option'] {
+  border-radius: var(--radius-full);
+  line-height: calc(var(--u-radio-h, 30px) - 8px);
+}
+.dil-stage[data-theme='soft'] .dil-card [data-d-component='radio-option'][data-selected] {
+  background: var(--color-surface);
+  box-shadow: 0 3px 8px rgba(74, 59, 50, 0.14);
+}
+.dil-stage[data-theme='soft'] .dil-card [data-d-component='chip'] {
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1.5px var(--color-surface-tertiary);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.dil-stage[data-theme='soft'] .dil-card [data-d-component='chip'][data-selected] {
+  background: var(--color-accent);
+  color: var(--color-primary-contrast);
+  box-shadow: none;
+}
+
+/* ================================================================
+   03 · precision 精密数据 — 细边框 / 等宽数字 / 刻度 / 密网格
+   ================================================================ */
+.dil-stage[data-theme='precision'] {
+  color-scheme: light;
+  --color-bg: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-surface-secondary: #eef0f3;
+  --color-surface-tertiary: #e3e6ea;
+  --color-surface-elevated: #ffffff;
+  --color-surface-inverse: #16191d;
+  --color-border: #d9dde3;
+  --color-border-subtle: #e7eaee;
+  --color-text-default: #16191d;
+  --color-text-prose: #1d2126;
+  --color-text-secondary: #7a828c;
+  --color-text-tertiary: #a2a9b2;
+  --color-text-emphasis: #0c0f13;
+  --color-primary: #2563eb;
+  --color-primary-contrast: #ffffff;
+  --color-secondary-btn-bg: #ffffff;
+  --color-success: #0e9f6e;
+  --color-success-soft: rgba(14, 159, 110, 0.12);
+  --color-danger: #dc4c4c;
+  --color-danger-soft: rgba(220, 76, 76, 0.11);
+  --color-warning: #d99113;
+  --color-warning-soft: rgba(217, 145, 19, 0.13);
+  --color-info: #2563eb;
+  --color-info-soft: rgba(37, 99, 235, 0.1);
+  --color-accent: #2563eb;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 9px;
+  --radius-xl: 10px;
+  --radius-2xl: 10px;
+  --radius-3xl: 12px;
+  --shadow-card: 0 0 0 1px var(--color-border);
+  --dil-num: ui-monospace, 'SF Mono', Consolas, monospace;
+  background-image: radial-gradient(#dfe3e9 1px, transparent 1.2px);
+  background-size: 18px 18px;
+}
+.dil-stage[data-theme='precision'][data-palette='b'] {
+  --color-bg: #f3f7f5; --color-surface: #ffffff; --color-surface-secondary: #e9f2ed;
+  --color-surface-tertiary: #dfeae3; --color-border: #d2e0d9; --color-border-subtle: #e4eeE8;
+  --color-text-default: #121815; --color-text-prose: #18201b; --color-text-secondary: #75837b;
+  --color-text-tertiary: #9daba3; --color-text-emphasis: #0b100d;
+  --color-primary: #0e9f6e; --color-primary-contrast: #ffffff; --color-accent: #0e9f6e;
+  --color-success: #0e9f6e; --color-info: #0e9f6e;
+  background-image: radial-gradient(#d2e0d9 1px, transparent 1.2px);
+  background-size: 18px 18px;
+}
+.dil-stage[data-theme='precision'][data-palette='c'] {
+  color-scheme: dark;
+  --color-bg: #14161a;
+  --color-surface: #1d2026;
+  --color-surface-secondary: #23262e;
+  --color-surface-tertiary: #2a2e36;
+  --color-surface-elevated: #1d2026;
+  --color-surface-inverse: #e8eaed;
+  --color-border: #333842;
+  --color-border-subtle: #2a2e36;
+  --color-text-default: #e8eaed;
+  --color-text-prose: #dde0e4;
+  --color-text-secondary: #8b929b;
+  --color-text-tertiary: #646b75;
+  --color-text-emphasis: #ffffff;
+  --color-primary: #f5a623;
+  --color-primary-contrast: #14161a;
+  --color-secondary-btn-bg: #23262e;
+  --color-success: #58c98c;
+  --color-success-soft: rgba(88, 201, 140, 0.14);
+  --color-danger: #e07b7b;
+  --color-danger-soft: rgba(224, 123, 123, 0.13);
+  --color-warning: #f5a623;
+  --color-warning-soft: rgba(245, 166, 35, 0.14);
+  --color-info: #f5a623;
+  --color-info-soft: rgba(245, 166, 35, 0.12);
+  --color-accent: #f5a623;
+  background-image: radial-gradient(#2a2e36 1px, transparent 1.2px);
+  background-size: 18px 18px;
+}
+
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='title'] {
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='caption'] {
+  font-family: var(--dil-num);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='badge'] {
+  border-radius: 5px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-family: var(--dil-num);
+  font-size: calc(0.75rem * var(--font-scale));
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='badge'][data-d-color='success'] {
+  border-color: var(--color-success);
+  color: var(--color-success);
+  background: var(--color-success-soft);
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='text'] {
+  font-variant-numeric: tabular-nums;
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='button'] {
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='progress'] {
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(6.25% - 1px), var(--color-border) calc(6.25% - 1px) 6.25%), var(--color-surface);
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='progress'] > div {
+  border-radius: 2px;
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='rating'] i {
+  border-radius: 2px;
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='divider'] {
+  background: repeating-linear-gradient(90deg, var(--color-border) 0 6px, transparent 6px 11px);
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='chip'] {
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-surface);
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='chip'][data-selected] {
+  background: var(--color-surface-inverse);
+  color: var(--color-bg);
+  border-color: var(--color-surface-inverse);
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='radio'] {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  padding: 0;
+  overflow: hidden;
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='radio-option'] {
+  border-left: 1px solid var(--color-border-subtle);
+  border-radius: 0;
+  line-height: calc(var(--u-radio-h, 30px) - 2px);
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='radio-option']:first-child {
+  border-left: 0;
+}
+.dil-stage[data-theme='precision'] .dil-card [data-d-component='radio-option'][data-selected] {
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+  background: none;
+  color: var(--color-text-emphasis);
+  font-weight: 650;
+}
+
+/* ================================================================
+   04 · playful 玩趣块状 — 粗墨描边 / 硬偏移阴影 / 糖果色 / 贴纸
+   ================================================================ */
+.dil-stage[data-theme='playful'] {
+  color-scheme: light;
+  --color-bg: #ffe45e;
+  --color-surface: #fffefa;
+  --color-surface-secondary: #fdf6d8;
+  --color-surface-tertiary: #f4ecc0;
+  --color-surface-elevated: #fffefa;
+  --color-surface-inverse: #17130b;
+  --color-border: #17130b;
+  --color-border-subtle: rgba(23, 19, 11, 0.22);
+  --color-text-default: #17130b;
+  --color-text-prose: #17130b;
+  --color-text-secondary: #6e6650;
+  --color-text-tertiary: #9d937a;
+  --color-text-emphasis: #17130b;
+  --color-primary: #17130b;
+  --color-primary-contrast: #fffeFa;
+  --color-secondary-btn-bg: #fffeFa;
+  --color-success: #2f9e44;
+  --color-success-soft: rgba(47, 158, 68, 0.16);
+  --color-danger: #e8590c;
+  --color-danger-soft: rgba(232, 89, 12, 0.14);
+  --color-warning: #e8a90c;
+  --color-warning-soft: rgba(232, 169, 12, 0.16);
+  --color-info: #1971c2;
+  --color-info-soft: rgba(25, 113, 194, 0.13);
+  --color-accent: #ff6b6b;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 14px;
+  --radius-3xl: 16px;
+  --shadow-card: 3px 3px 0 var(--color-border);
+  --dil-font: ui-rounded, 'Arial Rounded MT Bold', 'Hiragino Maru Gothic ProN', 'Microsoft YaHei', system-ui, sans-serif;
+  font-family: var(--dil-font);
+  background-image: repeating-linear-gradient(-45deg, rgba(23, 19, 11, 0.05) 0 12px, transparent 12px 24px);
+  background-color: var(--color-bg);
+}
+.dil-stage[data-theme='playful'][data-palette='b'] {
+  --color-bg: #ffe9f1; --color-surface: #fffefc; --color-surface-secondary: #ffdfea;
+  --color-surface-tertiary: #fbd3e0; --color-border: #241a20;
+  --color-text-default: #241a20; --color-text-prose: #241a20; --color-text-secondary: #8a7480;
+  --color-text-tertiary: #b39aa7; --color-text-emphasis: #241a20;
+  --color-primary: #ff5c8a; --color-primary-contrast: #ffffff; --color-accent: #ff5c8a;
+  background-image: repeating-linear-gradient(-45deg, rgba(255, 92, 138, 0.08) 0 12px, transparent 12px 24px);
+}
+.dil-stage[data-theme='playful'][data-palette='c'] {
+  --color-bg: #d9f2c4; --color-surface: #fdfef8; --color-surface-secondary: #edf8dd;
+  --color-surface-tertiary: #dcf0c4; --color-border: #17240e;
+  --color-text-default: #17240e; --color-text-prose: #17240e; --color-text-secondary: #6d7a5e;
+  --color-text-tertiary: #98a588; --color-text-emphasis: #17240e;
+  --color-primary: #58cc02; --color-primary-contrast: #ffffff; --color-accent: #58cc02;
+  background-image: repeating-linear-gradient(-45deg, rgba(88, 204, 2, 0.09) 0 12px, transparent 12px 24px);
+}
+
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='title'] {
+  font-weight: 800;
+  letter-spacing: 0;
+  display: inline-block;
+  background: var(--color-surface);
+  border: 2.5px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0.06em 0.3em 0.1em;
+  transform: rotate(-1.2deg);
+  box-shadow: 3px 3px 0 var(--color-border);
+  width: fit-content;
+  max-width: 100%;
+  align-self: flex-start;
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='badge'] {
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-accent);
+  color: #ffffff;
+  font-weight: 800;
+  transform: rotate(2deg);
+  box-shadow: 2px 2px 0 var(--color-border);
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='badge'][data-d-color='success'] {
+  background: var(--color-success);
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='button'] {
+  border: 2.5px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-weight: 800;
+  box-shadow: 3px 3px 0 var(--color-border);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.12s ease;
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='button']:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--color-border);
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='image'] {
+  border: 2px solid var(--color-border);
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='checkbox'] {
+  border: 2px solid var(--color-border);
+  border-radius: 7px;
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='checkbox'][data-state='checked'] {
+  background: var(--color-success);
+  border-color: var(--color-border);
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='divider'] {
+  background: none;
+  height: 0;
+  border-top: 2px dashed var(--color-border-subtle);
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='progress'] {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='progress'] > div {
+  background: repeating-linear-gradient(45deg, var(--color-success) 0 8px, color-mix(in srgb, var(--color-success) 72%, #ffffff) 8px 16px);
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='chip'] {
+  border: 2.5px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-default);
+  font-weight: 800;
+  box-shadow: 2.5px 2.5px 0 var(--color-border);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='chip']:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--color-border);
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='chip'][data-selected] {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  box-shadow: 2.5px 2.5px 0 var(--color-border);
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='radio'] {
+  border: 2.5px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  box-shadow: 3px 3px 0 var(--color-border);
+  padding: 0;
+  overflow: hidden;
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='radio-option'] {
+  border-left: 2px dashed var(--color-border-subtle);
+  border-radius: 0;
+  font-weight: 700;
+  line-height: calc(var(--u-radio-h, 30px) - 5px);
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='radio-option']:first-child {
+  border-left: 0;
+}
+.dil-stage[data-theme='playful'] .dil-card [data-d-component='radio-option'][data-selected] {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+/* ================================================================
+   05 · dark 暗夜沉浸 — 深色玻璃 / 霓虹发光 / 媒体优先
+   ================================================================ */
+.dil-stage[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg: #0a0f1c;
+  --color-surface: rgba(255, 255, 255, 0.055);
+  --color-surface-secondary: rgba(255, 255, 255, 0.08);
+  --color-surface-tertiary: rgba(255, 255, 255, 0.12);
+  --color-surface-elevated: rgba(255, 255, 255, 0.055);
+  --color-surface-inverse: #f2f5fa;
+  --color-border: rgba(255, 255, 255, 0.13);
+  --color-border-subtle: rgba(255, 255, 255, 0.09);
+  --color-text-default: #f2f5fa;
+  --color-text-prose: #e9edf4;
+  --color-text-secondary: #8e9ab0;
+  --color-text-tertiary: #677183;
+  --color-text-emphasis: #ffffff;
+  --color-primary: #22d3ee;
+  --color-primary-contrast: #06121a;
+  --color-secondary-btn-bg: rgba(255, 255, 255, 0.055);
+  --color-success: #34d399;
+  --color-success-soft: rgba(52, 211, 153, 0.14);
+  --color-danger: #f87171;
+  --color-danger-soft: rgba(248, 113, 113, 0.13);
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgba(251, 191, 36, 0.14);
+  --color-info: #60a5fa;
+  --color-info-soft: rgba(96, 165, 250, 0.13);
+  --color-accent: #22d3ee;
+  --glow: rgba(34, 211, 238, 0.35);
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 16px;
+  --shadow-card: 0 0 0 1px var(--color-border);
+  background:
+    radial-gradient(130% 100% at 20% -10%, #141d33 0%, transparent 60%),
+    radial-gradient(90% 70% at 95% 108%, rgba(34, 211, 238, 0.14) 0%, transparent 55%),
+    var(--color-bg);
+}
+.dil-stage[data-theme='dark'][data-palette='b'] {
+  --color-bg: #100c1b;
+  --color-primary: #e879f9; --color-primary-contrast: #1b0b20; --color-accent: #e879f9;
+  --color-info: #e879f9;
+  --glow: rgba(232, 121, 249, 0.35);
+  background:
+    radial-gradient(130% 100% at 20% -10%, #241a3d 0%, transparent 60%),
+    radial-gradient(90% 70% at 95% 108%, rgba(232, 121, 249, 0.12) 0%, transparent 55%),
+    var(--color-bg);
+}
+.dil-stage[data-theme='dark'][data-palette='c'] {
+  --color-bg: #08120e;
+  --color-primary: #a3e635; --color-primary-contrast: #0d1a08; --color-accent: #a3e635;
+  --color-info: #a3e635;
+  --glow: rgba(163, 230, 53, 0.32);
+  background:
+    radial-gradient(130% 100% at 20% -10%, #123227 0%, transparent 60%),
+    radial-gradient(90% 70% at 95% 108%, rgba(163, 230, 53, 0.1) 0%, transparent 55%),
+    var(--color-bg);
+}
+
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='title'] {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='caption'] {
+  color: var(--color-primary);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='badge'] {
+  background: var(--color-surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-default);
+  box-shadow: 0 0 18px var(--glow);
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='badge'][data-d-color='success'] {
+  color: var(--color-success);
+  background: var(--color-success-soft);
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='button'] {
+  border-radius: var(--radius-full);
+  font-weight: 750;
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='button'][data-d-color='primary'] {
+  box-shadow: 0 4px 20px var(--glow);
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='box'][background] ,
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='image'] {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='progress'] {
+  background: rgba(255, 255, 255, 0.12);
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='progress'] > div {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 55%, transparent), var(--color-accent));
+  box-shadow: 0 0 10px var(--glow);
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='checkbox'][data-state='checked'] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 8px var(--glow);
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='chip'] {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='chip'][data-selected] {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  border-color: transparent;
+  box-shadow: 0 0 14px var(--glow);
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='radio'] {
+  background: var(--color-surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border);
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='radio-option'][data-selected] {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  box-shadow: 0 0 12px var(--glow);
+}
+.dil-stage[data-theme='dark'] .dil-card [data-d-component='rating'] i.on {
+  box-shadow: 0 0 6px var(--glow);
+}
+
+/* ================================================================
+   06 · minimal 无感极简 — 无描边 / 发丝分隔 / 大留白 / 仅一色
+   ================================================================ */
+.dil-stage[data-theme='minimal'] {
+  color-scheme: light;
+  --color-bg: #ffffff;
+  --color-surface: #f7f7f8;
+  --color-surface-secondary: #f4f4f6;
+  --color-surface-tertiary: #f0f0f2;
+  --color-surface-elevated: #ffffff;
+  --color-surface-inverse: #1d1d1f;
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-border-subtle: rgba(0, 0, 0, 0.06);
+  --color-text-default: #1d1d1f;
+  --color-text-prose: #242426;
+  --color-text-secondary: #86868b;
+  --color-text-tertiary: #aeaeb2;
+  --color-text-emphasis: #101012;
+  --color-primary: #0071e3;
+  --color-primary-contrast: #ffffff;
+  --color-secondary-btn-bg: #f4f4f6;
+  --color-success: #34a853;
+  --color-success-soft: rgba(52, 168, 83, 0.12);
+  --color-danger: #ea4335;
+  --color-danger-soft: rgba(234, 67, 53, 0.11);
+  --color-warning: #fbbc04;
+  --color-warning-soft: rgba(251, 188, 4, 0.14);
+  --color-info: #4285f4;
+  --color-info-soft: rgba(66, 133, 244, 0.11);
+  --color-accent: #0071e3;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 16px;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.dil-stage[data-theme='minimal'][data-palette='b'] {
+  --color-bg: #faf9f7; --color-surface: #f3f1ec; --color-surface-secondary: #f0eee9;
+  --color-surface-tertiary: #eae7e0; --color-surface-inverse: #26221c;
+  --color-border: rgba(38, 34, 28, 0.11); --color-border-subtle: rgba(38, 34, 28, 0.07);
+  --color-text-default: #26221c; --color-text-prose: #2c2822; --color-text-secondary: #97907f;
+  --color-text-tertiary: #b5afa2; --color-text-emphasis: #171410;
+  --color-primary: #b4532a; --color-primary-contrast: #fff9f4; --color-accent: #b4532a;
+}
+.dil-stage[data-theme='minimal'][data-palette='c'] {
+  color-scheme: dark;
+  --color-bg: #1d1d1f;
+  --color-surface: #2c2c2e;
+  --color-surface-secondary: #29292b;
+  --color-surface-tertiary: #343436;
+  --color-surface-elevated: #232325;
+  --color-surface-inverse: #f5f5f7;
+  --color-border: rgba(255, 255, 255, 0.14);
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-text-default: #f5f5f7;
+  --color-text-prose: #ececee;
+  --color-text-secondary: #98989d;
+  --color-text-tertiary: #77777c;
+  --color-text-emphasis: #ffffff;
+  --color-primary: #0a84ff;
+  --color-primary-contrast: #ffffff;
+  --color-secondary-btn-bg: #2c2c2e;
+  --color-success: #30d158;
+  --color-success-soft: rgba(48, 209, 88, 0.14);
+  --color-danger: #ff453a;
+  --color-danger-soft: rgba(255, 69, 58, 0.13);
+  --color-warning: #ffd60a;
+  --color-warning-soft: rgba(255, 214, 10, 0.14);
+  --color-info: #64d2ff;
+  --color-info-soft: rgba(100, 210, 255, 0.12);
+  --color-accent: #0a84ff;
+}
+
+.dil-stage[data-theme='minimal'] .dil-card [data-d-component='title'] {
+  font-weight: 600;
+  letter-spacing: -0.022em;
+}
+.dil-stage[data-theme='minimal'] .dil-card [data-d-component='badge'] {
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+.dil-stage[data-theme='minimal'] .dil-card [data-d-component='button'] {
+  border-radius: var(--radius-full);
+  font-weight: 590;
+}
+.dil-stage[data-theme='minimal'] .dil-card [data-d-component='button'][data-d-color='secondary'] {
+  background: var(--color-surface-tertiary);
+  color: var(--color-text-default);
+}
+.dil-stage[data-theme='minimal'] .dil-card [data-d-component='image'] {
+  border: 0;
+}
+.dil-stage[data-theme='minimal'] .dil-card [data-d-component='chip'] {
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+.dil-stage[data-theme='minimal'] .dil-card [data-d-component='chip'][data-selected] {
+  background: var(--color-surface-tertiary);
+  color: var(--color-text-emphasis);
+}
+.dil-stage[data-theme='minimal'] .dil-card [data-d-component='radio'] {
+  background: var(--color-surface-tertiary);
+  padding: 3px;
+}
+.dil-stage[data-theme='minimal'] .dil-card [data-d-component='radio-option'] {
+  border-radius: 9px;
+  line-height: calc(var(--u-radio-h, 30px) - 6px);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+.dil-stage[data-theme='minimal'] .dil-card [data-d-component='radio-option'][data-selected] {
+  background: var(--color-bg);
+  color: var(--color-text-emphasis);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+.dil-stage[data-theme='minimal'] .dil-card [data-d-component='rating'] i.on {
+  background: var(--color-text-default);
+}

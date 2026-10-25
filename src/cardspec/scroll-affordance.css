@@ -1,0 +1,45 @@
+/* Transparent rails, a restrained native thumb, and directional edge fades.
+   The thumb keeps the same geometry while fading: hover never shifts text. */
+.cs-stage [data-scroll-managed=true] {
+  --cs-scroll-thumb:transparent;
+  --cs-scroll-top:0px; --cs-scroll-bottom:0px;
+  --cs-scroll-left:0px; --cs-scroll-right:0px;
+  scrollbar-width:thin;
+  scrollbar-color:var(--cs-scroll-thumb) transparent;
+  scrollbar-gutter:auto;
+  transition:scrollbar-color 180ms ease;
+}
+.cs-stage [data-scroll-managed=true][data-scroll-active=true],
+.cs-stage [data-scroll-managed=true]:focus-within {
+  --cs-scroll-thumb:color-mix(in srgb,var(--color-text-prose) 38%,transparent);
+}
+@media(hover:hover) {
+  .cs-stage [data-scroll-managed=true]:hover {
+    --cs-scroll-thumb:color-mix(in srgb,var(--color-text-prose) 26%,transparent);
+  }
+  .cs-stage [data-scroll-managed=true][data-scroll-active=true]:hover {
+    --cs-scroll-thumb:color-mix(in srgb,var(--color-text-prose) 48%,transparent);
+  }
+}
+.cs-stage [data-scroll-managed=true]::-webkit-scrollbar { width:6px; height:6px; background:transparent; }
+.cs-stage [data-scroll-managed=true]::-webkit-scrollbar-track,
+.cs-stage [data-scroll-managed=true]::-webkit-scrollbar-corner { background:transparent; }
+.cs-stage [data-scroll-managed=true]::-webkit-scrollbar-thumb { background:var(--cs-scroll-thumb); border-radius:999px; }
+.cs-stage [data-scroll-top-more=true] { --cs-scroll-top:10px; }
+.cs-stage [data-scroll-bottom-more=true] { --cs-scroll-bottom:14px; }
+.cs-stage [data-scroll-left-more=true] { --cs-scroll-left:10px; }
+.cs-stage [data-scroll-right-more=true] { --cs-scroll-right:14px; }
+/* Only edges with undisplayed content fade. At the end, the last line stays
+   fully opaque. Masks have no hit targets and cannot eat taps or selection. */
+.cs-stage [data-scroll-managed=true]:is([data-scroll-y=true],[data-scroll-x=true]):not(.cs-card):not(dialog):not(.cs-popover) {
+  -webkit-mask-image:linear-gradient(to bottom,transparent,#000 var(--cs-scroll-top),#000 calc(100% - var(--cs-scroll-bottom)),transparent),linear-gradient(to right,transparent,#000 var(--cs-scroll-left),#000 calc(100% - var(--cs-scroll-right)),transparent);
+  mask-image:linear-gradient(to bottom,transparent,#000 var(--cs-scroll-top),#000 calc(100% - var(--cs-scroll-bottom)),transparent),linear-gradient(to right,transparent,#000 var(--cs-scroll-left),#000 calc(100% - var(--cs-scroll-right)),transparent);
+  -webkit-mask-composite:source-in;
+  mask-composite:intersect;
+}
+@media(prefers-reduced-motion:reduce) {
+  .cs-stage [data-scroll-managed=true] { transition:none; }
+}
+@media(forced-colors:active) {
+  .cs-stage [data-scroll-managed=true] { scrollbar-color:auto; scrollbar-width:auto; mask-image:none!important; -webkit-mask-image:none!important; }
+}

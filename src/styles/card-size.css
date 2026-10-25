@@ -1,0 +1,19 @@
+.card-size-control{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.card-size-control select{font:inherit;color:inherit;border:0;background:transparent;min-height:28px}
+.dil-stage[data-card-size=auto],.cs-result-card[data-card-size=auto]{aspect-ratio:auto;height:auto;max-height:none}
+.dil-stage[data-card-size=auto] .cs-card,.dil-stage[data-card-size=auto] .dil-card{height:auto;max-height:none;overflow:visible}
+.dil-stage[data-card-size=auto] .cs-region{flex:0 0 auto;max-height:none}
+.dil-stage[data-card-size=auto] .cs-region>.cs-region-body{flex:0 0 auto;height:auto;max-height:none;overflow:visible}
+.dil-stage[data-card-size=auto] .cs-card[data-emergency=true]{overflow:visible}
+.cs-result-card[data-card-size=auto]>.cs-result-scroll{flex:0 0 auto;max-height:none;overflow:visible}
+.dil-stage[data-card-size=auto].al-scroll::after{display:none}
+/* Width remains stable; only the vertical budget changes. Empty streaming
+   cards still need room for their thinking indicator. */
+.dil-stage[data-card-size=auto][data-streaming=true]{min-height:160px}
+/* Natural content may grow to one phone-sized reading screen, never forever.
+   svh keeps the budget stable when Safari's address bar expands/collapses. */
+.dil-stage[data-card-size=auto],.cs-result-card[data-card-size=auto]{--cs-natural-max:min(780px,calc(100svh - 24px));max-height:var(--cs-natural-max);overflow:hidden}
+.dil-stage[data-card-size=auto]>.cs-card,.dil-stage[data-card-size=auto]>.dil-card{flex:1 1 auto;min-height:0;max-height:var(--cs-natural-max);overflow:auto}
+.cs-stage[data-card-size=auto]>.cs-host-controls{flex:0 1 auto;max-height:45%;overflow:auto}
+.cs-result-card[data-card-size=auto]>.cs-result-scroll{flex:1 1 auto;min-height:0;overflow:auto}
+.card-focus--open .dil-stage[data-card-size=auto]{--cs-natural-max:min(780px,calc(100svh - 100px))}

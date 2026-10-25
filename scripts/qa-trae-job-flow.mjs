@@ -1,0 +1,14 @@
+if(!process.argv.includes('--live'))throw Error('This test starts a real Trae task. Pass --live explicitly.');
+import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+const browser=await chromium.launch({channel:'chrome'}),page=await browser.newPage({viewport:{width:1200,height:1000}}),base='http://127.0.0.1:8787';
+await page.goto(base+'/agent-workbench.html?case=reg-01-counter&track=trae-cardspec');await page.getByTestId('artifact-ready').waitFor();
+await page.getByRole('button',{name:'加五',exact:true}).click();await page.getByText('计数为 5',{exact:true}).waitFor();await page.getByRole('textbox',{name:'备注',exact:true}).fill('独立验收：返工后的备注');await page.getByRole('button',{name:'归零',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'备注',exact:true}).inputValue(),'独立验收：返工后的备注');
+await page.getByRole('combobox',{name:'产物版本'}).selectOption('954f0b34d40906c23aae17c2baa6c3a4a701788aa9e5cd0cc9c7d9ae636bbd65');assert.equal(await page.getByRole('button',{name:'加五',exact:true}).count(),0);
+await page.getByRole('combobox',{name:'产物版本'}).selectOption('');await page.getByRole('button',{name:'加五',exact:true}).waitFor();
+await page.screenshot({path:'artifacts/rsi-agent/one-click-completed.png',fullPage:true});
+console.log('PASS: new button, note preservation, immutable old/new version preview');
+await page.goto('https://device.tailnet.ts.net/agent-workbench.html?case=reg-01-counter&track=trae-cardspec');await page.getByText('● Trae 桥接已连接').waitFor();console.log('PASS: tailnet task service and preview');
+await page.goto(base+'/agent-workbench.html?case=reg-01-counter&track=trae-html');await page.getByText('● Trae 桥接已连接').waitFor();await page.getByRole('button',{name:'让 Trae 开始制作',exact:true}).click();await page.waitForTimeout(3000);console.log(await page.locator('.agent-job-panel').innerText());
+await writeFile('artifacts/rsi-agent/one-click-independent.json',JSON.stringify({at:new Date().toISOString(),checks:['counter add-five','note preserved','old version unchanged','new version restored','tailnet bridge ready'],passed:true},null,2));await browser.close();

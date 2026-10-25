@@ -1,0 +1,70 @@
+[
+  {
+    "path": "shared/cardspec/registry.mjs",
+    "sha256": "989e0adf4585745f3c8c808b3d21d534f7be89bd2abcbf7d41a0e8c0acbc2409"
+  },
+  {
+    "path": "shared/cardspec/contracts.mjs",
+    "sha256": "c90f7560b22fcf0222aa1cc3eafccd941f024b1ebf6a947c6b4340be5391c7b3"
+  },
+  {
+    "path": "shared/cardspec/compiler.mjs",
+    "sha256": "7a726649135619cfed8261ada162a5606b9088381dd3ae25573e511ac5fe6483"
+  },
+  {
+    "path": "shared/cardspec/javascript-expression.mjs",
+    "sha256": "70a4c71523e934ac66abaddbe5a0e185f540d3ae97ba5bd9eac979a08815dfa4"
+  },
+  {
+    "path": "shared/cardspec/sandbox-policy.mjs",
+    "sha256": "a8de66b58cda5e83973c45119119358c3b5274784493b633386aa651350824fe"
+  },
+  {
+    "path": "shared/cardspec/logic-contract.mjs",
+    "sha256": "4bc40220bddd1d38fb270a6a56afe7f629c0647a90df52793d675adae32dcc5f"
+  },
+  {
+    "path": "server/cardspec/generation.mjs",
+    "sha256": "cebd501c7cd9c73364d3de5f4d48c0e406f52765effb5cbe3bdb7b339328518d"
+  },
+  {
+    "path": "server/cardspec/handler.mjs",
+    "sha256": "797f79c9ec1d65aa4fb3d6057f6127ec25524b681465c04d6c30cbfca9beb3ca"
+  },
+  {
+    "path": "server/cardspec/prompt.mjs",
+    "sha256": "41ffdb4b7047b764e95501bca68c57f0b48e1053c033c700e6b44478e38788db"
+  },
+  {
+    "path": "server/cardspec/compact-prompt.mjs",
+    "sha256": "e1cd6dec0f224ed0c86a02c40d849e6df6bb72eeb93a0f54eee886adb1c5056f"
+  },
+  {
+    "path": "server/cardspec/language-core.mjs",
+    "sha256": "7e2597dabac41e510a356b9ba709c85797244dc0f998b7b236270aeff644e975"
+  },
+  {
+    "path": "server/cardspec/budget.mjs",
+    "sha256": "12082e7d0172b4f84332efe5c8fe1c6cbc9b0d9bc311a4d34f5c6f3959156271"
+  },
+  {
+    "path": "server/cardspec/experience.mjs",
+    "sha256": "76f0ad6a0f8dab7742c88e4024498f5b0d33a21c22bf1965edabac8edd11cb3d"
+  },
+  {
+    "path": "server/cardspec/sandbox.mjs",
+    "sha256": "c0f5ad4b5d6109eab5f5c93c16d9841d8bc528c75e065224285463d208fefed1"
+  },
+  {
+    "path": "server/cardspec/generation-tools.mjs",
+    "sha256": "01957474546be333d03609614d5f4b8185f355f7dc53513ef5a201a2cf9b537b"
+  },
+  {
+    "path": "server/research/session.mjs",
+    "sha256": "91c0c14b22618e0094c0dccdb928727bc05aa76a5ec2f741cd53e9e4e852cf7e"
+  },
+  {
+    "path": "server/cardspec/model-analysis.mjs",
+    "sha256": "087e2ef3bf564490ce56aa2adc59d06a33c52ae225d660b2831fc96f0e5525ac"
+  }
+]

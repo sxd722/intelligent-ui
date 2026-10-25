@@ -1,0 +1,150 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "web_search",
+      "description": "按需搜索事实资料，返回来源ID、链接和摘要；具体断言应继续阅读原文。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "domain": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "可选，优先官网域名，例如 nasa.gov"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "web_read",
+      "description": "读取公开网页正文，可指定需要核实的关键词；返回可引用的来源ID。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "focus": {
+            "type": "string",
+            "maxLength": 200
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "card_test",
+      "description": "在无网络的真实渲染器中调试完整候选。CLI仅mock，不产生真实证据；返回错误、控件和交互变化。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "maxLength": 24000
+          },
+          "steps": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "op"
+              ],
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "enum": [
+                    "click",
+                    "fill",
+                    "select",
+                    "reload"
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "handle": {
+                  "type": "string",
+                  "maxLength": 1200,
+                  "description": "优先使用反馈中的控件 handle，不猜选择器"
+                },
+                "scenario": {
+                  "type": "string",
+                  "enum": [
+                    "normal",
+                    "empty",
+                    "failure"
+                  ]
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "button",
+                    "tab",
+                    "checkbox",
+                    "radio",
+                    "switch"
+                  ]
+                },
+                "index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 20,
+                  "description": "同名控件序号，默认第一个"
+                },
+                "value": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "card_commit",
+      "description": "提交已测试候选的 version，直接使用原源码，不再重写。须单独调用；partial 仅表示检查不完整，不代表全部通过。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{20}$"
+          }
+        }
+      }
+    }
+  }
+]

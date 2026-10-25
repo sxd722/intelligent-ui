@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+const local='http://127.0.0.1:8791/api/agent-jobs',remote='https://device.tailnet.ts.net/api/agent-jobs';
+const state=await (await fetch(local+'?case=reg-01-counter&track=trae-html')).json();
+const post=(url,data,origin)=>fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...(origin?{Origin:origin}:{})},body:JSON.stringify(data)});
+assert(state.busy);
+assert.equal((await post(local+'/start',{requestId:state.busy.id,caseId:state.busy.caseId,track:state.busy.track})).status,200);
+assert.equal((await post(local+'/start',{requestId:randomUUID(),caseId:'reg-01-counter',track:'trae-cardspec'})).status,409);
+assert.equal((await post(local+'/start',{},'https://evil.invalid')).status,403);
+assert.equal((await post(local+'/start',{},'null')).status,403);
+assert.equal((await post(local+'/start',{requestId:randomUUID(),caseId:'../escape',track:'trae-html'})).status,400);
+assert.equal((await post(remote+'/complete',{id:state.busy.id})).status,403);
+assert.equal((await post(local+'/release',{id:state.busy.id})).status,400);
+console.log('PASS: idempotency, single job, cross-origin/opaque origin denied, path validation, remote completion denied, release requires explicit acknowledgement');

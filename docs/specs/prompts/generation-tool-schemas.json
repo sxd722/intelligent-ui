@@ -1,0 +1,294 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "capability_find",
+      "description": "按任务用途搜索组件和工具候选；不执行查询，不替代精确契约",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "component_describe",
+      "description": "按需查看组件精确契约，一次至多6个；无需模型重复实现宿主功能",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "names": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "names"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "plan_cards",
+      "description": "规划体验及卡组分工；每张goal短述使用者角色、主体、操作→结果、视图共用数据与详情分层。后续用短label作按钮标题，prompt写输入→结果，不生成正文",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cards": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                "goal": {
+                  "type": "string",
+                  "maxLength": 600
+                }
+              },
+              "required": [
+                "title",
+                "goal"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "followups": {
+            "type": "array",
+            "maxItems": 2,
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "maxLength": 24
+                },
+                "prompt": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "label",
+                "prompt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "cards",
+          "followups"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "cli_discover",
+      "description": "发现当前可读工具（按领域、站点、用途检索）",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "cli_describe",
+      "description": "读取已注册工具的真实输入和输出契约",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "cli_read",
+      "description": "执行已声明且可用的只读工具；参数必须来自契约",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "id",
+          "input"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "dataset_read",
+      "description": "查看已取得数据的另一段样本，最多8项",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "dataset": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8
+          }
+        },
+        "required": [
+          "dataset"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "workflow_run",
+      "description": "批量只读取数：1–6步，浏览器串行；after依赖失败则跳过；每一步仍计真实读取预算",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "steps": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "tool": {
+                  "type": "string"
+                },
+                "input": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "after": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "tool",
+                "input"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "steps"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "dataset_aggregate",
+      "description": "按真实字段统计已取得记录，宿主计数并返回原记录ID；可按日期分组",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "dataset": {
+            "type": "string"
+          },
+          "groupBy": {
+            "type": "string"
+          },
+          "timeField": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "dataset",
+          "groupBy"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "dataset_analyze",
+      "description": "必要时分类原记录（至多40项），一次共享预算模型调用，标签必须引用原文。返回analysisLabel/analysisQuote；之后aggregate计数。非总体民意统计。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "dataset": {
+            "type": "string"
+          },
+          "instruction": {
+            "type": "string",
+            "maxLength": 600
+          }
+        },
+        "required": [
+          "dataset",
+          "instruction"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+]

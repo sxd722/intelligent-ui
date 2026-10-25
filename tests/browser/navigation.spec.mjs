@@ -1,0 +1,78 @@
+import { test, expect } from '@playwright/test'
+import { INTERACTION_FIXTURES } from '../../shared/cardspec/interaction-fixtures.mjs'
+
+async function lab(page,name) {
+  await page.goto('/cardspec-lab.html')
+  await page.getByLabel('样例',{exact:true}).selectOption(name)
+  await page.getByLabel('宽度',{exact:true}).selectOption('320')
+  await expect(page.getByTestId('diagnostics')).toHaveText('[]')
+}
+test('external controls replace built-in list, carousel and month navigation',async({page})=>{
+  await lab(page,'externalList')
+  await expect(page.locator('.cs-pagination')).toHaveCount(0)
+  await expect(page.locator('.cs-navigation')).toHaveCount(1)
+  await page.getByRole('checkbox').first().check()
+  await page.getByRole('button',{name:'下一页',exact:true}).click()
+  await page.getByRole('button',{name:'上一页',exact:true}).click()
+  await expect(page.getByRole('checkbox').first()).toBeChecked()
+  await page.getByLabel('样例',{exact:true}).selectOption('externalCarousel')
+  await expect(page.locator('.cs-carousel-nav')).toHaveCount(0)
+  await page.getByRole('button',{name:'下一项',exact:true}).click()
+  await expect(page.locator('.cs-carousel')).toHaveAttribute('data-active-index','1')
+  await expect(page.locator('.cs-navigation')).toContainText('2 / 3')
+  await expect(page.getByRole('switch')).toHaveAccessibleName('候选：协作方案')
+  await page.getByLabel('样例',{exact:true}).selectOption('externalCalendar')
+  await expect(page.locator('.cs-calendar-head')).toHaveCount(0)
+  await expect(page.locator('.cs-navigation')).toContainText('2027年02月')
+  await page.getByRole('button',{name:'下个月',exact:true}).click()
+  await expect(page.locator('.cs-navigation')).toContainText('2027年03月')
+  await expect(page.locator('.cs-calendar-grid button')).toHaveCount(31)
+  await expect(page.locator('.cs-stage')).toHaveAttribute('data-cs-fit','fit')
+})
+test('companions share state with primary content and remain usable at three sizes',async({page})=>{
+  await lab(page,'shortlist')
+  await page.getByRole('switch',{name:'候选：轻量方案'}).check()
+  await page.getByRole('button',{name:'下一项',exact:true}).click()
+  await expect(page.getByRole('switch',{name:'候选：协作方案'})).not.toBeChecked()
+  await page.getByRole('switch',{name:'候选：协作方案'}).check()
+  await expect(page.locator('.cs-card')).toContainText('已选 2 / 3')
+  await page.getByRole('button',{name:'上一项',exact:true}).click()
+  await expect(page.getByRole('switch',{name:'候选：轻量方案'})).toBeChecked()
+  await page.getByLabel('样例',{exact:true}).selectOption('quiz')
+  await page.getByRole('radio',{name:'重复输入'}).click()
+  await expect(page.locator('.cs-card')).toContainText('再想想')
+  await page.getByRole('radio',{name:'复用模板'}).click()
+  await expect(page.locator('.cs-card')).toContainText('答对了')
+  await page.getByRole('switch',{name:'展开原理'}).check()
+  await expect(page.locator('.cs-card')).toContainText('固定步骤做成模板')
+  await page.getByLabel('样例',{exact:true}).selectOption('whatIf')
+  await page.getByRole('slider').focus();await page.getByRole('slider').press('ArrowRight')
+  await page.getByRole('radio',{name:'3轮'}).click()
+  await expect(page.locator('.cs-stat strong')).toHaveText('90')
+  for(const fixture of Object.keys(INTERACTION_FIXTURES)) {
+    await page.getByLabel('样例',{exact:true}).selectOption(fixture)
+    for(const width of ['320','360','432']) {
+      await page.getByLabel('宽度',{exact:true}).selectOption(width)
+      await expect(page.locator('.cs-stage'),`${fixture}/${width}`).toHaveAttribute('data-cs-fit','fit')
+      await expect(page.locator('[data-cs-error]')).toHaveCount(0)
+    }
+  }
+})
+test('single-page and empty navigation disappears, conditional external control falls back safely',async({page})=>{
+  await lab(page,'externalCarousel')
+  const source=INTERACTION_FIXTURES.externalCarousel.replace('<navigation id="optionNav" target="optionsView"/>','<if id="showNav" test={state.showNav}><navigation id="optionNav" target="optionsView"/></if>').replace('<title id="title">','<state id="showNav" type="boolean" initial={false}/><action id="showNav"><set target="showNav" value={event.checked}/></action><toggle id="showNav" label="外部导航" checked={state.showNav} onChange="showNav"/><title id="title">')
+  await page.getByText('输入 DSL 验证',{exact:true}).click()
+  await page.getByLabel('DSL源码').fill(source)
+  await page.getByRole('button',{name:'应用源码'}).click()
+  await expect(page.locator('.cs-carousel-nav')).toHaveCount(1)
+  await page.getByRole('switch',{name:'外部导航',exact:true}).check()
+  await expect(page.locator('.cs-navigation')).toHaveCount(1)
+  await expect(page.locator('.cs-carousel-nav')).toHaveCount(0)
+  await page.getByRole('switch',{name:'外部导航',exact:true}).uncheck()
+  await expect(page.locator('.cs-carousel-nav')).toHaveCount(1)
+  for(const body of ['<region id="r" overflow="paginate"><text id="t">唯一条目</text></region>','<carousel id="r"><carousel-item id="i"><text id="t">唯一条目</text></carousel-item></carousel>','<carousel id="r"/>']) {
+    await page.getByLabel('DSL源码').fill(`<card>${body}</card>`)
+    await page.getByRole('button',{name:'应用源码'}).click()
+    await expect(page.locator('.cs-card nav')).toHaveCount(0)
+  }
+})

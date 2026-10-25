@@ -1,0 +1,82 @@
+/* ============================================================
+   02 · 柔和氛围 Soft Ambient — Headspace / Calm / Fabulous
+   柔和低饱和底色、大圆角卡片、软弥散阴影、胶囊控件、
+   圆体字重、轻柔入场动画。材质:奶油/棉。
+   ============================================================ */
+.stage[data-theme="soft"] {
+  --bg: #FFF6EE; --panel: #FFFFFF; --ink: #4A3B32; --sec: #A08D7E;
+  --accent: #F2976B; --accent-ink: #FFFFFF; --soft: #FBE3D2;
+  --shadow: 0 10px 26px rgba(196, 116, 74, .16);
+  background:
+    radial-gradient(120% 90% at 85% -10%, var(--soft) 0%, transparent 55%),
+    var(--bg);
+  color: var(--ink);
+  font-family: ui-rounded, 'Hiragino Maru Gothic ProN', 'Yuanti SC',
+    'Microsoft YaHei', system-ui, sans-serif;
+}
+.stage[data-theme="soft"][data-palette="b"] { /* 薄荷奶 Mint */
+  --bg: #EFF8F2; --panel: #FFFFFF; --ink: #2F4739; --sec: #8AA396;
+  --accent: #3FA47C; --accent-ink: #FFFFFF; --soft: #D9EFE3;
+  --shadow: 0 10px 26px rgba(45, 130, 95, .16);
+}
+.stage[data-theme="soft"][data-palette="c"] { /* 云朵紫 Lilac */
+  --bg: #F5F1FB; --panel: #FFFFFF; --ink: #453A5C; --sec: #9C93B8;
+  --accent: #8B7BD8; --accent-ink: #FFFFFF; --soft: #E6DEF8;
+  --shadow: 0 10px 26px rgba(120, 104, 196, .18);
+}
+
+.stage[data-theme="soft"] .card > * { animation: soft-in .5s cubic-bezier(.2,.8,.2,1) both; }
+.stage[data-theme="soft"] .card > *:nth-child(2) { animation-delay: .05s; }
+.stage[data-theme="soft"] .card > *:nth-child(3) { animation-delay: .1s; }
+.stage[data-theme="soft"] .card > *:nth-child(4) { animation-delay: .15s; }
+@keyframes soft-in { from { opacity: 0; transform: translateY(10px); } }
+
+.stage[data-theme="soft"] .k { color: var(--accent); font-weight: 700; letter-spacing: .08em; }
+.stage[data-theme="soft"] .ttl { font-weight: 700; letter-spacing: .01em; }
+.stage[data-theme="soft"] .seal {
+  background: var(--soft); color: var(--ink);
+  border: 2px solid var(--accent); border-radius: 999px;
+  padding: calc(var(--u-kick) * .8) calc(var(--u-kick) * 1.6);
+  font-size: var(--u-kick); font-weight: 700; line-height: 1.5; text-align: center;
+}
+.stage[data-theme="soft"] .seal.pulse { animation: soft-pop .45s cubic-bezier(.2,.8,.2,1); }
+@keyframes soft-pop { 45% { transform: scale(1.14); } }
+
+.stage[data-theme="soft"] .car-item {
+  background: var(--panel); border-radius: 18px; padding: calc(var(--u-gap) * .8);
+  box-shadow: var(--shadow);
+}
+.stage[data-theme="soft"] .ph {
+  border-radius: 14px;
+  background: radial-gradient(90% 90% at 30% 20%, var(--soft), transparent 70%), var(--panel);
+}
+.stage[data-theme="soft"] .car-note { color: var(--sec); }
+.stage[data-theme="soft"] .car-rate { color: var(--accent); font-weight: 700; }
+
+.stage[data-theme="soft"] .chip {
+  background: var(--panel); border-radius: 999px; color: var(--sec); font-weight: 600;
+  box-shadow: inset 0 0 0 1.5px var(--soft);
+  transition: all .18s ease;
+}
+.stage[data-theme="soft"] .chip.on { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+
+.stage[data-theme="soft"] .radio {
+  background: var(--soft); border-radius: 999px; padding: 4px;
+}
+.stage[data-theme="soft"] .opt { border-radius: 999px; color: var(--sec); font-weight: 600; line-height: calc(var(--u-radio-h) - 8px); transition: all .18s ease; }
+.stage[data-theme="soft"] .opt.on { background: var(--panel); color: var(--ink); box-shadow: 0 3px 8px rgba(74, 59, 50, .14); }
+
+.stage[data-theme="soft"] .thumb { background: var(--soft); border-radius: 50%; }
+.stage[data-theme="soft"] .tag { background: var(--soft); color: var(--ink); border-radius: 999px; padding: 2px 8px; font-weight: 600; }
+.stage[data-theme="soft"] .dot { background: var(--soft); }
+.stage[data-theme="soft"] .dot.on { background: var(--accent); }
+
+.stage[data-theme="soft"] .bar { background: var(--soft); border-radius: 999px; }
+.stage[data-theme="soft"] .bar-fill { background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 70%, white)); border-radius: 999px; }
+.stage[data-theme="soft"] .prog-num { color: var(--sec); font-weight: 700; }
+.stage[data-theme="soft"] .btn {
+  background: var(--accent); color: var(--accent-ink); border-radius: 999px;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.stage[data-theme="soft"] .car-dots { color: var(--ink); }
+.stage[data-theme="soft"] .car-dots i.on { background: var(--accent); }

@@ -1,0 +1,10 @@
+if(!process.argv.includes('--live'))throw Error('This test starts a real Trae task. Pass --live explicitly.');
+import {chromium} from '@playwright/test';
+const browser=await chromium.launch({channel:'chrome'}),page=await browser.newPage();
+await page.goto('http://127.0.0.1:8787/agent-workbench.html?case=reg-01-counter&track=trae-cardspec');
+await page.getByTestId('artifact-ready').waitFor();
+await page.getByPlaceholder('期待怎样的体验？实际哪一步不对？').fill('请增加一个“加五”快捷按钮，每次增加 5，同时保留原有增加、减少、归零、备注保持和最小值 0 的行为。在 tests.json 中验证新按钮与原有多步操作；不要改变其他任务。');
+await page.getByRole('button',{name:'提交意见并让 Trae 返工'}).click();
+await page.waitForTimeout(3500);
+console.log(await page.locator('.agent-job-panel').innerText());
+await page.screenshot({path:'artifacts/rsi-agent/one-click-submitted.png',fullPage:true});await browser.close();

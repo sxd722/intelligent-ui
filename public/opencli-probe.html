@@ -1,0 +1,9 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenCLI 连接测试</title>
+<style>body{font:16px/1.65 system-ui,sans-serif;background:#eef3f8;color:#1b2f42;margin:0;padding:24px}main{max-width:620px;margin:8vh auto;background:#ffffffbb;padding:28px;border-radius:24px;box-shadow:0 12px 50px #21406012}h1{font-size:26px}button,a{font:inherit}button{padding:12px 20px;background:#285a78;color:white;border:0;border-radius:14px;cursor:pointer}button:disabled{opacity:.5}small{display:block;color:#526578;margin-top:20px}#status{white-space:pre-wrap;overflow-wrap:anywhere}</style>
+<main><h1>OpenCLI 连接测试</h1><p>将这张页面交给卡片工具使用。绑定后，工具会在这里打开豆瓣等站点读取内容，不创建额外窗口。</p><p>请先选中当前标签页，再点击下方按钮。系统会核对网址，选错页面时停止，不会导航其他页面。</p><button id="bind">绑定此测试页</button> <button id="unbind">解除绑定</button><p id="status" role="status">等待绑定</p><small>仅开放只读工具；浏览器请求串行处理。登录仍由你在站点完成。服务器或桥接重启、浏览器执行超时后可能需要重新绑定；取消只读请求等待会保留连接。解除绑定不会关闭页面。</small><p><a href="/" target="_blank" rel="noreferrer">在另一标签页打开卡片应用</a></p></main>
+<script type="module">
+const status=document.querySelector('#status'),buttons=[...document.querySelectorAll('button')];
+async function update(operation){buttons.forEach(b=>b.disabled=true);status.textContent='正在检查浏览器连接…';try{const response=await fetch('/api/tools/'+operation,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const data=await response.json();if(!response.ok)throw Error(data.error||'连接失败');status.textContent=data.message||'操作完成'}catch(e){status.textContent=e.message}finally{buttons.forEach(b=>b.disabled=false)}}
+document.querySelector('#bind').onclick=()=>update('bind');document.querySelector('#unbind').onclick=()=>update('unbind');
+</script></html>
+

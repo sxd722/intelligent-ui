@@ -1,0 +1,8 @@
+const envelope=items=>({items,source:'可控测试数据（非实时）',fetchedAt:'2026-10-16T00:00:00Z',truncated:false})
+const pair=o=>Object.entries(o).map(([field,value])=>({field,value}))
+const cases={
+ detailVehicle:{tool:'opencli.dongchedi.search',input:{keyword:'测试车型'},row:{rowKey:'v',series_id:'42',name:'测试车型'},detail:pair({name:'测试车型',official_price:'20–30万',dealer_price:'19–28万',score:null,models:0,brand:'示例品牌',dimensions:'4800 × 1900 × 1600 mm',features:['辅助驾驶','后排加热'],description:'测试说明。'.repeat(50),series_id:'42'})},
+ detailRestaurant:{tool:'opencli.dianping.search',input:{keyword:'测试餐馆'},row:{rowKey:'r',shop_id:'demo',name:'测试餐馆'},detail:pair({name:'测试餐馆',rating:4.8,price:63,reviews:5312,address:'示例路 100 号 2 楼',hours:'10:30–21:30',features:['包厢','停车'],open:false,shop_id:'demo'})},
+ detailMovie:{tool:'opencli.douban.search',input:{keyword:'测试电影'},row:{rowKey:'m',id:'42',type:'book',title:'测试作品'},detail:[{title:'测试作品',rating:8.4,year:2025,genres:['科幻','冒险'],directors:['示例导演'],summary:'这是一段用于验证渐进披露的测试简介。'.repeat(30),publisher:'示例出版社',metadata:{language:'中文',awards:['测试奖项']}}]},
+}
+export const DETAIL_FIXTURES=Object.fromEntries(Object.entries(cases).map(([key,c])=>[key,{source:`<card><title>结构化详情 · 测试数据</title><state id="note" type="string" initial=""/><input label="保留备注" value={state.note} onChange="edit"/><action id="edit"><set target="note" value={event.value}/></action><binding id="rows" tool="${c.tool}" input={${JSON.stringify(c.input)}} initial={{items:[],source:"",fetchedAt:"",truncated:false}} load="visible"/><caption>打开“数据与工具”浏览结果，验证详情及返回。</caption></card>`,transport:async p=>({kind:'json',value:envelope(p.tool===c.tool?[c.row]:c.detail)})}]))

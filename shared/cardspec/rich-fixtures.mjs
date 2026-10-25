@@ -1,0 +1,17 @@
+const card=body=>`<intro>组件交互示例。</intro><card schemaVersion="1" actionMode="snapshot" theme="soft" palette="a" visualStyle="frosted-glass" backgroundQuery="calm misty mountains">${body}</card><outro>示例数据，仅保留本次会话。</outro>`
+export const MERMAID_SAMPLES={
+  flow:'flowchart TD\n A[提出问题] --> B{实验验证}\n B -->|支持| C[形成结论]\n B -->|修正| A',
+  sequence:'sequenceDiagram\n participant U as 用户\n participant S as 服务\n U->>S: 提交问题\n S-->>U: 返回答案',
+  state:'stateDiagram-v2\n [*] --> Draft\n Draft --> Review: submit\n Review --> Done: approve\n Review --> Draft: revise\n Done --> [*]',
+  class:'classDiagram\n Animal <|-- Cat\n Animal : +String name\n Cat : +meow()',
+  er:'erDiagram\n CUSTOMER ||--o{ ORDER : places\n CUSTOMER {\n string name\n }\n ORDER {\n int amount\n }',
+  xy:'xychart-beta\n x-axis [Mon, Tue, Wed]\n y-axis "收入" -10 --> 30\n bar [20, -10, 30]',
+}
+export const RICH_FIXTURES={
+  choices:card(`<state id="choice" type="string" initial="上午"/><action id="choose"><set target="choice" value={event.value}/></action><title>一天的节奏</title><segmented label="时段" value={state.choice} options={["上午","下午","晚上"]} onChange="choose"/><select label="下拉时段" value={state.choice} options={["上午","下午","晚上"]} onChange="choose"/><region overflow="scroll"><radio-group label="完整选项" value={state.choice} options={[{value:"上午",label:"上午：清醒时完成需要专注的事"},{value:"下午",label:"下午：处理协作与沟通"},{value:"晚上",label:"晚上：整理记录与阅读"}]} onChange="choose"/></region>`),
+  table:card(`<state id="pick" type="string" initial=""/><action id="pick"><set target="pick" value={event.id}/></action><table label="示例预算" columns={[{key:"name",label:"项目"},{key:"cost",label:"金额",format:"currency"}]} rows={[{id:"a",name:"交通",cost:28.5},{id:"b",name:"餐食",cost:40}]} selectedId={state.pick} onSelect="pick"/><caption>选中：{state.pick}</caption>`),
+  swipe:card(`<data id="cards" value={[{id:"a",title:"先猜，再验证",description:"把预测写下来，再看结果。"},{id:"b",title:"讲给别人听",description:"解释不清的地方就是下一步的线索。"},{id:"c",title:"隔一天再试",description:"别让刚读过的熟悉感冒充记忆。"}]}/><state id="pos" type="number" initial={0}/><state id="saved" type="number" initial={0}/><action id="swipe"><increment target="saved" when={event.direction=="right"} value={1}/><set target="pos" value={event.index+1}/></action><action id="reset"><set target="pos" value={0}/><set target="saved" value={0}/></action><swipe-stack label="学习方法实验" items={data.cards} index={state.pos} onSwipe="swipe" rightLabel="收藏"/><row><caption>收藏 {state.saved} 项</caption><button onPress="reset">重新开始</button></row><confetti trigger={state.saved} label="已收藏"/>`),
+  popover:card(`<state id="note" type="string" initial=""/><action id="edit"><set target="note" value={event.value}/></action><title>小实验，大理解</title><text>先说出预测，再打开提示。</text><popover label="查看提示"><text>预测错了也有价值：你找到了假设的边界。</text><input label="我的预测" value={state.note} onChange="edit"/></popover><caption>{state.note}</caption>`),
+  codeMath:card(`<title>把公式变成代码</title><text>均值把总和平均分配。</text><math block={true} value={"\\\\bar{x}=\\\\frac{1}{n}\\\\sum_{i=1}^{n}x_i"}/><code block={true} language="js" value={"const mean = total / count;"}/>`),
+  ...Object.fromEntries(Object.entries(MERMAID_SAMPLES).map(([name,source])=>[`mermaid-${name}`,card(`<state id="selected" type="string" initial=""/><action id="pick"><set target="selected" value={event.id}/></action><mermaid label="${{flow:'假设如何成为知识',sequence:'一次问答的旅程',state:'文稿生命周期',class:'类型与继承',er:'客户与订单',xy:'示例收入'}[name]}" source={${JSON.stringify(source)}} selectedId={state.selected}${name==='xy'?'':' onSelect="pick"'}/>`)])),
+}

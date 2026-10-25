@@ -1,0 +1,91 @@
+/* ============================================================
+   03 · 精密数据 Precision — Revolut / Linear / Robinhood
+   金融工具的秩序感:细边框面板、等宽数字、微型大写标签、
+   刻度进度、密集网格。材质:石墨/阳极铝。
+   ============================================================ */
+.stage[data-theme="precision"] {
+  --bg: #F4F5F7; --panel: #FFFFFF; --ink: #16191D; --sec: #7A828C;
+  --accent: #2563EB; --accent-ink: #FFFFFF; --line: #E3E6EA; --grid: #D6DAE0;
+  background: var(--bg); color: var(--ink);
+  font-family: 'Inter', 'Segoe UI', system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+.stage[data-theme="precision"][data-palette="b"] { /* 冷白绿 Emerald */
+  --bg: #F3F7F5; --panel: #FFFFFF; --ink: #121815; --sec: #75837B;
+  --accent: #0E9F6E; --accent-ink: #FFFFFF; --line: #E1EAE5; --grid: #D2E0D9;
+}
+.stage[data-theme="precision"][data-palette="c"] { /* 炭黑琥珀 Amber-dark */
+  --bg: #14161A; --panel: #1D2026; --ink: #E8EAED; --sec: #8B929B;
+  --accent: #F5A623; --accent-ink: #14161A; --line: #2A2E36; --grid: #333842;
+}
+
+.stage[data-theme="precision"] .k {
+  font-family: ui-monospace, Consolas, monospace; color: var(--accent);
+  letter-spacing: .12em; font-weight: 600;
+}
+.stage[data-theme="precision"] .ttl { font-weight: 700; letter-spacing: -.015em; }
+.stage[data-theme="precision"] .seal {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  color: var(--ink); padding: calc(var(--u-kick) * .5) calc(var(--u-kick) * .9);
+  font-family: ui-monospace, Consolas, monospace; font-size: var(--u-kick); font-weight: 600;
+  line-height: 1.5; white-space: nowrap;
+}
+.stage[data-theme="precision"] .seal::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  animation: pr-live 2s ease infinite;
+}
+@keyframes pr-live { 50% { opacity: .35; } }
+.stage[data-theme="precision"] .seal.pulse { animation: pr-blink .4s ease; }
+@keyframes pr-blink { 40% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); } }
+
+.stage[data-theme="precision"] .car-item {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: calc(var(--u-gap) * .7);
+}
+.stage[data-theme="precision"] .ph {
+  border-radius: 7px; border: 1px solid var(--line);
+  background:
+    radial-gradient(var(--grid) 1px, transparent 1.2px) 0 0 / 9px 9px,
+    var(--panel);
+}
+.stage[data-theme="precision"] .car-name { letter-spacing: -.01em; }
+.stage[data-theme="precision"] .car-note { color: var(--sec); }
+.stage[data-theme="precision"] .car-rate { color: var(--accent); font-family: ui-monospace, Consolas, monospace; font-weight: 600; }
+
+.stage[data-theme="precision"] .chip {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  color: var(--sec); font-weight: 550;
+}
+.stage[data-theme="precision"] .chip.on { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+
+.stage[data-theme="precision"] .radio { border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--panel); }
+.stage[data-theme="precision"] .opt { border-left: 1px solid var(--line); color: var(--sec); font-weight: 550; line-height: calc(var(--u-radio-h) - 2px); }
+.stage[data-theme="precision"] .opt:first-child { border-left: 0; }
+.stage[data-theme="precision"] .opt.on { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); font-weight: 650; }
+
+.stage[data-theme="precision"] .item { border-top: 1px solid var(--line); padding-top: calc(var(--u-gap) * .75); }
+.stage[data-theme="precision"] .item:first-child { border-top: 0; padding-top: 0; }
+.stage[data-theme="precision"] .thumb { border: 1px solid var(--line); border-radius: 9px;
+  background: radial-gradient(var(--grid) 1px, transparent 1.2px) 0 0 / 8px 8px, var(--panel); }
+.stage[data-theme="precision"] .tag {
+  border: 1px solid var(--line); border-radius: 5px; color: var(--sec);
+  padding: 1px 5px; font-family: ui-monospace, Consolas, monospace;
+  font-size: calc(var(--u-tag-fs) * .92); letter-spacing: .03em;
+}
+.stage[data-theme="precision"] .dot { border-radius: 2px; background: var(--line); }
+.stage[data-theme="precision"] .dot.on { background: var(--accent); }
+
+.stage[data-theme="precision"] .bar {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 3px;
+  background-image: repeating-linear-gradient(90deg, transparent 0 calc(6.25% - 1px), var(--line) calc(6.25% - 1px) 6.25%);
+}
+.stage[data-theme="precision"] .bar-fill { background: var(--accent); border-radius: 2px; }
+.stage[data-theme="precision"] .prog-label { font-family: ui-monospace, Consolas, monospace; color: var(--sec); }
+.stage[data-theme="precision"] .prog-num { color: var(--ink); }
+.stage[data-theme="precision"] .btn {
+  background: var(--accent); color: var(--accent-ink); border-radius: 9px; font-weight: 650;
+  letter-spacing: .01em;
+}
+.stage[data-theme="precision"] .car-dots { color: var(--ink); }
+.stage[data-theme="precision"] .car-dots i { border-radius: 1.5px; width: 8px; }
+.stage[data-theme="precision"] .car-dots i.on { background: var(--accent); }

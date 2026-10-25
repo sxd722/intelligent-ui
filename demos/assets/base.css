@@ -1,0 +1,178 @@
+/* ------------------------------------------------------------------
+   demo base: reset + 4:4 square stage + skeleton layout.
+   Sizes are NOT hardcoded here — engine.js sets --u-* px vars from
+   square side, sibling counts, text length; themes only restyle.
+------------------------------------------------------------------- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --page-bg: #e9e7e2;
+  color-scheme: light dark;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  background: var(--page-bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 14px 40px;
+  gap: 14px;
+}
+
+/* ---------- page chrome (outside the square; not part of the card) ---------- */
+.page-title { font-size: 13px; color: #777; letter-spacing: .04em; }
+
+.controls {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  max-width: 480px;
+}
+.ctl {
+  appearance: none; border: 1px solid #c9c5bd; background: #fff; color: #444;
+  font: 500 12px/1 system-ui, sans-serif; padding: 7px 12px; border-radius: 999px;
+  cursor: pointer; transition: all .15s ease;
+}
+.ctl:hover { border-color: #999; }
+.ctl[aria-pressed="true"], .ctl.on {
+  background: #2b2a27; border-color: #2b2a27; color: #fff;
+}
+.ctl-group-label { width: 100%; text-align: center; font-size: 11px; color: #999; margin-top: 2px; }
+
+/* ---------- the 4:4 square stage ---------- */
+.stage {
+  width: min(432px, calc(100vw - 28px), calc(100vh - 190px));
+  aspect-ratio: 1 / 1;
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(30, 25, 15, .14), 0 2px 8px rgba(30, 25, 15, .1);
+}
+
+/* engine readout — what the layout engine decided */
+.readout {
+  font: 11px/1.7 ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: #8a867d; background: #fff; border: 1px solid #ddd9d0;
+  border-radius: 10px; padding: 8px 12px; max-width: 480px;
+  white-space: pre-wrap;
+}
+
+/* ---------- card skeleton ---------- */
+.card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--u-gap);
+  padding: var(--u-pad);
+  overflow: hidden;
+}
+
+/* header */
+.hd { display: flex; align-items: flex-start; gap: var(--u-gap); }
+.hd-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.k { text-transform: uppercase; font-size: var(--u-kick); }
+.ttl { line-height: 1.12; font-size: var(--u-title); }
+.seal { flex-shrink: 0; }
+
+/* carousel */
+.car {
+  display: flex;
+  gap: var(--u-gap);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.car::-webkit-scrollbar { display: none; }
+.car-item {
+  flex-shrink: 0;
+  width: var(--u-car-w);
+  scroll-snap-align: start;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.ph {
+  height: var(--u-car-h);
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+}
+.ph .emoji { font-size: calc(var(--u-car-h) * .42); line-height: 1; }
+.car-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; min-width: 0; }
+.car-name { font-weight: 700; font-size: var(--u-car-fs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.car-note { opacity: .72; font-size: calc(var(--u-car-fs) * .84); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.car-rate { font-variant-numeric: tabular-nums; font-size: var(--u-car-rate); flex-shrink: 0; }
+
+/* chips */
+.chips { display: flex; gap: var(--u-chip-gap); flex-wrap: nowrap; overflow: hidden; }
+.chip {
+  flex: 1 1 auto;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 0; background: none;
+  font: inherit;
+  font-size: var(--u-chip-fs);
+  padding: var(--u-chip-py) var(--u-chip-px);
+}
+
+/* radio (segmented) */
+.radio { display: flex; height: var(--u-radio-h); }
+.opt {
+  flex: 1;
+  text-align: center;
+  cursor: pointer;
+  border: 0; background: none;
+  font: inherit;
+  font-size: var(--u-radio-fs);
+  line-height: var(--u-radio-h);
+  white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+/* list */
+.list { display: flex; flex-direction: column; gap: var(--u-gap); overflow: hidden; flex: 1; min-height: 0; }
+.item { display: flex; gap: var(--u-gap); align-items: center; min-height: 0; }
+.thumb {
+  width: var(--u-thumb); height: var(--u-thumb);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.thumb .emoji { font-size: calc(var(--u-thumb) * .5); line-height: 1; }
+.meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.it-title { font-weight: 650; font-size: var(--u-list-fs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.it-note { opacity: .68; font-size: var(--u-list-note); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.tag { white-space: nowrap; font-size: var(--u-tag-fs); }
+.rate { flex-shrink: 0; display: flex; gap: 3px; align-items: center; }
+.dot { width: var(--u-dot); height: var(--u-dot); border-radius: 50%; }
+
+/* footer */
+.ft { display: flex; align-items: center; gap: var(--u-gap); flex-shrink: 0; }
+.prog { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.prog-label { display: flex; justify-content: space-between; font-size: var(--u-foot-fs); }
+.btn { font-size: var(--u-foot-fs); }
+.bar { height: var(--u-bar); position: relative; }
+.bar-fill { position: absolute; inset: 0 auto 0 0; width: var(--prog-pct, 50%); transition: width .35s cubic-bezier(.2,.8,.2,1); }
+.btn {
+  border: 0; cursor: pointer; font: inherit; font-weight: 600;
+  padding: 0 var(--u-btn-px); height: var(--u-btn-h);
+  white-space: nowrap;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.btn:active { transform: scale(.96); }
+
+/* dots (carousel pagination) */
+.car-dots { display: flex; gap: 5px; justify-content: center; flex-shrink: 0; }
+.car-dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .25; transition: all .2s ease; }
+.car-dots i.on { opacity: 1; transform: scale(1.25); }
+
+/* engine measurement pass: disable flex shrink so natural height is visible */
+.card.measuring { overflow: visible; }
+.card.measuring > * { flex-shrink: 0; }
+.card.measuring .list { flex: 0 0 auto; min-height: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

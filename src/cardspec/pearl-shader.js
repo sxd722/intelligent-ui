@@ -1,0 +1,9 @@
+// Trusted host shader adapted from the user-supplied SELENE reference.
+// Premultiplied output prevents a cyan rectangle outside the sculpture.
+export const PEARL_FRAGMENT = `precision mediump float;
+      uniform vec2 ures;uniform float utime;
+      mat2 rot(float a){float s=sin(a),c=cos(a);return mat2(c,-s,s,c);}
+      float scene(vec3 p){p.xz=rot(.33+sin(utime*.11)*.12)*p.xz;p.yz=rot(.62+sin(utime*.08)*.1)*p.yz;p.xy=rot(-.46)*p.xy;float a=atan(p.y,p.x);float r=.83+sin(a*3.+utime*.22)*.045;vec2 q=vec2(length(p.xy)-r,p.z+sin(a*2.-utime*.17)*.095);return length(q)-(.226+.035*sin(a*3.+utime*.19));}
+      vec3 normal(vec3 p){vec2 e=vec2(.002,0.);return normalize(vec3(scene(p+e.xyy)-scene(p-e.xyy),scene(p+e.yxy)-scene(p-e.yxy),scene(p+e.yyx)-scene(p-e.yyx)));}
+      vec3 env(vec3 r){float bands=.5+.5*sin(r.y*8.+r.x*3.);vec3 c=mix(vec3(.026,.09,.14),vec3(.42,.6,.7),bands);c+=vec3(.5,.82,.78)*pow(max(0.,r.y*.6+r.x*.45+.35),5.);c+=vec3(.7,.78,1.)*pow(max(0.,1.-abs(r.y+.17)*7.),7.);c+=vec3(1.,.93,.77)*pow(max(0.,1.-abs(r.x*.65-r.y*.25-.1)*12.),10.);return c;}
+      void main(){vec2 uv=(gl_FragCoord.xy-.5*ures)/min(ures.x,ures.y);uv*=3.15;vec3 ro=vec3(0.,0.,3.65),rd=normalize(vec3(uv,-3.3));float t=0.;bool hit=false;for(int i=0;i<62;i++){float d=scene(ro+rd*t);if(d<.002){hit=true;break;}t+=d*.85;if(t>6.)break;}vec3 c=vec3(0.);float alpha=0.;if(hit){vec3 p=ro+rd*t,n=normal(p),r=reflect(rd,n);float fres=pow(1.-max(0.,dot(n,-rd)),3.);c=env(r);float spec=pow(max(0.,dot(reflect(normalize(vec3(-1.,1.5,2.)),n),rd)),48.);c+=vec3(.94,1.,.96)*spec*.95;float pearl=.5+.5*sin(n.x*5.+n.y*3.+utime*.11);c=mix(c,c*vec3(.78+.2*pearl,1.04,1.04+.17*(1.-pearl)),.7);c+=vec3(.35,.74,.71)*fres*.48;c=pow(c,vec3(.82));alpha=1.;}else{float ring=exp(-18.*abs(length(uv*vec2(.89,1.1))-1.18));c=vec3(.2,.6,.62);alpha=ring*.12;}gl_FragColor=vec4(c*alpha,alpha);}`

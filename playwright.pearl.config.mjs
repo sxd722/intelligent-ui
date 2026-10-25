@@ -1,0 +1,3 @@
+import {defineConfig} from '@playwright/test'
+const production=process.env.PEARL_PRODUCTION_QA==='1'
+export default defineConfig({testDir:'tests/browser',testMatch:['pearl-composition.spec.mjs'],timeout:45000,workers:1,outputDir:'artifacts/pearl-composition/browser',reporter:[['list'],['json',{outputFile:'artifacts/pearl-composition/results.json'}]],use:{baseURL:production?'http://127.0.0.1:8787':'http://127.0.0.1:8796',viewport:{width:1100,height:1000},trace:'on',screenshot:'only-on-failure',launchOptions:{channel:'chrome'}},webServer:production?undefined:{command:'node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 8796 --strictPort',url:'http://127.0.0.1:8796',reuseExistingServer:false}})

@@ -1,0 +1,52 @@
+/* Host-owned expressive materials; no layout space reserved for decoration. */
+.cs-stage[data-material-version='2'][data-visual-style] {
+ --cs-motion-ease:cubic-bezier(.22,1,.36,1);
+ --cs-motion-fast:140ms;--cs-motion-duration:280ms;
+ --cs-reading-mask:color-mix(in srgb,var(--cs-surface-solid) 90%,transparent);
+ --cs-panel-mask:color-mix(in srgb,var(--cs-surface-solid) 82%,transparent);
+ --cs-control-mask:color-mix(in srgb,var(--cs-surface-solid) 86%,transparent);
+ --cs-material-shadow:0 12px 26px #00000024,0 3px 8px #00000016,inset 0 1px 0 #ffffff22;
+ --cs-light-a:color-mix(in srgb,var(--cs-accent) 36%,transparent);
+ --cs-light-b:color-mix(in srgb,var(--cs-highlight) 28%,transparent);
+}
+/* The diagonal window reveals the photograph around stable reading surfaces. */
+.cs-stage[data-material-version='2'][data-visual-style] .cs-background-scrim {
+ opacity:.62;
+ mask-image:linear-gradient(125deg,#000 4%,#0008 35%,#0004 57%,#000 88%);
+ -webkit-mask-image:linear-gradient(125deg,#000 4%,#0008 35%,#0004 57%,#000 88%);
+}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-background img {filter:saturate(1.08) brightness(1.02)}
+.cs-ambient {position:absolute;inset:-12%;pointer-events:none;opacity:0;contain:paint}
+.cs-ambient::before,.cs-ambient::after {content:'';position:absolute;inset:0;pointer-events:none;animation-play-state:paused}
+.cs-ambient::before {background:radial-gradient(ellipse at 22% 25%,var(--cs-light-a),transparent 55%);animation:cs-ambient-drift 16s ease-in-out infinite alternate paused}
+.cs-ambient::after {background:radial-gradient(ellipse at 80% 70%,var(--cs-light-b),transparent 48%);animation:cs-ambient-drift 12s -5s ease-in-out infinite alternate-reverse paused}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-ambient {opacity:1}
+.cs-stage[data-motion-active='true'] .cs-ambient::before,.cs-stage[data-motion-active='true'] .cs-ambient::after {animation-play-state:running}
+@keyframes cs-ambient-drift {from{transform:translate(-4%,-3%) scale(.96);opacity:.55}to{transform:translate(6%,5%) scale(1.08);opacity:1}}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card :is(.cs-title,.cs-text,.cs-caption) {
+ background:var(--cs-reading-mask);border-radius:6px;padding:3px 6px;
+ box-decoration-break:clone;-webkit-box-decoration-break:clone;
+}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card :is([data-surface],.cs-stat,.cs-slide,.cs-calendar,.cs-chart,button) :is(.cs-title,.cs-text,.cs-caption) {background:transparent;padding:0}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card :is(.cs-region-body,.cs-stat,.cs-slide,.cs-calendar,.cs-chart,[data-surface='soft']) {background:var(--cs-sheen),var(--cs-panel-mask);box-shadow:var(--cs-material-shadow);border-radius:var(--cs-control-radius)}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card .cs-region-body:has(button,input,textarea,.cs-image,[data-surface],.cs-slide,.cs-calendar,.cs-chart,.cs-stat) {background:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card :is([data-surface],.cs-slide,.cs-stat,.cs-calendar,.cs-chart) :is([data-surface],.cs-stat,.cs-region-body) {box-shadow:none}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card :is(.cs-collection,.cs-experience,.cs-field,.cs-chips,.cs-clock,.cs-table-pan,.cs-magazine,.cs-logic-panel,.cs-sandbox) {background:var(--cs-reading-mask);border-radius:var(--cs-control-radius)}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card :is(.cs-carousel-nav,.cs-diagram header,.cs-weekdays) {background:var(--cs-reading-mask);border-radius:var(--cs-control-radius)}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card > strong {background:var(--cs-reading-mask);border-radius:6px;padding:3px 6px}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card button {background:var(--cs-sheen),var(--cs-control-mask);box-shadow:0 5px 13px #0002,inset 0 1px 0 #ffffff20;transition:transform var(--cs-motion-fast) var(--cs-motion-ease),box-shadow var(--cs-motion-duration) var(--cs-motion-ease)}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card :is(button[data-selected='true'],button[aria-pressed='true'],.cs-button[data-variant='primary']) {background:var(--cs-selected-mask);color:var(--cs-selected-ink);box-shadow:0 5px 16px #0003,inset 0 1px 0 #ffffff40}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card .cs-calendar-grid button:not([data-selected='true']) {background:transparent;box-shadow:none}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card :is(button[data-selected='true'],button[aria-pressed='true']) :is(.cs-text,.cs-caption,.cs-title) {color:inherit}
+.cs-stage[data-material-version='2'][data-visual-style]:not([data-streaming]) :is(.cs-region,.cs-page-item,[data-cs-component='box']) {animation:none}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-image {border-radius:var(--cs-control-radius);overflow:hidden;box-shadow:0 8px 20px #0002}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-tool-slot {transition:background var(--cs-motion-duration) var(--cs-motion-ease)}
+/* Off applies to every descendant, including pseudo-elements. Light retains transitions. */
+.cs-stage[data-motion-level='light'] .cs-ambient {opacity:.45}
+.cs-stage[data-motion-level='light'] *,.cs-stage[data-motion-level='light'] *::before,.cs-stage[data-motion-level='light'] *::after {animation:none!important}
+.cs-stage[data-motion-level='off'] *,.cs-stage[data-motion-level='off'] *::before,.cs-stage[data-motion-level='off'] *::after {animation:none!important;transition:none!important;scroll-behavior:auto!important}
+.cs-stage:not([data-motion-active='true']) *,.cs-stage:not([data-motion-active='true']) *::before,.cs-stage:not([data-motion-active='true']) *::after {animation-play-state:paused!important}
+.cs-stage[data-motion-level='light'] {--cs-motion-fast:100ms;--cs-motion-duration:160ms}
+@media(prefers-reduced-motion:reduce){.cs-ambient::before,.cs-ambient::after{animation:none!important}.cs-stage *::before,.cs-stage *::after{animation:none!important;transition:none!important}}
+@media(prefers-reduced-transparency:reduce){.cs-stage[data-material-version='2'][data-visual-style]{--cs-reading-mask:var(--cs-surface-solid);--cs-panel-mask:var(--cs-surface-solid)}.cs-ambient{display:none}}
+@media(forced-colors:active){.cs-ambient{display:none}.cs-stage[data-material-version='2'][data-visual-style] .cs-card :is(.cs-text,.cs-title,.cs-caption,button){background:Canvas;color:CanvasText}}

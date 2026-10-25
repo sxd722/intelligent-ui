@@ -1,0 +1,71 @@
+/* component catalog page */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: #eceae5; color: #2b2a27;
+  padding: 34px 20px 70px;
+}
+
+.catalog { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.cat-head h1 { font-size: 22px; margin-bottom: 8px; }
+.cat-head p { font-size: 13.5px; line-height: 1.75; color: #6a675f; }
+.cat-themes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.cat-theme {
+  appearance: none; border: 1px solid #c9c5bd; background: #fff; color: #555;
+  font: 600 12px/1 system-ui, sans-serif; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+}
+.cat-theme.on { background: #2b2a27; border-color: #2b2a27; color: #fff; }
+.cat-group { font-size: 15px; margin: 22px 0 4px; color: #55524a; letter-spacing: .06em; }
+
+.spec {
+  background: #fff; border: 1px solid #e2dfd8; border-radius: 14px;
+  padding: 16px 18px 18px; box-shadow: 0 1px 3px rgba(30,25,15,.06);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.spec-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.spec-name { font: 700 15px/1 ui-monospace, Consolas, monospace; color: #1d4ed8; }
+.spec-group { font-size: 11px; color: #999; border: 1px solid #e2dfd8; border-radius: 999px; padding: 2px 8px; }
+.spec-what { font-size: 13px; color: #55524a; }
+.spec-size { margin-left: auto; font: 600 11.5px/1.4 ui-monospace, Consolas, monospace; color: #3e6b4a; background: #eef4ee; border-radius: 8px; padding: 4px 9px; }
+
+.spec-body { display: grid; grid-template-columns: 300px 1fr; gap: 18px; align-items: start; }
+@media (max-width: 760px) { .spec-body { grid-template-columns: 1fr; } }
+
+/* live demo inside a themed square-stage context (visuals only, not full height) */
+.spec-stage-wrap { display: flex; flex-direction: column; gap: 10px; }
+.spec-stage {
+  width: 100%; aspect-ratio: auto; min-height: 90px;
+  border-radius: 12px; padding: 14px; position: relative;
+}
+.spec-stage .dil-card { height: auto; }
+/* catalog demos sit directly under .dil-card, which trips the app's
+   "root row forced vertical" guard — restore row direction for demos */
+.spec-stage .dil-card > [data-d-component='row'] {
+  flex-direction: row !important;
+}
+
+/* hidden measurement harness: exact 432px card scale, off-viewport */
+.spec-measure {
+  position: fixed; left: -9999px; top: 0;
+  width: 432px;
+  --spacing: 4.1px; --font-scale: 1;
+}
+.spec-measure .dil-card { display: flex; flex-direction: column; width: 432px; }
+
+.spec-dsl {
+  font: 12px/1.65 ui-monospace, Consolas, monospace; color: #26401f;
+  background: #f4f6ef; border: 1px solid #dfe5d4; border-radius: 10px;
+  padding: 10px 12px; overflow-x: auto; white-space: pre-wrap; margin-bottom: 10px;
+}
+.spec-schema { width: 100%; border-collapse: collapse; font-size: 12px; }
+.spec-schema th {
+  text-align: left; color: #8a867c; font-weight: 600; padding: 4px 8px;
+  border-bottom: 1px solid #e8e5dd; font-size: 11px;
+}
+.spec-schema td { padding: 4px 8px; border-bottom: 1px solid #f0eee8; vertical-align: top; }
+.spec-schema td:first-child { font-family: ui-monospace, Consolas, monospace; color: #444; white-space: nowrap; }
+.spec-schema td:nth-child(2) { font-family: ui-monospace, Consolas, monospace; color: #7a5ea8; }
+
+.cat-foot { margin-top: 26px; font-size: 12.5px; color: #8a867c; line-height: 1.8; }
+.cat-foot a { color: #6a675f; }

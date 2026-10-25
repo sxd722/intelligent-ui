@@ -1,0 +1,264 @@
+/* Curated material tokens. The model chooses an ID; it never supplies CSS.
+   No rules below apply to legacy cards without a visual-style token. */
+.cs-stage[data-visual-style] {
+  --cs-ink:#f6f8fc;
+  --cs-muted:#e8edf4;
+  --cs-base:#13202c;
+  --cs-accent:#d1e8f8;
+  --cs-selected-ink:#152532;
+  --cs-surface:rgba(15,29,42,.32);
+  --cs-surface-solid:#233746;
+  --cs-border:rgba(240,248,255,.3);
+  --cs-highlight:rgba(255,255,255,.52);
+  --cs-sheen:linear-gradient(125deg,#ffffff12,transparent 38%,#ffffff03 72%,#ffffff09);
+  --cs-material-shadow:0 6px 14px #0003;
+  --cs-glass-blur:6px;
+  --cs-glass-saturation:120%;
+  --cs-photo-filter:brightness(1.12) saturate(1.08);
+  /* A darken blend caps bright photo channels without crushing shadows.
+     Light glass uses a white veil. Both protect unboxed text too. */
+  --cs-scrim:linear-gradient(180deg,#606770,#58616a);
+  --cs-scrim-blend:darken;
+  --cs-fallback:radial-gradient(ellipse at 80% 8%,#426f79,transparent 65%),linear-gradient(145deg,#29364a,#111c24);
+  --cs-rim:none;
+  --cs-control-radius:12px;
+  --cs-panel-duration:240ms;
+  --cs-panel-mask:var(--cs-surface);
+  --cs-group-mask:color-mix(in srgb,var(--cs-accent) 8%,var(--cs-surface));
+  --cs-control-mask:color-mix(in srgb,var(--cs-accent) 6%,var(--cs-surface));
+  --cs-field-mask:color-mix(in srgb,var(--cs-surface-solid) 92%,transparent);
+  --cs-selected-mask:color-mix(in srgb,var(--cs-accent) 94%,transparent);
+  isolation:isolate;
+}
+
+/* Specificity intentionally beats the legacy theme/palette color mappings.
+   Its typeface remains in charge of typography. */
+.cs-stage[data-visual-style][data-theme][data-palette] {
+  --color-bg:var(--cs-base);
+  --color-text-prose:var(--cs-ink);
+  --color-text-default:var(--cs-ink);
+  --color-text-secondary:var(--cs-muted);
+  --color-text-emphasis:var(--cs-ink);
+  --color-surface:var(--cs-surface-solid);
+  --color-surface-secondary:var(--cs-surface);
+  --color-border:var(--cs-border);
+  --color-primary:var(--cs-accent);
+  --color-success:#bdfbe4;
+  --color-warning:#ffe8b8;
+  --color-danger:#ffe0e2;
+  --radius-md:var(--cs-control-radius);
+  color:var(--cs-ink);
+  color-scheme:dark;
+  background:var(--cs-base);
+  box-shadow:0 18px 44px #0b17212e,0 3px 10px #0b17211f;
+}
+
+/* A: the photograph carries the composition, with a darker lower gradient. */
+.cs-stage[data-visual-style='photo-glass'] {
+  --cs-surface:rgba(12,26,38,.24);
+  --cs-scrim:linear-gradient(180deg,#606770,#505c66);
+  --cs-glass-blur:4px;
+}
+
+/* B: dyed glass, saturated light pools and soft dimensional controls. */
+.cs-stage[data-visual-style='tinted-glass'] {
+  --cs-base:#251835;
+  --cs-accent:#e8ccff;
+  --cs-selected-ink:#321750;
+  --cs-muted:#f0e6f7;
+  --cs-surface:rgba(49,20,72,.32);
+  --cs-surface-solid:#432e57;
+  --cs-border:rgba(241,209,255,.38);
+  --cs-highlight:rgba(255,225,255,.4);
+  --cs-scrim:linear-gradient(145deg,#655374,#594b64);
+  --cs-sheen:linear-gradient(125deg,#f9ccff1c,transparent 42%,#afc4ff0a 75%,#ff9eea12);
+  --cs-fallback:radial-gradient(ellipse at 90% 0%,#bd5896,transparent 58%),linear-gradient(145deg,#4a3983,#20132f);
+  --cs-material-shadow:0 8px 22px #1b062a4d;
+  --cs-glass-saturation:155%;
+  --cs-control-radius:16px;
+  --cs-panel-duration:300ms;
+}
+
+/* C: liquid depth comes from tinted veils and soft light, without edge strokes. */
+.cs-stage[data-visual-style='liquid-glass'] {
+  --cs-base:#142a2d;
+  --cs-accent:#b4f7e9;
+  --cs-selected-ink:#12382f;
+  --cs-surface:rgba(12,38,43,.26);
+  --cs-surface-solid:#2a4c50;
+  --cs-border:rgba(238,255,253,.58);
+  --cs-highlight:rgba(255,255,255,.65);
+  --cs-scrim:linear-gradient(135deg,#4b6b70,#455f68);
+  --cs-sheen:linear-gradient(125deg,#ffffff20,transparent 30%,#dbfff903 65%,#dbfff919);
+  --cs-fallback:radial-gradient(ellipse at 80% 0%,#779d8c,transparent 68%),linear-gradient(130deg,#355f6e,#132529);
+  --cs-material-shadow:0 9px 22px #02161938;
+  --cs-rim:none;
+  --cs-glass-blur:7px;
+  --cs-glass-saturation:130%;
+  --cs-control-radius:15px;
+  --cs-panel-duration:280ms;
+}
+
+/* D: diffuse matte glass, dark type on a consistently light veil. */
+.cs-stage[data-visual-style='frosted-glass'] {
+  --cs-ink:#172d3d;
+  --cs-muted:#2b3e4d;
+  --cs-base:#e3eaf0;
+  --cs-accent:#234f65;
+  --cs-selected-ink:#fff;
+  --cs-surface:rgba(248,251,255,.32);
+  --cs-surface-solid:#f1f5f9;
+  --cs-border:rgba(255,255,255,.79);
+  --cs-highlight:rgba(255,255,255,.9);
+  --cs-scrim:linear-gradient(140deg,rgba(247,251,255,.76),rgba(247,251,255,.78));
+  --cs-scrim-blend:normal;
+  --cs-photo-filter:saturate(.9);
+  --cs-sheen:linear-gradient(125deg,#ffffff52,transparent 42%,#ffffff0a 72%,#ffffff29);
+  --cs-fallback:radial-gradient(ellipse at 90% 0%,#e4cfc5,transparent 66%),linear-gradient(145deg,#becddf,#dce7ec);
+  --cs-material-shadow:0 6px 16px #29435e29;
+  --cs-rim:none;
+  --cs-glass-blur:9px;
+  --cs-glass-saturation:85%;
+  --cs-control-radius:14px;
+  --cs-panel-duration:260ms;
+}
+.cs-stage[data-visual-style='frosted-glass'][data-theme][data-palette] {
+  color-scheme:light;
+  --color-success:#17553f;
+  --color-warning:#694411;
+  --color-danger:#8d2032;
+}
+
+/* E: smoked material, warm translucent surfaces and diffuse shadows. */
+.cs-stage[data-visual-style='smoked-glass'] {
+  --cs-ink:#faf4e9;
+  --cs-muted:#ede7dd;
+  --cs-base:#151617;
+  --cs-accent:#ffe3af;
+  --cs-selected-ink:#291e0d;
+  --cs-surface:rgba(18,17,16,.28);
+  --cs-surface-solid:#292825;
+  --cs-border:rgba(228,211,180,.44);
+  --cs-highlight:rgba(255,232,195,.65);
+  --cs-scrim:linear-gradient(180deg,#68655f,#595754);
+  --cs-sheen:linear-gradient(125deg,#fff1cd16,transparent 38%,#dcefff04 72%,#e9c58c0d);
+  --cs-fallback:radial-gradient(ellipse at 95% 0%,#78664a,transparent 55%),linear-gradient(145deg,#292b2d,#121315);
+  --cs-material-shadow:0 7px 18px #0006;
+  --cs-rim:none;
+  --cs-glass-blur:5px;
+  --cs-photo-filter:brightness(1.4) saturate(1.12);
+  --cs-control-radius:10px;
+  --cs-panel-duration:220ms;
+}
+
+.cs-background,.cs-background-scrim { position:absolute; inset:0; pointer-events:none; border-radius:inherit; }
+.cs-background { z-index:0; isolation:isolate; overflow:hidden; background:var(--cs-fallback); }
+.cs-background img { display:block; width:100%; height:100%; object-fit:cover; object-position:center; filter:var(--cs-photo-filter); opacity:0; transition:opacity 450ms ease; }
+.cs-background[data-status='loaded'] img { opacity:1; }
+.cs-background[data-position='top'] img { object-position:center top; }
+.cs-background[data-position='bottom'] img { object-position:center bottom; }
+.cs-background-scrim { background:var(--cs-scrim); mix-blend-mode:var(--cs-scrim-blend); }
+@supports not (mix-blend-mode:darken) {
+  .cs-background-scrim { background:var(--cs-base); opacity:.78; }
+}
+.cs-stage[data-visual-style] > .cs-card { position:relative; z-index:1; }
+.cs-stage[data-visual-style]::after { content:none; }
+.cs-stage[data-visual-style] .cs-action-error { z-index:4; }
+.cs-background-credit { display:block; margin:5px 2px 0; color:#66717d; font:10px/1.5 system-ui,sans-serif; overflow-wrap:anywhere; text-align:right; }
+.cs-background-credit a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
+.cs-background-credit a:focus-visible { outline:2px solid currentColor; outline-offset:3px; }
+
+.cs-stage[data-visual-style] :is([data-surface='soft'],[data-surface='outlined'],.cs-stat,.cs-slide,.cs-diagram-pan) {
+  background:var(--cs-sheen),var(--cs-panel-mask);
+  border:0;
+  box-shadow:var(--cs-material-shadow);
+  backdrop-filter:blur(var(--cs-glass-blur)) saturate(var(--cs-glass-saturation));
+  -webkit-backdrop-filter:blur(var(--cs-glass-blur)) saturate(var(--cs-glass-saturation));
+}
+/* Dense widgets and plain reading regions need texture separation, not just
+   a contrast ratio. Do not wrap lists of existing glass panels in more glass.
+   No padding/border is added: mobile height budgets remain unchanged. */
+.cs-stage[data-visual-style] :is(.cs-calendar,.cs-chart,.cs-region-body:not(:has(button,input,textarea,[data-surface],.cs-stat,.cs-image,.cs-calendar,.cs-chart,.cs-slide,.cs-diagram-pan))) {
+  background:var(--cs-sheen),var(--cs-panel-mask);
+  border-radius:var(--cs-control-radius);
+  box-shadow:var(--cs-material-shadow);
+  backdrop-filter:blur(var(--cs-glass-blur)) saturate(var(--cs-glass-saturation));
+  -webkit-backdrop-filter:blur(var(--cs-glass-blur)) saturate(var(--cs-glass-saturation));
+}
+/* Limit simultaneous blur layers, especially on phone-sized calendar grids. */
+.cs-stage[data-visual-style] :is([data-surface],.cs-stat,.cs-slide,.cs-diagram-pan,.cs-calendar,.cs-chart) :is([data-surface],.cs-stat,.cs-slide,.cs-calendar,.cs-chart,.cs-region-body,button) { backdrop-filter:none; -webkit-backdrop-filter:none; }
+.cs-stage[data-visual-style] :is([data-surface],.cs-stat,.cs-slide) :is([data-surface],.cs-stat,.cs-slide) { box-shadow:none; }
+.cs-stage[data-visual-style] .cs-card [data-tone='muted'] { color:var(--cs-muted); }
+.cs-stage[data-visual-style] .cs-card a { color:var(--cs-accent); text-underline-offset:3px; }
+.cs-stage[data-visual-style] .cs-card button {
+  background:var(--cs-sheen),var(--cs-control-mask);
+  border-color:transparent;
+  box-shadow:var(--cs-material-shadow);
+  /* Foreground/background switch together to preserve contrast throughout
+     selection and material changes; animate geometry and light instead. */
+  transition:border-color 180ms ease,box-shadow 180ms ease,transform 160ms cubic-bezier(.2,.75,.3,1);
+}
+/* Large list targets are glass surfaces too. Small calendar/chart controls
+   deliberately avoid a blur layer per cell. */
+.cs-stage[data-visual-style] .cs-pressable {
+  backdrop-filter:blur(var(--cs-glass-blur)) saturate(var(--cs-glass-saturation));
+  -webkit-backdrop-filter:blur(var(--cs-glass-blur)) saturate(var(--cs-glass-saturation));
+}
+.cs-stage[data-visual-style] .cs-card button:active:not(:disabled) { transform:scale(.97); box-shadow:inset 0 1px 5px #0003; }
+.cs-stage[data-visual-style] .cs-card :is(button[data-selected='true'],.cs-button[data-variant='primary']) {
+  background:var(--cs-selected-mask); color:var(--cs-selected-ink); border-color:transparent;
+  box-shadow:0 3px 12px #0002;
+}
+.cs-stage[data-visual-style] .cs-calendar-grid button { background:transparent; box-shadow:none; border-color:transparent; }
+.cs-stage[data-visual-style] .cs-calendar-grid button[data-today='true']:not([data-selected='true']) { background:var(--cs-group-mask); font-weight:700; }
+.cs-stage[data-visual-style] .cs-calendar-grid button[data-selected='true'] { background:var(--cs-selected-mask); color:var(--cs-selected-ink); }
+.cs-stage[data-visual-style] :is(.cs-field input,.cs-field textarea) { background:var(--cs-field-mask); border:0; box-shadow:none; transition:border-color 180ms ease,box-shadow 180ms ease; }
+.cs-stage[data-visual-style] :is(input,textarea)::placeholder { color:var(--cs-muted); opacity:1; }
+.cs-stage[data-visual-style] .cs-badge { background:var(--cs-group-mask); box-shadow:none; }
+/* Selected descendants inherit one coherent foreground/background pair. */
+.cs-stage[data-visual-style] button[data-selected='true'] :is(.cs-badge,[data-tone]) { color:inherit; background:transparent; box-shadow:none; }
+.cs-stage[data-visual-style] .cs-card :focus-visible { outline:2px solid var(--cs-accent); outline-offset:2px; box-shadow:0 0 0 4px var(--cs-base); }
+.cs-stage[data-visual-style] .cs-diagram-node { background:var(--cs-surface-solid); }
+.cs-stage[data-visual-style] .cs-chart-mark { transition:color 180ms ease,opacity 180ms ease; }
+.cs-stage[data-visual-style] .cs-progress { appearance:none; border:0; overflow:hidden; border-radius:999px; background:var(--cs-surface-solid); }
+.cs-stage[data-visual-style] .cs-progress::-webkit-progress-bar { background:var(--cs-surface-solid); border-radius:inherit; }
+.cs-stage[data-visual-style] .cs-progress::-webkit-progress-value { background:var(--cs-accent); border-radius:inherit; transition:width 240ms ease; }
+.cs-stage[data-visual-style] .cs-progress::-moz-progress-bar { background:var(--cs-accent); border-radius:inherit; }
+.cs-stage[data-visual-style]:not([data-streaming]) :is(.cs-region,.cs-page-item,[data-cs-component='box']) { animation:cs-material-enter var(--cs-panel-duration) ease-out backwards; }
+.cs-stage[data-visual-style] .cs-dialog[open] { animation:cs-material-enter var(--cs-panel-duration) ease-out; }
+.cs-stage[data-visual-style] .cs-dialog { background:var(--cs-surface-solid); box-shadow:var(--cs-material-shadow); }
+@keyframes cs-material-enter { from { opacity:.5; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+@media (hover:hover) { .cs-stage[data-visual-style] .cs-card button:hover:not(:disabled) { border-color:transparent; box-shadow:0 5px 16px #0002; } }
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+  .cs-stage[data-visual-style] :is([data-surface='soft'],[data-surface='outlined'],.cs-stat,.cs-slide,.cs-diagram-pan,.cs-pressable:not([data-selected='true'])) { background:var(--cs-surface-solid); }
+}
+@media (prefers-reduced-transparency:reduce) {
+  .cs-stage[data-visual-style] { --cs-surface:var(--cs-surface-solid); }
+  .cs-stage[data-visual-style] .cs-background { background:var(--cs-base); }
+  .cs-stage[data-visual-style] .cs-background img,.cs-stage[data-visual-style] .cs-background-scrim { display:none; }
+  .cs-stage[data-visual-style] :is([data-surface='soft'],[data-surface='outlined'],.cs-stat,.cs-slide,.cs-diagram-pan,.cs-calendar,.cs-chart,.cs-region-body,button,.cs-badge) { backdrop-filter:none; -webkit-backdrop-filter:none; }
+  .cs-stage[data-visual-style] .cs-card button { background:var(--cs-surface-solid); }
+  .cs-stage[data-visual-style] .cs-card :is(button[data-selected='true'],.cs-button[data-variant='primary']) { background:var(--cs-selected-mask); color:var(--cs-selected-ink); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .cs-stage[data-visual-style] * { animation:none!important; transition:none!important; scroll-behavior:auto!important; }
+}
+@media (forced-colors:active) {
+  .cs-stage[data-visual-style] .cs-background,.cs-stage[data-visual-style]::after { display:none; }
+  .cs-stage[data-visual-style][data-theme][data-palette] { color:CanvasText; background:Canvas; }
+}
+/* Retain glass depth without outlining every surface. */
+.cs-stage[data-visual-style] :is([data-surface='soft'],.cs-stat,.cs-slide,.cs-diagram-pan) { border-color:transparent; box-shadow:0 5px 16px #0000001c; }
+.cs-stage[data-visual-style] [data-surface='outlined'] { border:0; background:var(--cs-sheen),var(--cs-group-mask); padding:12px 14px; }
+.cs-stage[data-visual-style] .cs-card button { border-color:transparent; box-shadow:0 3px 10px #00000018; }
+.cs-stage[data-visual-style] .cs-card .cs-calendar-grid button { box-shadow:none; }
+.cs-stage[data-visual-style] .cs-card .cs-calendar-grid button[data-today='true']:not([data-selected='true']) { background:var(--cs-group-mask); font-weight:700; }
+.cs-stage[data-visual-style] :is(.cs-field input,.cs-field textarea) { border:0; }
+.cs-stage[data-visual-style] .cs-badge { box-shadow:none; }
+.cs-stage[data-visual-style] .cs-card :is(.cs-carousel-nav button,.cs-diagram header button,.cs-button[data-variant='quiet']) { background:transparent; box-shadow:none; }
+.cs-stage[data-visual-style] .cs-diagram-pan { border:0; background:transparent; box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none; }
+.cs-stage[data-visual-style] .cs-card .cs-diagram-node { background:var(--cs-field-mask); }
+.cs-stage[data-visual-style] .cs-card .cs-diagram-node[data-selected='true'] { background:var(--cs-selected-mask); color:var(--cs-selected-ink); }
+.cs-stage[data-visual-style] .cs-magazine > .cs-region-body { box-shadow:none; background:transparent; backdrop-filter:none; -webkit-backdrop-filter:none; }
+@media (hover:hover) { .cs-stage[data-visual-style] .cs-card button:hover:not(:disabled) { border-color:transparent; box-shadow:0 5px 14px #0002; } }
+@media (forced-colors:active) { .cs-card button,.cs-field input,.cs-field textarea { border:1px solid ButtonText; } }

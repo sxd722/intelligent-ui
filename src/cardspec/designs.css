@@ -1,0 +1,26 @@
+/* Recipes opt in. Geometry follows the existing fit/scroll engine. */
+.cs-stage[data-design][data-theme][data-palette] {
+  font-family:var(--cs-font-body);
+  --color-success:var(--cs-design-success);
+  --color-warning:var(--cs-design-warning);
+  --color-danger:var(--cs-design-danger);
+}
+.cs-stage[data-design] .cs-title {
+  font-size:var(--cs-title-size);
+  font-weight:var(--cs-title-weight);
+  letter-spacing:var(--cs-title-tracking);
+  text-wrap:pretty;
+}
+.cs-stage[data-design] .cs-title[data-size=small] { font-size:18px; }
+.cs-stage[data-design] .cs-title[data-size=large] { font-size:calc(var(--cs-title-size) + 2px); }
+.cs-stage[data-design] .cs-stat strong { font-size:var(--cs-stat-size); line-height:1.15; letter-spacing:-.025em; }
+.cs-stage[data-card-size=square]:is([data-cs-density=dense],[data-cs-density=minimum]) .cs-title:not([data-size=large]) { font-size:18px; }
+.cs-stage[data-card-size=square]:is([data-cs-density=dense],[data-cs-density=minimum]) .cs-stat strong { font-size:20px; }
+.cs-stage[data-design] .cs-card :is([data-surface=soft],[data-surface=outlined],.cs-stat) { box-shadow:var(--cs-material-shadow); }
+.cs-stage[data-design=friendly] .cs-badge { background:#dceaff; color:#174b80; }
+.cs-stage[data-design=cinematic] .cs-badge { background:#194651; color:#bdf4ff; }
+.cs-stage[data-design=editorial] .cs-caption { letter-spacing:.015em; }
+.cs-stage[data-design] .cs-card button:focus-visible { outline:2px solid var(--cs-accent); outline-offset:2px; }
+@media (forced-colors:active) {
+  .cs-stage[data-design] .cs-badge { background:Canvas; color:CanvasText; }
+}

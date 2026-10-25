@@ -1,0 +1,117 @@
+/* Design tokens — light/dark app chrome, mirroring the observed data-d-* / CSS-variable contract.
+   Card fonts scale with --font-scale (set by the auto-layout engine); card rhythm
+   uses --spacing, which the engine also tunes to fit the square stage. */
+
+:root {
+  --spacing: 0.25rem;
+  --font-scale: 1;
+
+  /* weight ladder (text engine consumes these; small sizes soften strong) */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-full: 9999px;
+
+  --shadow-card: 0 0 0 1px var(--color-border), 0 3px 8px -2px rgba(0, 0, 0, 0.08);
+
+  --font-text-3xs-size: calc(0.5625rem * var(--font-scale));
+  --font-text-3xs-line-height: 0.7rem;
+  --font-text-2xs-size: calc(0.625rem * var(--font-scale));
+  --font-text-2xs-line-height: 0.8rem;
+  --font-text-xs-size: calc(0.75rem * var(--font-scale));
+  --font-text-xs-line-height: 1rem;
+  --font-text-sm-size: calc(0.875rem * var(--font-scale));
+  --font-text-sm-line-height: 1.25rem;
+  --font-text-md-size: calc(1rem * var(--font-scale));
+  --font-text-md-line-height: 1.5rem;
+  --font-text-lg-size: calc(1.125rem * var(--font-scale));
+  --font-text-lg-line-height: 1.75rem;
+  --font-text-xl-size: calc(1.25rem * var(--font-scale));
+  --font-text-xl-line-height: 1.75rem;
+  --font-heading-sm-size: calc(1rem * var(--font-scale));
+  --font-heading-md-size: calc(1.125rem * var(--font-scale));
+  --font-heading-lg-size: calc(1.25rem * var(--font-scale));
+  --font-heading-xl-size: calc(1.4rem * var(--font-scale));
+  --font-heading-2xl-size: calc(1.6rem * var(--font-scale));
+}
+
+:root,
+html[data-theme='light'] {
+  color-scheme: light;
+  --color-bg: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-surface-secondary: #f2f2f0;
+  --color-surface-tertiary: #e9e9e6;
+  --color-surface-elevated: #ffffff;
+  --color-surface-inverse: #1f1f1e;
+  --color-border: rgba(0, 0, 0, 0.12);
+  --color-border-subtle: rgba(0, 0, 0, 0.07);
+
+  --color-text-default: #1f1f1e;
+  --color-text-prose: #262625;
+  --color-text-secondary: #636361;
+  --color-text-tertiary: #979795;
+  --color-text-emphasis: #111110;
+  --color-text-success: #37702e;
+  --color-text-danger: #b3362b;
+  --color-text-warning: #966416;
+  --color-text-info: #2a5f9e;
+
+  --color-primary: #0d5c46;
+  --color-primary-contrast: #ffffff;
+  --color-secondary-btn-bg: #ffffff;
+  --color-success: #4a8a3f;
+  --color-success-soft: rgba(108, 174, 97, 0.14);
+  --color-danger: #c94a3d;
+  --color-danger-soft: rgba(201, 74, 61, 0.12);
+  --color-warning: #d69326;
+  --color-warning-soft: rgba(214, 147, 38, 0.14);
+  --color-info: #3d74c4;
+  --color-info-soft: rgba(61, 116, 196, 0.12);
+
+  --color-accent: #0d5c46;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg: #171716;
+  --color-surface: #212120;
+  --color-surface-secondary: #282827;
+  --color-surface-tertiary: #30302e;
+  --color-surface-elevated: #262625;
+  --color-surface-inverse: #f4f4f2;
+  --color-border: rgba(255, 255, 255, 0.14);
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+
+  --color-text-default: #f0f0ee;
+  --color-text-prose: #e6e6e3;
+  --color-text-secondary: #a3a3a0;
+  --color-text-tertiary: #757572;
+  --color-text-emphasis: #ffffff;
+  --color-text-success: #7ec06e;
+  --color-text-danger: #e5746a;
+  --color-text-warning: #dfae55;
+  --color-text-info: #7aa5e0;
+
+  --color-primary: #4fae8b;
+  --color-primary-contrast: #0c1a15;
+  --color-secondary-btn-bg: #2c2c2b;
+  --color-success: #5c9e4f;
+  --color-success-soft: rgba(108, 174, 97, 0.18);
+  --color-danger: #d16053;
+  --color-danger-soft: rgba(209, 96, 83, 0.16);
+  --color-warning: #c78d2b;
+  --color-warning-soft: rgba(199, 141, 43, 0.18);
+  --color-info: #4d7fc9;
+  --color-info-soft: rgba(77, 127, 201, 0.16);
+
+  --color-accent: #4fae8b;
+}

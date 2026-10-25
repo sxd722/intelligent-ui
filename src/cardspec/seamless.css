@@ -1,0 +1,11 @@
+/* Reading surfaces share the card canvas. Affordances belong to controls. */
+.cs-stage[data-material-version="2"] .cs-card :is(.cs-stat,.cs-chart,.cs-slide,.cs-region-body,[data-surface=soft],[data-surface=outlined]){background:transparent!important;box-shadow:none!important;border:0!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.cs-stage[data-material-version="2"] .cs-card :is(button,.cs-pressable){box-shadow:none!important}
+.cs-stage[data-material-version="2"] .cs-card :is(input:not([type=range]):not([type=checkbox]),textarea,select){background:color-mix(in srgb,var(--cs-ink,currentColor) 7%,transparent);border:0;border-radius:10px;min-height:44px}
+.cs-stage[data-material-version="2"] .cs-card :is(button,.cs-pressable):not(:disabled):hover{filter:brightness(1.06)}
+.cs-stage[data-material-version="2"] .cs-card :is(button,input,select,textarea,a):focus-visible{outline:2px solid var(--cs-accent,currentColor)!important;outline-offset:2px}
+.cs-stage[data-material-version="2"] .cs-card :is(button,.cs-pressable):active:not(:disabled){transform:scale(.98)}
+.cs-stage[data-material-version="2"] .cs-host-controls{background:transparent;backdrop-filter:none}
+.cs-stage[data-material-version="2"] .cs-card button:disabled{opacity:.4}
+/* Preserve selected/primary colors and graphical encodings (heatmap, chart marks).
+   Fields, slider tracks, selected chips and primary actions remain discoverable. */

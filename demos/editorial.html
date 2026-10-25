@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设计语言 01 · 编辑杂志 Editorial</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/theme-editorial.css">
+</head>
+<body>
+  <div class="page-title">设计语言 01 / 06 · 编辑杂志 Editorial — Zara / Apple News</div>
+  <div class="controls">
+    <span class="ctl-group-label">材质与配色(最终由模型按内容选择,此处手动切换体验)</span>
+    <button class="ctl" data-palette-btn="a" aria-pressed="true">宣纸 · 朱砂</button>
+    <button class="ctl" data-palette-btn="b">冷刊 · 钴蓝</button>
+    <button class="ctl" data-palette-btn="c">暖沙 · 墨绿</button>
+    <span class="ctl-group-label">布局引擎演示(尺寸由引擎决定)</span>
+    <button class="ctl" data-density aria-pressed="false">+1 列表行 → 引擎自动重排</button>
+  </div>
+  <div class="stage" data-theme="editorial" data-scale="1"></div>
+  <div class="readout"></div>
+  <script src="assets/content.js"></script>
+  <script src="assets/engine.js"></script>
+</body>
+</html>
