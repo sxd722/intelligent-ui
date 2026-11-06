@@ -5,6 +5,7 @@ import path from 'node:path'
 import net from 'node:net'
 import { fileURLToPath } from 'node:url'
 import { validateToolInput,validateJson,FEED_SCHEMA } from '../../shared/cardspec/tools.mjs'
+import {assertResultRows} from '../../shared/cardspec/result-pagination.mjs'
 const root=fileURLToPath(new URL('../../',import.meta.url))
 export const AUTOCLI_VERSION='0.3.8'
 export const AUTOCLI_ARCHIVE_SHA256='cd439179091b28a0c9e373d69e93d767e2dc1e0e61dfc6c0f45607c588e7c1d1'
@@ -23,7 +24,7 @@ export function normalizeFeed(tool,raw){
   if(!Array.isArray(raw))throw new Error('CLI output must be a JSON array')
   const number=v=>v==null||v===''||!Number.isFinite(Number(v))?null:Number(v)
   const text=v=>String(v??'').slice(0,2000)
-  const items=raw.slice(0,20).map(r=>{
+  const items=assertResultRows(raw).map(r=>{
     let url=null;try{const u=new URL(r.url);if(['http:','https:'].includes(u.protocol))url=u.href}catch{}
     const title=text(r.title),author=text(r.author)
     return {id:createHash('sha256').update(`${source}:${url||`${title}:${author}`}`).digest('hex').slice(0,20),title,author,url,rank:number(r.rank),score:number(r.reactions??r.score),scoreLabel:source==='DEV'?'回应':'积分',comments:number(r.comments),tags:(Array.isArray(r.tags)?r.tags:String(r.tags||'').split(',')).map(x=>text(x).trim()).filter(Boolean).slice(0,30)}

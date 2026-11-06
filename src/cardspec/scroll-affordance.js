@@ -1,6 +1,6 @@
 // Keep native scrolling, dragging and keyboard behavior. This layer only
 // describes overflow/activity for CSS; it never intercepts wheel or touch.
-const targets='.cs-card,.cs-template-scroll,.cs-region-body,.cs-carousel-track,.cs-slide,.cs-diagram-pan,.cs-chart-pan,.cs-widget-caption,.cs-segmented,.cs-table-pan,.cs-code-block,.cs-math,.cs-mermaid-pan,.cs-dialog,.cs-popover,textarea'
+const targets='.tv-body,.tv-raw,.cs-card,.cs-template-scroll,.cs-region-body,.cs-carousel-track,.cs-slide,.cs-diagram-pan,.cs-chart-pan,.cs-widget-caption,.cs-segmented,.cs-table-pan,.cs-code-block,.cs-math,.cs-mermaid-pan,.cs-dialog,.cs-popover,textarea'
 export function attachScrollAffordances(root) {
   if(!root)return()=>{}
   const records=new Map()

@@ -98,7 +98,7 @@ js-v1 支持数组 filter/find/map/some/every/findIndex/reduce、includes/indexO
 
 logic 的 source 至多12000字符，JSON至多65536字符、深度16、4000节点；VM16MiB、50ms执行限制。初始/交互/恢复由宿主管理；`local` 是模块自己的状态，不是父卡 state。reactive 与 tickMs 是宿主控制机制，不授权自行开网络或定时器。
 
-sandbox 只有 hybrid 模式可生成，最多一个，不嵌套、不放each/slot/logic，不要求模型提供 fallback；source 必须携带完整静态 JSX 字符串，最终校验会预编译到 spec.sandboxModules，再交付卡片。source 可用单/双引号字符串或无插值反引号字符串，不受外层表达式 dialect 限制。brief 固定简短任务；input 为父卡当前数据；initial 仅独立局部状态；actions 为固定别名到父卡action的映射；height160–480。
+严格 sandbox 在 hybrid 模式生成，每卡最多四个独立实例（唯一 id，共享数据通过宿主 state/input/actions，局部状态分别恢复），不嵌套、不放each/slot/logic，不要求模型提供 fallback；source 必须携带完整静态 JSX 字符串，最终校验会预编译到 spec.sandboxModules，再交付卡片。source 可用单/双引号字符串或无插值反引号字符串，不受外层表达式 dialect 限制。brief 固定简短任务；input 为父卡当前数据；initial 仅独立局部状态；actions 为固定别名到父卡action的映射；height160–480。
 
 React 只允许默认组件和可选 `export const styles="静态CSS"`，支持 Tailwind 字面类名、inline CSS、内联 SVG 与 CSS keyframes 循环。不导入包，无 window/document/fetch/DOM refs/定时器/storage/HTML注入。SVG支持的局部 defs/渐变/marker/pattern 可引用 `url(#id)`，不能加载外部资源。桥接 `bridge.call(name,payload)` 只在用户事件中调用一次，非 Promise；结果通过更新 data 回传。修改 slider 的方式是改变其绑定 state，不调用组件私有实例方法。
 

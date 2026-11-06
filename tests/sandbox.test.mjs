@@ -56,7 +56,8 @@ test('generation catches independently owned input controls without rejecting co
 test('native mode rejects optional surfaces; hybrid validates fallback, count and nesting',()=>{
  assert.equal(compileCard(SANDBOX_FIXTURE,{final:true}).complete,false)
  assert.equal(compileCard(SANDBOX_FIXTURE,{final:true,context:{renderMode:'hybrid'}}).complete,true)
- for(const body of ['<sandbox id="a" brief="test"><sandbox id="b" brief="test"><text>fallback</text></sandbox></sandbox>','<sandbox id="a" brief="test"><text>A</text></sandbox><sandbox id="b" brief="test"><text>B</text></sandbox>'])assert.equal(compileCard('<card>'+body+'</card>',{final:true,context:{renderMode:'hybrid'}}).complete,false)
+ assert.equal(compileCard('<card><sandbox id="a" brief="test"><sandbox id="b" brief="test"><text>fallback</text></sandbox></sandbox></card>',{final:true,context:{renderMode:'hybrid'}}).complete,false)
+ assert.equal(compileCard('<card><sandbox id="a" brief="test"><text>A</text></sandbox><sandbox id="b" brief="test"><text>B</text></sandbox></card>',{final:true,context:{renderMode:'hybrid'}}).complete,true)
 })
 test('native implementation and hybrid fallback preserve multi-step simulator actions',()=>{
  for(const source of [SANDBOX_PURE,SANDBOX_FIXTURE]){

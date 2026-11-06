@@ -1,3 +1,5 @@
+import {decisionProfile} from './decision-profile.mjs'
+import {decisionDiagnostics} from './decision-diagnostics.mjs'
 import {COMPOSITIONS} from './compositions.mjs'
 import {contextualDiagnostics} from './diagnostic-context.mjs'
 import {feedbackDiagnostics} from './feedback-diagnostics.mjs'
@@ -18,6 +20,8 @@ import {interactionDiagnostics} from './interaction-diagnostics.mjs'
 import {validateLogicSource,logicJson} from './logic-contract.mjs'
 import {sandboxActions} from './sandbox-bridge.mjs'
 import {COMPONENT_ALIASES,ignoredPresentationAttribute} from './presentation-compat.mjs'
+import {validateTaskFields} from './task-operations.mjs'
+import {slotContract} from './tool-slots.mjs'
 
 const lit = (value) => ({ type: 'literal', value })
 const declarations = new Set(['data', 'state', 'derive', 'action','binding'])
@@ -39,7 +43,37 @@ export function compileCard(source,options={}) {
  result.diagnostics=contextualDiagnostics(original,result.diagnostics.map(d=>Number.isInteger(d.offset)?{...d,offset:d.offset+prefix}:d))
  return result
 }
-function compileDocument(source, { final = false, cardId = 'card', context = {}, revision = 1 } = {}) {
+// Build linker uses the same lexical parser as the compiler. Program strings,
+// JSX and quoted attributes are never searched with markup regexes.
+export function splitBuildFragment(source){
+ const {root,diagnostics}=compileDocument(source,{final:true,parseOnly:true,context:{expressionDialect:'js-v1'}})
+ const invalid=diagnostics.find(d=>d.severity==='error')
+ if(invalid)throw Object.assign(Error(invalid.message),{offset:invalid.offset})
+ const ranges=[],wrappers=[]
+ function top(nodes){for(const node of nodes){
+  if(node.name==='fragment'){
+   if(Object.keys(node.attrs).length)throw Error('fragment wrapper cannot have attributes')
+   wrappers.push([node.start,node.openEnd],[node.closeStart,node.end]);top(node.children)
+  }else if(declarations.has(node.name)){
+   ranges.push({start:node.start,end:node.end,name:node.name,id:node.attrs.id?.value,source:source.slice(node.start,node.end)})
+  }
+ }}
+ top(root.children)
+ // Replace with whitespace, preserving offsets/newlines for source diagnostics.
+ let view=source
+ for(const [start,end] of [...ranges.map(r=>[r.start,r.end]),...wrappers].sort((a,b)=>b[0]-a[0]))view=view.slice(0,start)+view.slice(start,end).replace(/[^\r\n]/g,' ')+view.slice(end)
+ return {declarations:ranges,view}
+}
+// Source spans for bounded content-only edits; callers never evaluate source JS.
+export function inspectCardSource(source){
+ let result=compileDocument(source,{final:true,parseOnly:true,context:{expressionDialect:'js-v1'}})
+ // Source-span inspection must also accept older cards' registered helpers.
+ // Callers still compile the result under the original card's actual dialect.
+ if(result.diagnostics.some(d=>d.severity==='error'))result=compileDocument(source,{final:true,parseOnly:true,context:{expressionDialect:'legacy'}})
+ if(result.diagnostics.some(d=>d.severity==='error'))throw Error('Cannot inspect invalid CardSpec source')
+ return result.root
+}
+function compileDocument(source, { final = false, cardId = 'card', context = {}, revision = 1, parseOnly = false } = {}) {
   source = String(source).replace(/^\s*```(?:xml|html|dil)?\s*\n/i, '').replace(/\n```\s*$/, '')
   const diagnostics = [], root = { name: '$root', children: [] }, stack = [root]
   const javascriptBoundaryCache={}
@@ -134,10 +168,10 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
             if (match > 0) { stack[match].closed = true; stack.length = match }
             continue
           }
-          parent.closed = true; stack.pop(); continue
+          parent.closed = true; parent.end=i; parent.closeStart=start; stack.pop(); continue
         }
         if (!/[A-Za-z]/.test(source[i])) fail('literal < must be escaped as &lt;')
-        const tag = name(), attrs = Object.create(null)
+        const tag = name(), attrs = Object.create(null), attrSpans=Object.create(null)
         if (tag === 'card') sawCard = true
         let self = false, finished = false
         while (i < source.length) {
@@ -151,7 +185,7 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
           if (source[i] !== '=' && REGISTRY[tag]?.props[key] === 'boolean') { attrs[key] = lit(true); continue }
           if (source[i++] !== '=') fail('attributes require = and a quoted value or expression')
           space(); if (i >= source.length) break
-          let value
+          let value;const valueStart=i
           if (source[i] === '{') { value = balanced(['sandbox','logic'].includes(tag)&&key==='source'); if (pending) break }
           else if (['"', "'", '“', '‘'].includes(source[i])) {
             // Accept typographic delimiters only at attribute boundaries. Do
@@ -160,15 +194,21 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
             while (i < source.length && source[i] !== quote) i++
             if (i === source.length) break
             value = lit(unescapeText(source.slice(from, i++)))
+            // A single expression terminator after an already closed quoted
+            // literal is an unambiguous authoring typo, not executable syntax.
+            // Preserve the original offsets and report the recovery as warning.
+            if(/^}\s*(?:\/?>|[A-Za-z][\w-]*\s*=)/.test(source.slice(i))){
+              diagnostics.push({severity:'warning',code:'literal_brace_ignored',message:'extra } after quoted attribute ignored; literal value preserved',offset:i});i++
+            }
           } else fail('unquoted attribute: use name="value" or name={expression}')
           // XML boolean spelling is unambiguous; preserve strict expression types.
           if (REGISTRY[tag]?.props[key] === 'boolean' && value?.type === 'literal' && ['true', 'false'].includes(value.value)) value = lit(value.value === 'true')
           if (['number', 'columns', 'lines'].includes(REGISTRY[tag]?.props[key]) && value?.type === 'literal' && typeof value.value === 'string' && /^-?\d+(\.\d+)?$/.test(value.value)) value = lit(Number(value.value))
-          attrs[key] = value
+          attrs[key] = value;attrSpans[key]={start:valueStart,end:i}
         }
         if (!finished) { pending = true; break }
         if (++nodes > 512 || stack.length > 32) fail('document complexity limit')
-        const node = { name: tag, attrs, children: [], closed: self, start }
+        const node = { name: tag, attrs, attrSpans, children: [], closed: self, start, openEnd:i, ...(self?{end:i}:{}) }
         parent.children.push(node)
         if (!self) stack.push(node)
       } else if (source[i] === '{'&&!plainProse) {
@@ -182,14 +222,14 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
           }
         }
         const value = balanced(parent.name==='sandbox'); if (pending) break
-        parent.children.push({ name: '#text', value, start })
+        parent.children.push({ name: '#text', value, start,end:i })
       } else {
         while (i < source.length && source[i] !== '<' && (source[i] !== '{'||plainProse)) i++
         let text = source.slice(start, i)
         // Do not publish the tail of an incomplete character entity either.
         if (i === source.length && /&[^;\s]*$/.test(text)) { text = text.replace(/&[^;\s]*$/, ''); pending = true }
         text = unescapeText(text).replace(/\s+/g, ' ')
-        if (text.trim()) parent.children.push({ name: '#text', value: lit(text), start })
+        if (text.trim()) parent.children.push({ name: '#text', value: lit(text), start,end:i })
       }
     }
   } catch (e) { error('syntax', e.message) }
@@ -198,6 +238,7 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
     const offset = incompleteExpressionStart ?? i
     diagnostics.push({ severity: final ? 'error' : 'pending', code: 'incomplete', message: incompleteExpressionStart === null ? 'waiting for complete syntax' : 'unclosed expression: missing closing } for expression starting here', offset, line: source.slice(0, offset).split('\n').length })
   }
+  if(parseOnly)return {root,diagnostics,pending}
   const cards = root.children.filter((n) => n.name === 'card')
   if (cards.length > 1) error('structure', `exactly one card is allowed; found ${cards.length}. Output one complete corrected document, not the original followed by a correction. The last card is ${cards.at(-1).closed ? 'closed' : 'incomplete'}; do not discard an unfinished correction and silently accept the original`, cards[1].start)
   const card = cards[0]
@@ -255,7 +296,7 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
           diagnostics.push({severity:'warning',code:'sandbox_source_normalized',message:'sandbox static string child normalized to source; no model call',offset:n.start,line:source.slice(0,n.start).split('\n').length})
         }
       }
-      if(context.renderMode!=='hybrid')error('capability','sandbox requires hybrid mode; implement the complete task with native CardSpec',n.start)
+      if(!['hybrid','web'].includes(context.renderMode))error('capability','sandbox requires hybrid or web mode; implement the complete task with native CardSpec',n.start)
       if(n.attrs.brief?.type!=='literal')error('sandbox','sandbox.brief must be a fixed literal; changing input updates UI without regenerating code',n.start)
       if(!n.attrs.id||locals.has('index')||locals.has('local')||locals.has('sandbox')||locals.has('slot'))error('sandbox','sandbox requires explicit id and cannot be nested or placed inside each/logic/slot',n.start)
       if(n.attrs.source&&n.attrs.source.type!=='literal')error('sandbox','sandbox.source must be a fixed JSX string literal',n.start)
@@ -299,7 +340,14 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
       }
     }
     for (const key of def.required || []) if (!props[key]) error('contract', `${n.name} requires ${key}`, n.start)
+    if(n.name==='image'&&props.query&&props.assetRef){
+      // A host-issued resource is the authoritative entity picture. Never
+      // query a stock-photo provider with an entity URL or a second source.
+      delete props.query
+      diagnostics.push({severity:'warning',code:'image_source_normalized',message:'image uses assetRef; redundant query ignored',offset:n.start})
+    }
     if(n.name==='image'&&!!props.query===!!props.assetRef)error('contract','image requires exactly one of query or assetRef',n.start)
+    if(n.name==='image'&&props.query?.type==='literal'&&/^https?:\/\//i.test(props.query.value))error('contract','image.query is a search phrase, not an entity URL; use the tool result assetRef',n.start)
     if (n.name === 'each' && (!props.items || !props.itemKey)) error('identity', 'each requires items and itemKey', n.start)
     if (def.children === 'none' && n.children.length) error('content_model', `${n.name} does not accept children`, n.start)
     return { type: n.name, id, props, children: n.children.map((c) => walk(c, def.children === 'inline' || parentType === 'inline' ? 'inline' : 'flow', childLocals)).filter(Boolean) }
@@ -353,6 +401,26 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
     spec.backgroundPosition = position
   }
   const declared = { data: new Set(), state: new Set(), derive: new Set(), action: new Set(),binding:new Set() }
+  // A tool view is syntax sugar over the existing binding lifecycle, never a
+  // second executor. Existing dependency, permission and visibility rules apply.
+  let viewBinding=0
+  const generatedBindings=[]
+  const occupiedBindings=new Set(card.children.filter(n=>n.name==='binding').map(n=>n.attrs.id?.value))
+  function lowerToolViews(nodes,scoped=false){for(const n of nodes){
+    if(n.name==='tool-view'){
+      if(n.attrs.bindings){if(n.attrs.tool||n.attrs.binding||n.attrs.input)error('tool_view','bindings is exclusive with tool/input/binding',n.start)}
+      else if(n.attrs.tool&&n.attrs.binding)error('tool_view','choose tool+input OR binding, not both',n.start)
+      else if(n.attrs.tool){
+        if(scoped){error('tool_view','declare binding outside repeated/scoped content and reference it',n.start);continue}
+        const tool=staticString(n,'tool');let id;do{id=`toolview-${++viewBinding}`}while(occupiedBindings.has(id));occupiedBindings.add(id)
+        generatedBindings.push({name:'binding',closed:true,start:n.start,children:[],attrs:{id:lit(id),tool:lit(tool),input:n.attrs.input||lit({}),initial:lit(toolInitialValue(tool)??null),load:lit(TOOLS[tool]?.readOnly===false?'manual':'visible')}})
+        n.attrs.binding=lit(id);delete n.attrs.tool;delete n.attrs.input
+      }else if(!n.attrs.binding)error('tool_view','tool-view requires tool or binding',n.start)
+      else if(n.attrs.input)error('tool_view','input belongs to the referenced binding',n.start)
+    }
+    lowerToolViews(n.children||[],scoped||['each','logic','slot','sandbox'].includes(n.name))
+  }}
+  lowerToolViews(card.children);card.children.unshift(...generatedBindings)
   for (const n of card.children) {
     if (!declarations.has(n.name)) { const node = walk(n); if (node) spec.children.push(node); continue }
     if (!n.closed) continue
@@ -377,15 +445,15 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
       if(n.attrs.requires&&(n.attrs.requires.type!=='literal'||typeof n.attrs.requires.value!=='string'))error('tool','binding.requires must be a literal list of binding IDs',n.start)
       const requires=String(staticString(n,'requires',false)||'').split(/[\s,]+/).filter(Boolean)
       spec.bindings[id]={tool,input:n.attrs.input||lit({}),initial:n.attrs.initial||lit(hostInitial??null),load,refresh,requires}
-      collectExpr(n.attrs.input);collectExpr(n.attrs.initial)
+      collectExpr(n.attrs.input,new Set(),n.start);collectExpr(n.attrs.initial,new Set(),n.start)
       if(n.children.length)error('tool','binding cannot have children',n.start)
     } else if (n.name === 'data' || n.name === 'derive') {
       if (!n.attrs.value) error('declaration', `${n.name} needs value`, n.start)
-      else { spec[n.name === 'data' ? 'data' : 'derived'][id] = n.attrs.value; collectExpr(n.attrs.value) }
+      else { spec[n.name === 'data' ? 'data' : 'derived'][id] = n.attrs.value; collectExpr(n.attrs.value,new Set(),n.start) }
     } else if (n.name === 'state') {
       const type = staticString(n, 'type')
       if (!STATE_TYPES.includes(type) || !n.attrs.initial) error('declaration', 'state needs type and initial', n.start)
-      else { spec.state[id] = { type, initial: n.attrs.initial }; collectExpr(n.attrs.initial) }
+      else { spec.state[id] = { type, initial: n.attrs.initial }; collectExpr(n.attrs.initial,new Set(),n.start) }
     } else {
       if (!n.children.length || n.children.length > 16) error('action', 'action requires 1–16 steps', n.start)
       spec.actions[id] = n.children.map((s) => {
@@ -394,14 +462,14 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
           for(const key of Object.keys(s.attrs||{}))if(!['binding','target','input','when','onSuccess','onError'].includes(key))error('attribute',`unknown invoke attribute ${key}`,s.start)
           for(const key of ['binding','target','onSuccess','onError'])if(s.attrs[key]&&(s.attrs[key].type!=='literal'||typeof s.attrs[key].value!=='string'))error('tool',`invoke.${key} must be a literal string`,s.start)
           if(s.children?.length)error('action','invoke must be empty',s.start)
-          collectExpr(s.attrs.when)
-          collectExpr(s.attrs.input)
+          collectExpr(s.attrs.when,new Set(),s.start)
+          collectExpr(s.attrs.input,new Set(),s.start)
           return {type:'invoke',binding:staticString(s,'binding'),target:constVal(s.attrs,'target','binding'),input:s.attrs.input,onSuccess:staticString(s,'onSuccess',false),onError:staticString(s,'onError',false),when:s.attrs.when}
         }
         if (!['set', 'toggle', 'increment', 'append', 'update', 'remove'].includes(s.name)) error('action', `unknown step ${s.name}`, s.start)
         if (s.children?.length) error('action', 'action steps must be empty elements', s.start)
         for (const key of Object.keys(s.attrs || {})) if (!['target', 'key', 'value', 'when'].includes(key)) error('attribute', `unknown action attribute ${key}`, s.start)
-        collectExpr(s.attrs?.value); collectExpr(s.attrs?.key); collectExpr(s.attrs?.when)
+        collectExpr(s.attrs?.value,new Set(),s.start); collectExpr(s.attrs?.key,new Set(),s.start); collectExpr(s.attrs?.when,new Set(),s.start)
         return { type: s.name, target: staticString({ ...s, attrs: s.attrs || {} }, 'target'), value: s.attrs?.value, key: s.attrs?.key, ...(s.attrs?.when ? { when:s.attrs.when } : {}) }
       })
     }
@@ -419,7 +487,7 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
     if (ast.type === 'ref' && !baseRoots.has(ast.name) && !locals.has(ast.name)) error('binding', `unknown binding ${ast.name} in this scope; each aliases exist only in their itemKey and children. Collection predicates use item/index; use a distinct outer alias for nested comparisons. Pass row values to actions through args`, at)
     // Predicates introduce item/index only for their second argument. Validate
     // even empty collections and inactive branches; no tool data is required.
-    if (ast.type === 'call' && ['filter', 'find', 'map', 'sum', 'count','some','every','findIndex','reduce'].includes(ast.name)) {
+    if (ast.type === 'call' && ['filter', 'find', 'map', 'flatMap', 'sum', 'count','some','every','findIndex','reduce'].includes(ast.name)) {
       ast.args.forEach((arg, index) => validateExpr(arg, index === 1 ? new Set([...locals, ...(ast.params||['item','index'])]) : locals, at))
       return
     }
@@ -438,7 +506,7 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
           return
         }
         const hint=alternatives.length===1?`; ${ast.key.value} is declared in ${alternatives[0]}, use ${alternatives[0]}.${ast.key.value} in ALL expressions, including other derives, UI and actions`:''
-        error('binding', `unknown ${ast.object.name}.${ast.key.value}${hint}`)
+        error('binding', `unknown ${ast.object.name}.${ast.key.value}${hint}`,at)
       }
     }
     for (const value of Object.values(ast)) {
@@ -451,6 +519,14 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
   function findSlots(nodes,inSlot=false){for(const n of nodes){if(n.type==='slot'){if(inSlot)error('tool','nested slots are not supported');slots.add(n.id)}findSlots(n.children||[],inSlot||n.type==='slot')}}
   findSlots(spec.children)
   if(Object.keys(spec.bindings).length>16)error('tool','at most sixteen declared bindings per card')
+  const taskPinRoles=new Set()
+  const checkToolViews=nodes=>{for(const n of nodes){if(n.type==='tool-view'){
+    if(n.props.bindings)try{const roles=evaluate(n.props.bindings,{}),ids=Object.values(roles);if(!roles||Array.isArray(roles)||ids.length<2||ids.length>4||new Set(ids).size!==ids.length||Object.keys(roles).some(k=>!k.trim()||k.length>30)||ids.some(id=>typeof id!=='string'||decisionProfile(spec.bindings[id]?.tool)?.kind!=='tickets'))throw Error('bindings requires 2–4 distinct route bindings with short role labels');n.props.bindings=lit(roles);n.props.binding=lit(ids[0])}catch(e){error('tool_view',e.message,nodeOffsets.get(n.id))}
+    const binding=spec.bindings[n.props.binding?.value]
+    if(!binding)error('tool_view','tool-view binding must reference a declared literal binding',nodeOffsets.get(n.id))
+    else if(n.props.task)try{const task=evaluate(n.props.task,makeScope(spec,createStore()));validateTaskFields(task,slotContract(binding.tool));if(TOOLS[binding.tool]?.readOnly===false)throw Error('task operations require a read-only source');if(task.pin){if(taskPinRoles.has(task.pin))throw Error('duplicate fixed role '+task.pin+'; one host view owns each role');taskPinRoles.add(task.pin)}}catch(e){error('task_contract',e.message,nodeOffsets.get(n.id))}
+  }checkToolViews(n.children||[])}}
+  checkToolViews(spec.children)
   if(Object.values(spec.bindings).filter(b=>b.load==='visible').length>4)error('tool','at most four automatically loaded bindings; use load="manual" for on-demand tools')
   for (const steps of Object.values(spec.actions)) for (const step of steps) {
     if(step.type==='invoke') {
@@ -463,7 +539,7 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
   }
   let logicCount=0,sandboxCount=0
   function validateEvents(node,inLogic=false) {
-    if(node.type==='sandbox'&&++sandboxCount>1)error('sandbox','at most one sandbox per card')
+    if(node.type==='sandbox'&&++sandboxCount>4)error('sandbox','at most four independent sandboxes per card; share state through input/actions')
     if(node.type==='logic'){
       inLogic=true;if(++logicCount>4)error('logic','at most four logic modules per card')
       if(node.props.actions)try{
@@ -472,12 +548,12 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
       }catch(e){error('logic',e.message)}
     }
     for (const [key, value] of Object.entries(node.props || {})) if (key.startsWith('on')) {
-      if (value.type !== 'literal' || (inLogic?!checkValue('id',value.value):!Object.hasOwn(spec.actions, value.value))) error('action', `unknown action ${value.value}`)
+      if (value.type !== 'literal' || (inLogic?!checkValue('id',value.value):!Object.hasOwn(spec.actions, value.value))) error('action', `unknown action ${value.value} on ${node.type}#${node.id}.${key}; declared actions: ${Object.keys(spec.actions).slice(0,24).join(', ') || '(none)'}. Use a declared action; unavailable tool capabilities must not be inferred from action names.`,nodeOffsets.get(node.id))
     }
     node.children?.forEach(n=>validateEvents(n,inLogic))
   }
   spec.children.forEach(n=>validateEvents(n))
-  if(final)diagnostics.push(...toolCollectionDiagnostics(spec),...interactionDiagnostics(spec),...feedbackDiagnostics(spec))
+  if(final)diagnostics.push(...toolCollectionDiagnostics(spec),...interactionDiagnostics(spec),...feedbackDiagnostics(spec),...decisionDiagnostics(spec))
   for(const id of Object.keys(spec.bindings)){
     function dependencies(name,trail=[]){
       if(trail.includes(name)){error('tool_dependency',`cyclic tool dependency: ${[...trail,name].join(' -> ')}`);return}
@@ -488,7 +564,7 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
     }
     dependencies(id)
   }
-  diagnostics.push(...navigationDiagnostics(spec, { final }))
+  diagnostics.push(...navigationDiagnostics(spec, { final }).map(d=>({...d,offset:nodeOffsets.get(d.nodeId)})))
   // Placeholder ASTs from invalid expressions exist only to continue diagnosis.
   // Do not manufacture runtime errors by evaluating those placeholders.
   if (!diagnostics.some(d => ['expression', 'syntax','binding_result_path'].includes(d.code))) try {

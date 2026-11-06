@@ -9,6 +9,12 @@
 3. 用工具的真实 Schema 建立数据边界。先用可辨认的 fixture 完成布局、筛选、详情和恢复；实际取数后校验 ID、时间、空值，保留失败/空状态。不要为了布局等待所有工具；也不要把 fixture 当真实证据交付。
 4. 输出一个完整 card，主视觉 + 当前选择 + 按需详情。优先复用原生组件，只有高阶表达才用已允许的 sandbox；禁止 Web 时核心功能仍完整。遵循既有 snapshot/state/next 事务语义，先确认读取时点再写多步动作。
 
+当前设计先读 [整卡构图](current-design.md)；混合模式按 [内联沙箱](sandbox-authoring.md) 同次交付 source，不使用旧 brief-only 异步流程。`docs/specs/cardspec-schema.md` 与 `glm-prompt-spec.md` 可定向查询，冲突时以本地编译器/registry/sandbox-policy 为准。
+
+snapshot 中 state/derived 是动作入口快照，next 是当前草稿；需要前一步结果时读取 next。跨异步 invoke 用新事务的 event.result/event.input，不继续旧草稿。复杂纯计算用 logic 的 update(state,event,input) 顺序计算并返回有限 JSON；工具 effects 仍交给声明的 action。编译/预演不执行工具。
+
+表达式选择由宿主传入（legacy/js-v1），不是随意给 card 添加 dialect 属性。想用 find/map/箭头函数先确认 js-v1 支持项；完整 JS reducer 放 logic，JSX 放 sandbox.source，不混写三种语法域。
+
 ## 已支持的容错不是新的写法负担
 
 标准输出仍用明确的 `onPress="actionId"`。编译器兼容无冲突的字面量 onClick 动作引用；不接受 JSX 回调函数或冲突事件。可点击 list-item 与富内容 button 支持结构化子内容，但不能嵌套交互控件。单一完整 card 外的普通说明可被记录为 warning；多 card、残缺结构和不安全表达式仍需修复。

@@ -5,6 +5,7 @@ import {validateLogicView} from '../../shared/cardspec/logic-view.mjs'
 import {probeLogicInteractions} from './logic-probes.mjs'
 import {logicLifecycleIssue} from './logic-diagnostics.mjs'
 import {compileSandbox} from './sandbox.mjs'
+import {compileWebSandbox} from './web-sandbox.mjs'
 import {diagnosticContext} from '../../shared/cardspec/diagnostic-context.mjs'
 
 // Run only on completed documents, not every streaming character.
@@ -35,9 +36,11 @@ export async function validateRichContent(result) {
     async function surfaces(nodes){for(const n of nodes||[]){
       if(n.type==='sandbox'){
         activeNode=n.id
+        try {
         if(n.props.source?.type!=='literal'||!n.props.source.value?.trim())throw Error(`sandbox ${n.id}: include complete JSX in literal source; no deferred generation`)
         const options={probe:true,input:n.props.input?evaluate(n.props.input,scope):{},initial:n.props.initial?evaluate(n.props.initial,scope):{},capabilities:Object.keys(n.props.actions?evaluate(n.props.actions,scope):{})}
-        spec.sandboxModules[n.id]=await compileSandbox(n.props.source.value,options)
+        spec.sandboxModules[n.id]=spec.context?.renderMode==='web'?await compileWebSandbox(n.props.source.value):await compileSandbox(n.props.source.value,options)
+        } catch(e) { result.complete=false;result.diagnostics.push(issue(/^Sandbox action is not exposed:/.test(e.message)?'sandbox_bridge_contract':'rich_content',`sandbox ${n.id}: ${e.message}`,n.id)) }
       }
       await surfaces(n.children)
     }}
@@ -82,6 +85,6 @@ export async function validateRichContent(result) {
       }
     }
     await visit(spec.children,scope)
-  } catch(e) { result.complete=false;result.diagnostics.push(issue('rich_content',e.message,activeNode)) }
+  } catch(e) { result.complete=false;result.diagnostics.push(issue(/^Sandbox action is not exposed:/.test(e.message)?'sandbox_bridge_contract':'rich_content',e.message,activeNode)) }
 }
 function createInitializedStore(spec) { const s=createStore();makeScope(spec,s);return s }

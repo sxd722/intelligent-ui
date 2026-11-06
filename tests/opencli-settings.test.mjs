@@ -1,5 +1,4 @@
 import {test} from 'node:test'
-import {existsSync} from 'node:fs'
 import assert from 'node:assert/strict'
 import {mkdtemp,rm,mkdir,writeFile,readFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
@@ -10,7 +9,7 @@ import {TOOLS,selectToolIds,toolReference} from '../shared/cardspec/tools.mjs'
 import {migrateOpenCliState} from '../server/tools/opencli-migration.mjs'
 import {OPENCLI_PACKAGE,OPENCLI_VERSION} from '../server/tools/opencli.mjs'
 
-test('injected CLI runtime cannot bind or consume the live browser lease',{skip:!existsSync(path.join(OPENCLI_PACKAGE,'package.json'))&&'Optional OpenCLI installation is not included in the source export'},async()=>{
+test('injected CLI runtime cannot bind or consume the live browser lease',async()=>{
  const cli=createOpenCli({run:async()=>[],restoreHandoff:true})
  try{await assert.rejects(()=>cli.bind(),/Injected CLI runtime/)}finally{cli.close()}
 })
@@ -41,7 +40,7 @@ test('desktop detection reads metadata only; Owl failure is distinguished from d
   assert.equal(browserProbeFailure(Error('timeout')).code,'browser-probe-failed')
  }finally{await rm(dir,{recursive:true,force:true})}
 })
-test('1.8.6 contracts match installed adapters; unavailable legacy declarations cannot execute',{skip:!existsSync(path.join(OPENCLI_PACKAGE,'cli-manifest.json'))&&'Optional OpenCLI installation is not included in the source export'},async()=>{
+test('1.8.6 contracts match installed adapters; unavailable legacy declarations cannot execute',async()=>{
  assert.equal(OPENCLI_VERSION,'1.8.6')
  assert.ok(!selectToolIds(Object.keys(TOOLS),'携程酒店').includes('opencli.ctrip.hotel'))
  assert.ok(!toolReference().includes('"id":"opencli.ctrip.attraction"'))

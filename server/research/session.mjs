@@ -1,4 +1,5 @@
 import {publicWebUrl} from './providers.mjs'
+import {planningTaskInput} from './planning-input.mjs'
 import {evidenceProfile} from './evidence-quality.mjs'
 import {toolErrorInfo} from '../../shared/cardspec/tool-errors.mjs'
 import {CARD_TEST_TOOL,CARD_COMMIT_TOOL,DEBUG_INSTRUCTION} from '../cardspec/debug-session.mjs'
@@ -32,11 +33,21 @@ export function createResearchSession({providers,onEvent=()=>{},maxRounds=3,maxC
   }
   async function execute(name,input,signal){
     if(extensions?.tools().some(t=>t.function.name===name)){
-      const physical=name==='cli_read'||name==='workflow_run'
+      const physical=['cli_read','workflow_run','dataset_enrich'].includes(name)
       if(physical&&calls>=maxCalls||chars>=maxContextChars)throw Error('generation tool budget exhausted')
-      if(physical)calls++;event({type:'research',status:'running',tool:name,input})
-      const result=await extensions.execute(name,input,signal),raw=JSON.stringify(result)
-      if(raw.length>maxContextChars-chars)throw Error('tool context exceeds budget; use smaller samples')
+      if(name==='dataset_enrich')input={...input,limit:Math.min(input.limit??5,maxCalls-calls)}
+      const beforeReads=extensions.snapshot?.().reads||0
+      event({type:'research',status:'running',tool:name,input})
+      let result
+      try{result=await extensions.execute(name,input,signal)}finally{if(physical)calls+=Math.max(0,(extensions.snapshot?.().reads||0)-beforeReads)}
+      let raw=JSON.stringify(result)
+      if(raw.length>maxContextChars-chars){
+       // The read has already succeeded and its full result lives in the host.
+       // Context compaction must not turn that success into a provider error.
+       result={status:'succeeded',dataAvailable:true,bindingRecipe:result.bindingRecipe,hostView:result.hostView,dataset:result.dataset,path:result.path,totalObserved:result.totalObserved,fieldCoverage:result.fieldCoverage,summaryOnly:true,instruction:'完整结果已保存在宿主dataset；上下文仅省略样本，不是读取失败。优先复用hostView，缺少字段时按需dataset_read。'}
+       if(JSON.stringify(result).length>Math.max(400,maxContextChars-chars))delete result.fieldCoverage
+       raw=JSON.stringify(result)
+      }
       chars+=raw.length;event({type:'research',status:'succeeded',tool:name,contextCharacters:chars});return result
     }
     validate(name,input);const key=JSON.stringify([name,input])
@@ -61,11 +72,13 @@ export function createResearchSession({providers,onEvent=()=>{},maxRounds=3,maxC
     event({type:'research',status:items.length?'succeeded':'empty',tool:name,sourceIds:items.map(s=>s.id),usage:result.usage,contextCharacters:chars})
     return value
   }
-  const snapshot=()=>({evidence:evidence.map(s=>({...s})),trace:trace.map(s=>({...s})),calls,searches,rounds,modelCalls,contextCharacters:chars,budget:budget?.snapshot()})
+  const snapshot=()=>({evidence:evidence.map(s=>({...s})),trace:trace.map(s=>({...s})),calls,searches,rounds,modelCalls,contextCharacters:chars,bindingPlan:extensions?.bindingPlan?.()||[],budget:budget?.snapshot()})
   async function run(round,messages,options){
     if(!expires)expires=Date.now()+timeoutMs
     const debug=options.debugSession
-    const history=[{role:'system',content:(providers?RESEARCH_PROMPT:'')+'\n'+(extensions?.prompt||'')+(debug?'\n'+DEBUG_INSTRUCTION:'')},...messages]
+    let discoveryTurns=0
+    const researchPrompt=budget?.policy.extendedGeneration?RESEARCH_PROMPT.replace('最多3轮、2次搜索','按需多轮检索，仍需控制上下文负担'):RESEARCH_PROMPT
+    const history=[{role:'system',content:(providers?researchPrompt:'')+'\n'+(extensions?.prompt||'')+(debug?'\n'+DEBUG_INSTRUCTION:'')},...messages]
     // A short, separate design turn allows higher creativity without raising
     // the temperature of factual retrieval, expressions or implementation.
     const planning=extensions?.planningRequest?.()
@@ -78,7 +91,7 @@ export function createResearchSession({providers,onEvent=()=>{},maxRounds=3,maxC
         budget?.model('plan');modelCalls++
         const {message,usage,model}=await round([
           {role:'system',content:planning.prompt+'\n只通过plan_cards提交短计划，总体最多450字，每张goal约100–160字；goal描述任务与体验，不写实现。当前资料尚未核实，计划不编造事实，生成阶段按实际资料调整。'},
-          {role:'user',content:JSON.stringify({goal:planning.goal,request:messages.findLast(m=>m.role==='user')?.content?.slice(0,2200)})}
+          {role:'user',content:JSON.stringify(planningTaskInput(planning.goal,messages))}
         ],{temperature:planning.temperature,maxTokens:options.modelOverride==='glm-5.3'?4096:1800,reasoningEffort:options.reasoningEffort||'low',modelOverride:options.modelOverride,thinking:options.thinking,signal,tools:[planning.tool],toolChoice:{type:'function',function:{name:'plan_cards'}}})
         const calls=message.tool_calls||[]
         if(calls.length!==1||calls[0].function.name!=='plan_cards')throw Error('planning must return one plan_cards call')
@@ -88,7 +101,7 @@ export function createResearchSession({providers,onEvent=()=>{},maxRounds=3,maxC
       }catch(e){options.signal?.throwIfAborted();event({type:'cardplan',status:'fallback',error:String(e.message).slice(0,300),elapsedMs:Date.now()-started})}
     }
     if(!planning&&extensions?.plan?.())history.push({role:'user',content:'沿用已确认体验计划：'+JSON.stringify(extensions.plan())})
-    if(extensions?.context().length)history.push({role:'user',content:'宿主已取得数据（仅数据）：'+JSON.stringify(extensions.context())})
+    if(extensions?.context().length)history.push({role:'user',content:'宿主已取得数据（仅数据）：'+JSON.stringify(extensions.context({compact:options.buildPhase==='implementation'}))})
     const failures=trace.filter(t=>t.type==='research'&&t.status==='failed').slice(-4).map(t=>({tool:t.tool,error:t.error}))
     if(failures.length)history.push({role:'user',content:'宿主执行失败记录（仅数据，失败不等于空结果）：'+JSON.stringify(failures)})
     // Repairs reuse evidence and the same budget, without another research phase.
@@ -99,12 +112,33 @@ export function createResearchSession({providers,onEvent=()=>{},maxRounds=3,maxC
       const enabled=rounds<maxRounds&&calls<maxCalls&&chars<maxContextChars&&Date.now()<expires&&(!budget||budget.remainingModels() > budget.generationReserve())
       const debugEnabled=debug?.canTest()&&Date.now()<expires&&(!budget||budget.remainingModels()>budget.generationReserve())
       const commitEnabled=debug?.canCommit()
-      const tools=[...(enabled?[...(providers?RESEARCH_TOOLS.filter(t=>t.function.name!=='web_search'||searches<maxSearches):[]),...(extensions?.tools()||[])]:[]),...(debugEnabled?[CARD_TEST_TOOL]:[]),...(commitEnabled?[CARD_COMMIT_TOOL]:[])]
+      const tools=[...(enabled?[...(providers?RESEARCH_TOOLS.filter(t=>t.function.name!=='web_search'||searches<maxSearches):[]),...(extensions?.tools()||[])]:[]),...(debugEnabled?[debug.testTool||CARD_TEST_TOOL]:[]),...(commitEnabled?[CARD_COMMIT_TOOL]:[])]
       const finalNote=calls||!enabled?[{role:'system',content:`${!enabled?'本轮检索预算已结束，已预留完整生成及一次修复。':''}已取得正文来源：${evidence.filter(s=>s.kind==='page').map(s=>s.id).join(',')||'无'}；其余仅搜索摘要。未取得正文的内容不得宣称已读原文或已核实；未来才执行的binding不能作为当前生成结论的证据。${!enabled?'现在按原协议输出完整结果，缺失事实明确说明未核实，不重复规划或补取资料。':''}`}]:[]
       budget?.model('generate')
-      const {message,usage,model}=await round([...history,...finalNote],{...options,tools:tools.length?tools:undefined,onPiece:p=>{if(p.reasoning)options.onPiece?.(p)}})
-      modelCalls++;event({type:'research_model',model,usage})
-      if(!message.tool_calls?.length){options.onPiece?.({content:message.content});return message.content}
+      // Deep data planning starts with at most two bounded discovery/read turns,
+      // instead of speculating about schemas while drafting an entire app.
+      const discover=enabled&&options.requireToolUse&&!extensions?.records?.().length&&discoveryTurns<2
+      const selected=discover?tools.filter(t=>['cli_discover','cli_describe','cli_read','web_search','web_read'].includes(t.function.name)):tools
+      const force=discover&&selected.length>0
+      if(force)discoveryTurns++
+      const discoveryNote=force?[{role:'system',content:'本轮仅探测数据工具：只返回工具调用，不输出需求计划、代码或最终正文。无需取数时返回空对象；宿主将另用完整规划预算生成计划。'}]:[]
+      let response
+      try{
+       response=await round([...history,...finalNote,...discoveryNote],{...options,tools:selected.length?selected:undefined,...(force?{toolChoice:'required',responseFormat:undefined,maxTokens:2048}:{}),onPiece:p=>{if(p.reasoning)options.onPiece?.(p)}})
+      }catch(e){
+       if(!force||e.code!=='OUTPUT_TRUNCATED')throw e
+       options.signal?.throwIfAborted();discoveryTurns=2
+       event({type:'research_discovery',status:'fallback',reason:'discovery_output_truncated',usage:e.usage})
+       // Discard incomplete tool arguments/output; no partial execution. The next
+       // round restores the caller's full output budget and JSON contract.
+       continue
+      }
+      const {message,usage,model}=response
+      modelCalls++;event({type:'research_model',model,usage,phase:force?'discovery':options.buildPhase||'generate',maxTokens:force?2048:options.maxTokens})
+      if(!message.tool_calls?.length){
+       if(force){discoveryTurns=2;event({type:'research_discovery',status:'fallback',reason:'no_tool_call'});continue}
+       options.onPiece?.({content:message.content});return message.content
+      }
       if(!enabled&&!debugEnabled&&!commitEnabled)throw Error('model requested tools after research budget was closed')
       // A commit is a transaction boundary. Reject mixed calls before executing
       // any tools; no post-commit read may change the tested context.
@@ -123,7 +157,7 @@ export function createResearchSession({providers,onEvent=()=>{},maxRounds=3,maxC
       rounds++;history.push(message)
       for(const c of message.tool_calls){
         let value
-        try{const signal=AbortSignal.any([...(options.signal?[options.signal]:[]),AbortSignal.timeout(Math.max(1,Math.min(40000,expires-Date.now())))]);
+        try{const signal=AbortSignal.any([...(options.signal?[options.signal]:[]),AbortSignal.timeout(Math.max(1,Math.min(c.function.name==='card_test'&&(budget?.policy.extendedGeneration||options.webApplication)?120000:40000,expires-Date.now())))]);
           if(c.function.name==='card_test'){
             if(!debugEnabled)throw Error('card_test budget closed')
             value=await debug.test(JSON.parse(c.function.arguments),{signal})
@@ -139,7 +173,7 @@ export function createResearchSession({providers,onEvent=()=>{},maxRounds=3,maxC
       // Keep reasoning untouched for the gateway continuation. Limit only tool data.
     }
   }
-  return {run,snapshot,execute,...(extensions?{records:extensions.records,datasets:extensions.datasets,plan:extensions.plan,lockPlan:extensions.lockPlan}:{})}
+  return {run,snapshot,execute,...(extensions?{bindingPlan:extensions.bindingPlan,context:extensions.context,records:extensions.records,datasets:extensions.datasets,plan:extensions.plan,lockPlan:extensions.lockPlan}:{})}
 }
 
 export function citationDiagnostics(source,evidence){

@@ -1,4 +1,3 @@
-import {existsSync} from 'node:fs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
@@ -51,7 +50,7 @@ test('real session commits a refreshed value but literal content stays unchanged
   }finally{session.dispose()}
  }
 })
-test('immutable R13 sentiment source exposes all three unconsumed read results',{skip: ["artifacts/javascript-upgrade/deep-baselines-r13/sentiment.json"].every(existsSync) ? false : "Private historical replay artifacts excluded from source export"}, ()=>{
+test('immutable R13 sentiment source exposes all three unconsumed read results',()=>{
  const r=JSON.parse(readFileSync('artifacts/javascript-upgrade/deep-baselines-r13/sentiment.json','utf8'))
  const issues=toolResultDiagnostics(r.output.spec)
  assert.equal(issues.length,3)

@@ -1,0 +1,30 @@
+import {readFile,writeFile,readdir,mkdir,cp} from 'node:fs/promises'
+const root='artifacts/requirement-planning-qa',out='dist/requirement-planning-qa';await mkdir(out,{recursive:true})
+const read=async p=>{try{return JSON.parse(await readFile(p,'utf8'))}catch{return null}}
+const rows=[]
+for(const name of ['game','learning-web','budget-web']){
+ const dir=`${root}/${name}`,summary=await read(`${dir}/summary.json`),request=await read(`${dir}/request.json`)
+ if(!request)continue
+ const spec=(await read(`${dir}/spec.json`))||(await read(`${dir}/candidate-spec.json`))
+ const resumed=await read(`${dir}/resume-failure.json`)
+ let trace
+ if(spec?.deepBuild?.artifactPath)trace=await read(spec.deepBuild.artifactPath+'/trace.json')
+ if(!trace){for(const id of (await readdir('artifacts/deep-build')).reverse()){const t=await read(`artifacts/deep-build/${id}/trace.json`);if(t?.goal===request.messages[0].content&&(!trace||t.elapsedMs>trace.elapsedMs))trace=t}}
+ const firstIds={game:'b2cc1744-b9dc-4858-b21c-0f5af19487d2','learning-web':'010dabcd-e9ef-441a-8b12-b52b7343bc24','budget-web':'919cc898-43c2-4d9c-849a-12676f7ab5a0'}
+ const first=await read(`artifacts/deep-build/${firstIds[name]}/trace.json`)
+ const planCalls=first?.trace?.filter(t=>t.kind==='plan')||[]
+ const evidence=await read(`${dir}/interaction.json`)
+ const row={name,title:name==='game'?'杀闪桃 · 人机对战':name==='learning-web'?'FIFO / LRU · 缓存课堂':'两天旅行 · 预算实验台',status:spec?.qaCandidate?'候选已渲染，完整门控未通过':summary?.status||'未完成',error:resumed?.message||summary?.error?.message,traceId:evidence?.traceId,firstRunStatus:summary?.status,firstModelCalls:summary?.metadata?.generationBudget?.modelCalls,seconds:Math.round((summary?.elapsedMs||first?.elapsedMs||0)/1000),planSeconds:Math.round(planCalls.reduce((n,t)=>n+(t.elapsedMs||0),0)/1000),requirements:trace?.plan?.requirements?.length,patches:first?.trace?.filter(t=>t.kind==='plan-patch').length||0,modelCalls:summary?.metadata?.generationBudget?.modelCalls??first?.trace?.filter(t=>['plan','implementation','test-repair'].includes(t.kind)).length,spec:!!spec,evidence,cardId:spec?.cardId}
+ rows.push(row)
+ await mkdir(`${out}/${name}`,{recursive:true})
+ if(spec)await writeFile(`${out}/${name}/spec.json`,JSON.stringify(spec))
+ for(const file of ['interaction.json','preview.png','played.png','game-over.png'])try{await cp(`${dir}/${file}`,`${out}/${name}/${file}`)}catch{}
+}
+await writeFile(`${root}/results.json`,JSON.stringify(rows,null,2));await writeFile(`${out}/results.json`,JSON.stringify(rows,null,2))
+const html=`<!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>需求规划修复 · 本地验收</title><style>body{margin:0;background:#eef1f5;color:#172238;font:15px system-ui}main{max-width:1100px;margin:auto;padding:28px}h1{font-size:28px}p{line-height:1.7}table{border-collapse:collapse;width:100%;background:white}th,td{padding:12px;text-align:left;border-bottom:1px solid #e6eaf0}button{padding:9px 14px;border:0;border-radius:8px;background:#233b70;color:white;cursor:pointer;margin:3px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.panel{padding:18px;background:white;border-radius:18px}iframe{border:0;width:432px;max-width:100%;height:850px}img{width:100%;max-width:432px;border-radius:12px}.muted{color:#627088}pre{white-space:pre-wrap;max-height:650px;overflow:auto;font-size:12px}a{color:#254f9c}@media(max-width:700px){.grid{grid-template-columns:1fr}main{padding:12px}table{font-size:12px}th,td{padding:6px}}</style><main><h1>需求规划修复 · 本地验收</h1><p>GLM-5.3 Flash · 长 Markdown 需求 · 深度构建。区分规划通过、生成门控和独立交互检查；未通过或未测不记为通过。此页仅本地展示，不发布GPT Site。</p><p class="muted">旧三国杀：85秒、两次调用后需求规划失败；最后一组原文1148字。新拆分保留12组，最长226字；标题不再单独占用需求ID。回归102项通过。表中总耗时与调用次数为首轮生成；后续定位与恢复额外耗时不计入首轮，也不冒充首次通过。当前三个规划均通过，完整生成门控尚未全部通过。</p><div id="table"></div><div class="grid"><section class="panel"><h2 id="title">交互预览</h2><div id="controls"></div><iframe id="preview" title="模型生成卡片"></iframe></section><section class="panel"><h2>独立交互证据</h2><div id="evidence"></div><img id="shot" hidden><p class="muted">旅行价格为本地样例；三例无需账户或外部实时数据。工具保持可用不等于必须调用。浏览器验证使用独立会话，不改变Owl绑定。</p></section></div></main><script>
+const escape=s=>String(s??'—').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+fetch('results.json').then(r=>r.json()).then(rows=>{document.getElementById('table').innerHTML='<table><tr><th>场景</th><th>计划/总耗时</th><th>需求/局部补全</th><th>生成状态</th><th>模型调用</th></tr>'+rows.map(r=>'<tr><td>'+escape(r.title)+'</td><td>'+r.planSeconds+'s / '+(r.seconds??'—')+'s</td><td>'+r.requirements+' / '+r.patches+'</td><td>'+escape(r.status)+'</td><td>'+escape(r.modelCalls)+'</td></tr>').join('')+'</table>';for(const r of rows){const b=document.createElement('button');b.textContent=r.title;b.onclick=()=>show(r);document.getElementById('controls').append(b)}if(rows[0])show(rows[0])});
+async function show(row){document.getElementById('title').textContent=row.title;const text=document.createElement('pre');text.textContent=JSON.stringify(row.evidence?{status:row.status,scope:row.evidence.scope,traceId:row.evidence.traceId,rows:row.evidence.rows.map(r=>({width:r.width,checks:r.checks,actions:r.actions.map(a=>({...a,text:undefined})),layout:r.layout,errors:r.errors}))}:{status:row.status,error:row.error||'等待独立检查'},null,2);document.getElementById('evidence').replaceChildren(text);const img=document.getElementById('shot');img.hidden=true;img.onload=()=>img.hidden=false;img.src=row.name+'/played.png';const frame=document.getElementById('preview');if(!row.spec){frame.removeAttribute('src');return}const spec=await fetch(row.name+'/spec.json').then(r=>r.json());frame.onload=()=>{const mount=()=>{if(frame.contentWindow.cardDebug)frame.contentWindow.cardDebug.mount(spec,{width:432,size:spec.context?.cardSize||'auto'});else setTimeout(mount,100)};mount()};frame.src='/card-debug.html'}
+</script></html>`
+await writeFile(`${root}/report.html`,html);await writeFile(`${out}/report.html`,html)
+console.log(rows.map(({name,status,planSeconds,seconds})=>({name,status,planSeconds,seconds})))

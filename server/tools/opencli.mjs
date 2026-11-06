@@ -8,6 +8,7 @@ import {createBoundBrowser} from './opencli-bound.mjs'
 import {createOpenCliSettings,inspectOpenCliApp,browserProbeFailure} from './opencli-settings.mjs'
 import {TOOLS,validateToolInput,validateJson,OPENCLI_RESULT_SCHEMA} from '../../shared/cardspec/tools.mjs'
 import {validateTrainWindow} from './12306-query.mjs'
+import {assertResultRows} from '../../shared/cardspec/result-pagination.mjs'
 export const OPENCLI_VERSION='1.8.6'
 export const OPENCLI_INTEGRITY='sha512-2+phJOV7JkSeQR4uOnapAkhSwQDjNzHYzlCXZJBYiYi7bUxQz95nGbGuXeTseprZWES0kysVGySH63B1HG51hw=='
 export const OPENCLI_ROOT=fileURLToPath(new URL('../../.tools/opencli/1.8.6/',import.meta.url))
@@ -54,8 +55,9 @@ export function normalizeOpenCli(tool,raw,input={}){
  if(envelope)raw=envelope.rows
  if(!Array.isArray(raw))throw new Error('OpenCLI output must be an array of records')
  const limit=input.limit??t.defaults?.limit
- const bounds={truncated:t.resultScope==='first-page'||raw.length>100||(envelope?envelope.truncated===true:typeof limit==='number'&&raw.length>=limit)},keys=new Map()
- const items=raw.slice(0,100).map((row,i)=>{
+ assertResultRows(raw)
+ const bounds={truncated:t.resultScope==='first-page'||(envelope?envelope.truncated===true:typeof limit==='number'&&raw.length>=limit)},keys=new Map()
+ const items=raw.map((row,i)=>{
   if(!row||typeof row!=='object'||Array.isArray(row))throw new Error('OpenCLI returned a malformed row')
   const item=clean(row,0,bounds)
   // Cross-tool IDs are opaque strings in cards, even when upstream APIs use
@@ -169,6 +171,13 @@ export function createOpenCli({run,settingsDirectory=OPENCLI_ROOT,restoreHandoff
   if(t.browser){const s=await bridge();if(!s.ready)throw new Error(s.reason);return s.profile}
   return t.auth==='oauth'?'project-spotify-profile':'public'
  }
+ async function cacheContext(tool){
+  const t=TOOLS[tool];await ready
+  if((await settings.get()).includes(tool))throw Error('该工具已在网页配置中停用')
+  if(t.browser){const s=await bridge();if(!s.ready)throw Error(s.reason);return JSON.stringify({profile:s.profile,binding:boundBrowser.status(s).session,daemon:s.daemonPid})}
+  if(t.auth==='oauth'){const a=await available(t);if(!a.available)throw Error(a.reason);return 'project-oauth'}
+  return 'public'
+ }
  async function diagnose(){
   const binding=boundBrowser.status(await bridge())
   if(binding.mode==='bound')return boundBrowser.run(lease=>controlBinding('check',lease))
@@ -225,5 +234,5 @@ export function createOpenCli({run,settingsDirectory=OPENCLI_ROOT,restoreHandoff
    return normalizeOpenCli(tool,raw,input)
   }finally{const next=queue.shift();if(next)next.resolve();else active--}
  }
- return {status,available,connect,invoke,executionContext,diagnose,bind:async()=>{await installed();const s=await bridge();if(!s.connected)throw Error(s.reason);return boundBrowser.bind(s.profile)},unbind:()=>boundBrowser.release(),configure:ids=>settings.set(ids),close(){closed=true;for(const child of children)child.kill();boundBrowser.close();daemon?.kill();while(queue.length)queue.shift().reject(new Error('OpenCLI closed'))}}
+ return {status,available,connect,invoke,executionContext,cacheContext,diagnose,bind:async()=>{await installed();const s=await bridge();if(!s.connected)throw Error(s.reason);return boundBrowser.bind(s.profile)},unbind:()=>boundBrowser.release(),configure:ids=>settings.set(ids),close(){closed=true;for(const child of children)child.kill();boundBrowser.close();daemon?.kill();while(queue.length)queue.shift().reject(new Error('OpenCLI closed'))}}
 }

@@ -1,0 +1,59 @@
+import {DISCOVERY_CASES,assessSelection} from '../../server/tools/discovery-cases.mjs'
+import {readFile,writeFile,mkdir,readdir,copyFile} from 'node:fs/promises'
+import path from 'node:path'
+const root='artifacts/tooling-p0p1-20261103',dest='dist/tooling-p0p1',load=async f=>JSON.parse(await readFile(root+'/'+f,'utf8'))
+const visual=await load('visual/results.json'),regression=await load('regression/results.json'),discovery=[...await load('discovery-v2/results.json'),...await load('discovery-strict/results.json')],complex=await load('complex/browser.json'),generation=await load('complex/generation.json'),live=[...(await load('live.json')).results,...(await load('live-extra.json')).results],extra=await load('stage-state.json')
+const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),med=a=>{a=[...a].sort((x,y)=>x-y);return a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2},seconds=n=>(n/1000).toFixed(2)+'s'
+for(const r of discovery){const c=DISCOVERY_CASES.find(c=>c.id===r.id);if(c&&!r.assessment)r.assessment=assessSelection(c,r.selected.map(id=>({id})))}
+const bindingStats=['A0','A2S'].map(arm=>{const rs=regression.filter(r=>r.arm===arm);return {arm,total:rs.length,first:rs.filter(r=>r.firstPass).length,final:rs.filter(r=>r.passed).length,modelMs:med(rs.map(r=>r.modelMs)),endMs:med(rs.map(r=>r.elapsedMs)),tokens:med(rs.map(r=>r.usage.total_tokens))}})
+const discoveryStats=['flat','hierarchical','strict'].map(arm=>{const rs=discovery.filter(r=>r.arm===arm),base=rs.filter(r=>r.assessment);return {arm,covered:base.filter(r=>!r.assessment.missing.length).length,strict:base.filter(r=>r.assessment.passed).length,complex:rs.filter(r=>!r.assessment&&r.recall===1).length,valid:rs.filter(r=>r.validIds).length,ms:med(rs.map(r=>r.elapsedMs)),tokens:med(rs.map(r=>r.usage))}})
+function redact(v){if(Array.isArray(v))return v.map(redact);if(v&&typeof v==='object')return Object.fromEntries(Object.entries(v).map(([k,x])=>[k,/^(authorization|apiKey|api_key|secret|password|xsec_token)$/i.test(k)?'[redacted]':redact(x)]));if(typeof v==='string')return v.replace(/([?&](?:xsec_token|token|access_token|api_key)=)[^&\s"<>]+/gi,'$1[redacted]');return v}
+async function copyEvidence(dir,target){await mkdir(target,{recursive:true});for(const d of await readdir(dir,{withFileTypes:true})){if(d.isDirectory())continue;const from=path.join(dir,d.name),to=path.join(target,d.name);if(d.name.endsWith('.json'))await writeFile(to,JSON.stringify(redact(JSON.parse(await readFile(from,'utf8'))),null,2));else if(/\.(png|txt|md)$/.test(d.name))await copyFile(from,to)}}
+for(const folder of ['visual','visual-final','complex','regression','discovery-v2','discovery-strict'])await copyEvidence(root+'/'+folder,dest+'/evidence/'+folder)
+for(const f of ['live.json','live-extra.json','stage-state.json','stitch-mcp-reference.json','stitch-mcp-tools.json'])await writeFile(dest+'/evidence/'+f,JSON.stringify(redact(await load(f)),null,2))
+const stateNote='2×2 / 2×4 / 4×4 / miniapp 是内容密度与字段投影契约，不是已发布的系统桌面 Widget；本轮宿主卡片按320/360/432px及square/auto验收。小空间降为摘要/紧凑控制，完整结果经切换、详情和数据入口可达。'
+const md=`# 工具 P0 / P1 本地验收 · 2026-11-03
+
+## 交付
+
+- 认证错误包含 profile 不再误解绑；短暂状态探测失败不清空身份。仅已确认的daemon/profile变化或不确定导航才隔离租约。
+- wttr网络错误可降级到固定Open-Meteo公开接口，明确来源/地点/单位；认证、限流、取消不伪装成功。服务健康保留degraded。
+- 领域→来源→工具目录、24条分页、跨域全局语义直达、至多4项批量契约、版本去重已接入生成工具。
+- 真实参数覆盖结果不再被组合视图误判stale；新请求、声明参数变化仍排除旧数据。XHS已验证路径提取实体ID、签名URL去重、精确数字点赞字符串转换；缩写/坐标系未知仍未知。
+- 四套Stitch家族及五工具主体进入普通tool-view；图片失效回退、选择/对比/固定、详情返回、原始数据、刷新失败保留均已验证。Stitch官方stdio MCP已实际tools/list和get screen；不是仅声称安装CLI。
+- ${stateNote}
+
+## 结果
+
+${visual.filter(r=>r.passed).length}/80 视觉交互配置通过；480次尺寸/模式检查无横向或初始内层溢出。四项图片/选择/过滤/失败恢复测试${extra.filter(r=>r.passed).length}/4。
+
+真实CLI：${live.filter(r=>r.result?.value?.items?.length).length}/${live.length}，涵盖XHS、大众点评、豆瓣、B站、携程、天气（替代源）、12306、懂车帝评分。组合真实E2E ${complex.results.filter(r=>r.passed).length}/3；初次三份模型输出均编译通过，但第一轮交互均未通过：feed多余重复搜索（一次模型修复），trip/movie受共享stale判断bug影响（宿主修复，无需模型重写）。不能把修复后结果称首次成功。图片与地图测试替身和真实取数证据分开；真实携程未标坐标系，不伪装地图已验证。
+
+### 28例绑定对照（每组一轮，不是统计显著性结论）
+
+|策略|首次|至多2次修复后|模型耗时中位|含浏览器测试耗时中位|tokens中位|
+|---|---:|---:|---:|---:|---:|
+${bindingStats.map(s=>`|${s.arm==='A0'?'模型自行接线':'宿主字段/动作接线'}|${s.first}/28|${s.final}/28|${seconds(s.modelMs)}|${seconds(s.endMs)}|${s.tokens}|`).join('\n')}
+
+这些是既定绑定/筛选/详情/返回探针，**不是原始CUJ完整达标率**。A2S剩余失败：${regression.filter(r=>r.arm==='A2S'&&!r.passed).map(r=>r.case).join('、')}。不得晋级为全任务正确率，也未用单例补丁掩盖它们。修复前及每轮trace、截图均保留。旧112次基线保持原目录未覆盖。
+
+### 分层发现独立对照（同模型，28×3）
+
+|初始披露|原20例必要能力覆盖|无额外工具严格通过|8例扩展依赖ID覆盖|发现耗时中位|tokens中位|
+|---|---:|---:|---:|---:|---:|
+${discoveryStats.map(s=>`|${s.arm==='flat'?'语义短名单':s.arm==='strict'?'目录浏览，禁全局检索':'分层目录，可全局检索'}|${s.covered}/20|${s.strict}/20|${s.complex}/8|${seconds(s.ms)}|${s.tokens}|`).join('\n')}
+
+前20例沿用人工可替代工具组；8例是固定依赖ID集合，非同一评分口径。工具选择不等于成功调用。首轮探针可能耗尽轮次后未提交选择，单独保留discovery；正式v2用最后一轮结构化提交，最多仍4轮，不把脚本修复算检索收益。分层提升覆盖但增加耗时/上下文，因此保持明确查询直达，不强制所有问题走三级。
+
+## 未宣称完成的能力 / 下一步
+
+- 28例完整CUJ仍需提升：A2S 24/28只是探针；写任务纯替身，无真实外部写入。
+- 地理邻近/跨站实体同一性、导航API、经原文证据验证的情绪统计仍非本次实现。真实地点缺少明确坐标系时保留候选而非编造pin。
+- 视觉样板待用户审美筛选，不视为RSI金标。1000+目录规模、发现×绑定完整2×2消融未验证，不从当前三组实验外推。
+- 本地8787已更新；DIL保留，未发布GPT Site。检查结束OpenCLI/Owl同session/daemon保留：${complex.connectionPreserved}。
+
+报告：http://127.0.0.1:8787/tooling-p0p1/report.html
+`
+await writeFile(root+'/report.md',md);await writeFile('docs/tooling-p0-p1-results.md',md);await writeFile(dest+'/report.md',md)
+const html=`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>工具 P0 / P1 验收</title><style>body{margin:0;background:#f3f4f6;color:#182331;font:15px/1.65 system-ui}header{background:#132730;color:#eef9f6;padding:44px max(24px,calc((100vw - 1200px)/2))}main{max-width:1200px;margin:24px auto;padding:0 20px}h1{font-size:36px;line-height:1.2}h2{margin-top:36px}a{color:#136d7a}header a{color:#a7e5d8}.stats{display:flex;gap:12px;flex-wrap:wrap}.stats div{padding:20px;background:white;border-radius:16px;flex:1;min-width:150px}.stats b{font-size:30px;display:block}table{border-collapse:collapse;background:white;width:100%;font-size:13px}th,td{padding:12px;text-align:left;border-bottom:1px solid #e5e8ec;vertical-align:top}td pre{white-space:pre-wrap;font-size:11px;max-width:340px}.scroll{overflow:auto}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:18px}.tile{padding:14px;background:white;border-radius:18px;box-shadow:0 6px 20px #13273008}.tile img{width:100%;border-radius:14px}.tile a{display:inline-block;padding:4px 6px}.tag{display:inline-block;padding:4px 10px;border-radius:30px;background:#e1f1eb;color:#19604b}.warn{padding:18px;background:#fff3d8;border-radius:14px}.pass{color:#16704b}.fail{color:#a34528}details{padding:12px;background:white;border-radius:8px;margin:8px 0}summary{cursor:pointer}button,select{padding:10px;border:1px solid #cbd5dc;border-radius:9px;background:white;font:inherit}iframe{width:100%;height:780px;border:0;background:#dfe4e8;border-radius:16px}small{color:#667380}code{overflow-wrap:anywhere}</style><header><span class="tag">LOCAL 8787 · DeepSeek V4 Flash</span><h1>工具发现 → 宿主展示 → 真实组合</h1><p>四套风格、五类工具、按需契约。生成结果与测试边界分别记录。</p><a href="report.md">完整 Markdown 报告</a> · <a href="/stitch-samples/">Stitch 原始样板</a></header><main><div class="stats"><div><b>8 / 8</b>真实只读工具返回结果</div><div><b>80 / 80</b>风格 × 工具 × 内容密度</div><div><b>480</b>尺寸 / 模式检查</div><div><b>3 / 3</b>修复后真实组合链路</div></div><p class="warn">A2S 24/28 是绑定交互探针通过数，不能解释为完整任务成功率。首次失败、修复和测试脚本调整均保留。天气使用明确标注的替代源；地图不填造坐标。</p><h2>分层披露与契约缓存</h2><p>用途明确时直接语义搜索；复杂任务可浏览领域与来源。每次至多展开四个契约，目录每页24项；相同版本仅返回状态。</p><div class="scroll"><table><tr><th>初始披露</th><th>20例必要能力覆盖</th><th>严格无额外工具</th><th>8扩展依赖覆盖</th><th>耗时中位</th><th>tokens中位</th></tr>${discoveryStats.map(s=>`<tr><td>${s.arm}</td><td>${s.covered}/20</td><td>${s.strict}/20</td><td>${s.complex}/8</td><td>${seconds(s.ms)}</td><td>${s.tokens}</td></tr>`).join('')}</table></div><p>分层的覆盖更好，但有额外成本；正常生成保留语义直达。未模拟1000+工具，不能据此宣称大规模召回率。</p><h2>20 个可交互视觉样板</h2><p>${stateNote}</p><div class="grid">${visual.filter(r=>r.format==='4x4').map(r=>`<article class="tile"><a href="viewer.html?id=${r.id}" target="preview"><img loading="lazy" src="evidence/visual/${r.id}-432.png" alt="${r.id}"></a><b>${r.case} · ${r.family}</b><p>${['2x2','2x4','4x4','miniapp'].map(f=>`<a href="viewer.html?id=${r.case}-${r.family}-${f}&size=${f==='miniapp'?'auto':'square'}" target="preview">${f}</a>`).join('')}</p></article>`).join('')}</div><h3>交互预览</h3><iframe name="preview" src="viewer.html?id=weather-atlas-4x4" title="工具视觉交互预览"></iframe><h2>真实工具与组合</h2><p>生成前种子为已取得的真实响应；选择地点/电影后发生新的真实CLI调用。另两条组合无需模型重写，修共享宿主即可恢复。下方入口会按操作调用本机工具。</p><div class="grid">${complex.results.map(r=>`<article class="tile"><img src="evidence/complex/${r.id}-432.png" alt="${r.id}"><b>${r.id} · ${r.passed?'通过':'未通过'}</b><p><a href="complex/viewer.html?id=${r.id}" target="preview">交互检查</a> · <a href="evidence/complex/${r.id}-trace.json">生成 trace</a></p><small>${r.checks.filter(c=>c.passed).length}/${r.checks.length}检查通过</small></article>`).join('')}</div><details><summary>真实工具执行记录（已脱敏）</summary><a href="evidence/live.json">五个登录后工具</a> · <a href="evidence/live-extra.json">天气 / 12306 / 懂车帝</a> · <a href="evidence/complex/browser.json">组合浏览器结果</a> · <a href="evidence/stage-state.json">图片 / 筛选 / 故障恢复</a></details><h2>28例生成与交互对照</h2><p>同一批固定响应，A0自己映射与接线；A2S宿主注入字段和动作。每组28次、至多两次修复。旧基线目录未覆盖。</p><div class="scroll"><table><tr><th>策略</th><th>首次</th><th>修复后</th><th>模型耗时中位</th><th>测试总耗时中位</th><th>tokens中位</th></tr>${bindingStats.map(s=>`<tr><td>${s.arm}</td><td>${s.first}/28</td><td>${s.final}/28</td><td>${seconds(s.modelMs)}</td><td>${seconds(s.endMs)}</td><td>${s.tokens}</td></tr>`).join('')}</table></div><details><summary>全部56次结果、错误、截图与trace</summary><div class="scroll"><table><tr><th>Case / 策略</th><th>状态</th><th>模型耗时</th><th>未通过检查 / 契约错误</th><th>证据</th></tr>${regression.map(r=>`<tr><td>${escape(r.case)} / ${r.arm}</td><td class="${r.passed?'pass':'fail'}">${r.passed?'通过':'未通过'} · ${r.attempts||0}次</td><td>${seconds(r.modelMs)}</td><td>${escape([...(r.diagnostics||[]).filter(d=>d.severity==='error').map(d=>d.message),...(r.browser?.checks||[]).filter(c=>!c.passed).map(c=>c.name+': '+c.error),r.error].filter(Boolean).join('\n')).slice(0,700)}</td><td><a href="evidence/regression/${r.tracePath}">trace</a>${r.browser?.screenshot?` · <a href="evidence/regression/${escape(path.basename(r.browser.screenshot))}">截图</a>`:''}</td></tr>`).join('')}</table></div></details><details><summary>分层发现的84次选择结果</summary><div class="scroll"><table><tr><th>用户请求</th><th>方式 / 耗时</th><th>模型选择</th><th>人工能力检查</th><th>输入与trace</th></tr>${discovery.map(r=>`<tr><td>${escape(r.prompt)}</td><td>${r.arm}<br>${seconds(r.elapsedMs)}</td><td>${escape(r.selected.join('\n'))}</td><td>${escape(JSON.stringify(r.assessment||{fixedDependencyRecall:r.recall}))}</td><td><a href="evidence/${r.arm==='strict'?'discovery-strict':'discovery-v2'}/${r.id}-${r.arm}-trace.json">完整输入/输出</a></td></tr>`).join('')}</table></div></details><h2>保留的边界</h2><p>不把同名内容当同一实体、不用总评分代替舆情，不把来源缺少坐标系的数据画成真实地图。写操作未实测；28例完整CUJ、跨站身份消歧、完整发现×绑定消融继续保留TODO。</p><p><a href="evidence/stitch-mcp-reference.json">Stitch MCP读取证据</a> · <a href="evidence/visual/results.json">480次DOM与交互检查</a> · <a href="evidence/visual-final/results.json">最终状态逻辑复测</a></p><small>仅本地更新。OpenCLI/Owl session与daemon核对保留：${complex.connectionPreserved}。未发布GPT Site；视觉候选等待人工审美检视，不是RSI金标。</small></main></html>`
+await writeFile(dest+'/report.html',html);await writeFile(root+'/summary.json',JSON.stringify({bindingStats,discoveryStats,visualPassed:visual.filter(r=>r.passed).length,complexPassed:complex.results.filter(r=>r.passed).length},null,2));console.log(JSON.stringify({bindingStats,discoveryStats}))

@@ -1,3 +1,9 @@
+import {TOOL_VIEW_FIXTURES} from '../../shared/cardspec/tool-view-fixtures.mjs'
+import {IMAGE_PROVIDERS} from '../../shared/cardspec/image-fixture.mjs'
+import {MAP_FIXTURES} from '../../shared/cardspec/map-fixtures.mjs'
+import {STUDY_FIXTURES} from '../../shared/cardspec/study-fixtures.mjs'
+import {CAROUSEL_FIXTURES} from '../../shared/cardspec/carousel-fixtures.mjs'
+import {SANDBOX_FIT_FIXTURES} from '../../shared/cardspec/sandbox-fit-fixtures.generated.mjs'
 import {MotionControl} from '../MotionControl.jsx'
 import {KINETIC_FIXTURES} from '../../shared/cardspec/kinetic-fixtures.mjs'
 import {TEMPLATE_FIXTURES} from '../../shared/cardspec/template-fixtures.mjs'
@@ -10,6 +16,7 @@ import {SANDBOX_LINKED} from '../../shared/cardspec/sandbox-linked-fixture.mjs'
 import {SandboxModeControl,useSandboxMode} from '../SandboxMode.jsx'
 import {DECK_FIXTURES,fixtureDeck,fixtureTransport} from '../../shared/cardspec/deck-fixtures.mjs'
 import {DETAIL_FIXTURES} from '../../shared/cardspec/detail-fixtures.mjs'
+import {COMPACT_PLANNER,compactPlannerTransport} from '../../shared/cardspec/compact-planner-fixture.mjs'
 import {CardDeck} from './CardDeck.jsx'
 import {LOGIC_FIXTURES} from '../../shared/cardspec/logic-fixtures.mjs'
 import {OPENCLI_WEATHER,OPENCLI_MUSIC} from '../../shared/cardspec/opencli-fixtures.mjs'
@@ -32,9 +39,14 @@ import '../styles/tokens.css'
 import '../styles/themes.css'
 import { RecoveryLab } from './RecoveryLab.jsx'
 import { CardSizeControl } from '../CardSize.jsx'
-const CASES = {...KINETIC_FIXTURES,...ADAPTIVE_FIXTURES,...CAPABILITY_FIXTURES,sandbox:SANDBOX_FIXTURE,sandboxPure:SANDBOX_PURE, ...Object.fromEntries(Object.entries(DETAIL_FIXTURES).map(([k,v])=>[k,v.source])),...DECK_FIXTURES, ...LOGIC_FIXTURES, ...FIXTURES, ...MOBILE_FIXTURES, ...INTERACTION_FIXTURES, ...TRANSACTION_FIXTURES, ...EXPERIENCE_FIXTURES, ...RICH_FIXTURES,tools:TOOL_DEMO,opencliWeather:OPENCLI_WEATHER,opencliMusic:OPENCLI_MUSIC }
+const CASES = {imageProviders:IMAGE_PROVIDERS,...KINETIC_FIXTURES,...ADAPTIVE_FIXTURES,...CAPABILITY_FIXTURES,sandbox:SANDBOX_FIXTURE,sandboxPure:SANDBOX_PURE, ...Object.fromEntries(Object.entries({...DETAIL_FIXTURES,...TOOL_VIEW_FIXTURES}).map(([k,v])=>[k,v.source])),...DECK_FIXTURES, ...LOGIC_FIXTURES, ...FIXTURES, ...MOBILE_FIXTURES, ...INTERACTION_FIXTURES, ...TRANSACTION_FIXTURES, ...EXPERIENCE_FIXTURES, ...RICH_FIXTURES,tools:TOOL_DEMO,opencliWeather:OPENCLI_WEATHER,opencliMusic:OPENCLI_MUSIC }
+CASES.compactPlanner=COMPACT_PLANNER
 CASES.sandboxLinked=SANDBOX_LINKED
 Object.assign(CASES,TEMPLATE_FIXTURES)
+Object.assign(CASES,STUDY_FIXTURES)
+Object.assign(CASES,CAROUSEL_FIXTURES)
+Object.assign(CASES,MAP_FIXTURES)
+Object.assign(CASES,Object.fromEntries(Object.entries(SANDBOX_FIT_FIXTURES).map(([id,value])=>[id,value.source])))
 CASES.materials=MATERIAL_FIXTURE
 const requestedFixture=new URLSearchParams(location.search).get('fixture')
 const initialFixture=Object.hasOwn(CASES,requestedFixture)?requestedFixture:'counter'
@@ -49,7 +61,7 @@ function Lab() {
   const [design, setDesign] = useState(new URLSearchParams(location.search).get('design') || 'inherit')
   const [visualStyle, setVisualStyle] = useState('inherit'), [backgroundQuery, setBackgroundQuery] = useState('misty alpine lake')
   const compiled = useMemo(() => compileCard(custom || (fixture === 'calendar' ? calendar(month) : CASES[fixture]), { final: true, cardId: `${fixture}-${month}`, revision, context: {...TEST_CONTEXT,expressionDialect,renderMode:fixture==='sandbox'&&!custom?'hybrid':renderMode} }), [fixture, month, revision, custom,renderMode,expressionDialect])
-  const spec = useMemo(() => compiled.spec ? { ...compiled.spec, theme, palette, ...(design === 'inherit' ? {} : {design}), ...(visualStyle === 'inherit' ? {} : { visualStyle, backgroundQuery, backgroundPosition:'center' }) } : null, [compiled, theme, palette, design, visualStyle, backgroundQuery])
+  const spec = useMemo(() => compiled.spec ? { ...compiled.spec, ...(!custom&&SANDBOX_FIT_FIXTURES[fixture]?{sandboxModules:SANDBOX_FIT_FIXTURES[fixture].sandboxModules}:{}), ...(!custom&&TOOL_VIEW_FIXTURES[fixture]?{prefetched:TOOL_VIEW_FIXTURES[fixture].prefetched}:{}), theme, palette, ...(design === 'inherit' ? {} : {design}), ...(visualStyle === 'inherit' ? {} : { visualStyle, backgroundQuery, backgroundPosition:'center' }) } : null, [compiled, theme, palette, design, visualStyle, backgroundQuery])
   const resources = useMemo(() => {
     if (!spec || imageMode === 'pexels') return {}
     try { return Object.fromEntries(collectImages(spec).map((job) => [job.key, imageMode === 'loaded' ? { status:'loaded', url:new URL(`/api/image?seed=${encodeURIComponent(job.query)}&w=640&h=${job.role === 'background' ? 640 : 240}&label=fixture`, location.origin).href } : { status:imageMode }])) } catch { return {} }
@@ -65,10 +77,10 @@ function Lab() {
       {visualStyle !== 'inherit' && <label>背景关键词 <input aria-label="背景关键词" value={backgroundQuery} maxLength={100} onChange={(e) => setBackgroundQuery(e.target.value)}/></label>}
       <label>宽度 <select aria-label="宽度" value={width} onChange={(e) => setWidth(Number(e.target.value))}>{[320,360,432].map((k) => <option key={k}>{k}</option>)}</select></label>
       <label>月份 <input aria-label="月份" type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></label>
-      <label>图片 <select aria-label="图片" value={imageMode} onChange={(e) => { setImageMode(e.target.value); if (e.target.value === 'pexels') setStreaming(false) }}><option>loaded</option><option>loading</option><option>error</option><option value="pexels">Pexels 实图</option></select></label>
+      <label>图片 <select aria-label="图片" value={imageMode} onChange={(e) => { setImageMode(e.target.value); if (e.target.value === 'pexels') setStreaming(false) }}><option>loaded</option><option>loading</option><option>error</option><option value="pexels">真实图片服务</option></select></label>
       <button onClick={() => setRevision((n) => n + 1)}>模拟增量更新</button><button onClick={() => setStreaming(false)}>模拟结束</button>
     </div>
-    <div style={{ width, maxWidth: '100%', margin: 'auto' }}>{fixture==='deck'?<CardDeck spec={fixtureDeck()[0].spec} deck={fixtureDeck()} transport={fixtureTransport}/>:<CardRenderer materialPreview={materialPreview} key={`${fixture}-${month}-${custom || 'fixture'}`} transport={!custom?DETAIL_FIXTURES[fixture]?.transport:undefined} persistenceKey={!custom&&(fixture==='tools'||fixture.startsWith('sandbox')||fixture.startsWith('logic')||fixture.startsWith('adaptive'))?'cardspec:lab:'+fixture:undefined} toolsReady={compiled.complete} spec={spec} streaming={streaming} resources={resources} onLayout={setLayout}/>}</div>
+    <div style={{ width, maxWidth: '100%', margin: 'auto' }}>{fixture==='deck'?<CardDeck spec={fixtureDeck()[0].spec} deck={fixtureDeck()} transport={fixtureTransport}/>:<CardRenderer materialPreview={materialPreview} key={`${fixture}-${month}-${custom || 'fixture'}`} transport={!custom?(fixture==='compactPlanner'?compactPlannerTransport:(DETAIL_FIXTURES[fixture]||TOOL_VIEW_FIXTURES[fixture])?.transport):undefined} persistenceKey={!custom&&(fixture==='tools'||fixture.startsWith('sandbox')||fixture.startsWith('logic')||fixture.startsWith('adaptive'))?'cardspec:lab:'+fixture:undefined} toolsReady={compiled.complete} spec={spec} streaming={streaming} resources={resources} onLayout={setLayout}/>}</div>
     <pre data-testid="layout" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(layout)}</pre><pre data-testid="diagnostics" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(compiled.diagnostics, null, 2)}</pre>
     <details><summary>输入 DSL 验证</summary><textarea aria-label="DSL源码" value={source} onChange={(e) => setSource(e.target.value)} style={{ display: 'block', boxSizing: 'border-box', width: '100%', height: 160, fontSize: 16 }}/><button style={{ minHeight: 44 }} onClick={() => { setCustom(source); setRevision((n) => n + 1) }}>应用源码</button></details>
   </main>

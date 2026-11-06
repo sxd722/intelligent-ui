@@ -6,9 +6,9 @@ export const digest=value=>createHash('sha256').update(typeof value==='string'?v
 export async function recordAdaptiveGeneration({requestId,goal,results=[],budget,error,parentPageId},{root='artifacts/rsi-adaptive/runs'}={}){
  if(!/^[\w-]{1,128}$/.test(requestId))throw Error('Invalid RSI run ID')
  const artifacts=results.map(r=>{
-  const artifactHash=digest({source:r.source,spec:r.spec,module:r.module}),compiled=!!(r.spec||r.module)
-  return {caseId:digest(goal),track:r.module?'cardspec-react-enhancement':r.spec?.context?.renderMode==='hybrid'?'cardspec-hybrid':'cardspec-native',artifactHash,status:compiled?'compiled':'failed',source:r.source||r.module?.source,spec:r.spec,module:r.module,diagnostics:r.diagnostics,
-   gate:trainingReadiness({status:compiled?'compiled':'failed',artifactHash},null,null)}
+  const artifactHash=digest({source:r.source,spec:r.spec,module:r.module}),compiled=!!(r.spec||r.module)&&(!r.status||r.status==='ready')
+  return {caseId:digest(goal),track:r.module?'cardspec-react-enhancement':r.spec?.context?.renderMode==='web'?'cardspec-web':r.spec?.context?.renderMode==='hybrid'?'cardspec-hybrid':'cardspec-native',artifactHash,status:compiled?'compiled':'failed',source:r.source||r.module?.source,spec:r.spec,module:r.module,diagnostics:r.diagnostics,
+   delivery:{id:r.id,title:r.title,goal:r.goal,status:r.status,error:r.error},gate:trainingReadiness({status:compiled?'compiled':'failed',artifactHash},null,null)}
  })
  const record={version:1,requestId,createdAt:new Date().toISOString(),goal,parentPageId,profiles:{harness:'adaptive-v1',prompt:'adaptive-v1.1',compositions:'1',numeric:'1'},budget,error,artifacts,
   comparison:{baseline:'h5-baseline',matchedArtifactHash:null,humanReviewRequired:true},trainingEligible:false}

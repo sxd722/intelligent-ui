@@ -1,7 +1,10 @@
 // Pinned adapter limitations shared by normalization and generation. Kept apart
 // from the generated upstream manifest so contract sync cannot erase them.
 export const TOOL_SEMANTICS = {
+  'opencli.zhihu.question':{detail:{tool:'opencli.zhihu.answer-detail',key:'id',parameter:'id',input:{maxContent:1800}}},
+  ...Object.fromEntries(['movie-hot','top250','book-hot'].map(name=>['opencli.douban.'+name,{detail:{tool:'opencli.douban.subject',key:'id',parameter:'id',input:{type:name==='book-hot'?'book':'movie'}}}])),
   'opencli.douban.search': {
+    detail:{tool:'opencli.douban.subject',key:'id',parameter:'id',typeField:'type',types:['movie','book']},
     // v1.8.6 searchDouban returns these fields beyond its table columns.
     // Disclose the retained JSON fields, not only the upstream table header.
     additionalFields:['id','type','cover'],

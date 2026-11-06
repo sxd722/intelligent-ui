@@ -1,4 +1,3 @@
-import {existsSync} from 'node:fs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
@@ -39,7 +38,7 @@ test('missing or mismatched provenance is not guessed from row IDs',()=>{
  const spec=fixture();spec.prefetched[0].value.analysis.dataset.id='unknown'
  assert.equal(liveDatasetContext(spec,{feed:committed(envelope('New'),{q:'x'})}).datasets.D2.items.length,1)
 })
-test('immutable R14 expressions no longer attach stale labels to changed live feedback',{skip: ["artifacts/javascript-upgrade/sentiment-r14-offline.json","artifacts/javascript-upgrade/deep-baselines-r14/sentiment.json"].every(existsSync) ? false : "Private historical replay artifacts excluded from source export"}, ()=>{
+test('immutable R14 expressions no longer attach stale labels to changed live feedback',()=>{
  const replay=JSON.parse(readFileSync('artifacts/javascript-upgrade/sentiment-r14-offline.json','utf8'))
  const original=JSON.parse(readFileSync('artifacts/javascript-upgrade/deep-baselines-r14/sentiment.json','utf8'))
  const spec={...replay.spec,prefetched:original.records},record=original.records.find(r=>r.id==='D2')

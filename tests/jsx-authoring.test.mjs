@@ -1,4 +1,3 @@
-import {existsSync} from 'node:fs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
@@ -58,7 +57,7 @@ test('JSX failures keep following native siblings and report source offsets',()=
  }
 })
 
-test('actual immutable failed family output passes JSX parsing without rewriting its model source',{skip: ["artifacts/javascript-upgrade/flash-baselines-r10/family.json"].every(existsSync) ? false : "Private historical replay artifacts excluded from source export"}, ()=>{
+test('actual immutable failed family output passes JSX parsing without rewriting its model source',()=>{
  const record=JSON.parse(readFileSync('artifacts/javascript-upgrade/flash-baselines-r10/family.json','utf8'))
  const source=record.trace.filter(e=>e.type==='diagnostics').at(-1).source
  const result=compile(source)

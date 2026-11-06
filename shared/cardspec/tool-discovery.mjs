@@ -14,7 +14,7 @@ export function toolDiscoveryReference(catalog,goal='',{compact=false}={}){
     group[t.available?'ready':'unavailable'].push(item);groups.set(site,group)
   }
   const ordered=[...groups.values()].sort((a,b)=>Number(b.ready.some(t=>preferred.has(b.prefix+t.command)))-Number(a.ready.some(t=>preferred.has(a.prefix+t.command)))||a.area.localeCompare(b.area)||a.prefix.localeCompare(b.prefix))
-  if(compact)return '【工具速查】ID=prefix+command；ready仅表示允许调用，不保证查询成功；off不可执行。用途查找用capability_find，参数/输出用cli_describe，不猜ID或字段。\n'+ordered.map(g=>`${g.area} ${g.prefix} ready:${g.ready.map(t=>t.command+(t.write?'[写]':'')).join(',')||'-'}${g.unavailable.length?' off:'+g.unavailable.map(t=>t.command).join(','):''}`).join('\n')
+  if(compact)return '【工具速查】ID=prefix+command；ready仅表示允许调用，不保证查询成功；off表示已接入但暂不可执行，按其原因说明，不推断网站离线或登录失效。用途查找用capability_find，参数/输出用cli_describe，不猜ID或字段。\n'+ordered.map(g=>`${g.area} ${g.prefix} ready:${g.ready.map(t=>t.command+(t.write?'[写]':'')).join(',')||'-'}${g.unavailable.length?' off:'+g.unavailable.map(t=>t.command).join(',')+' 原因:'+ [...new Set(g.unavailable.map(t=>t.reason))].join(' / '):''}`).join('\n')
   const compactJson=(level)=>JSON.stringify(ordered.map(g=>({...g,ready:g.ready.map(t=>[t.command,...(level?[]:[t.purpose]),...(t.write?['需确认写操作']:[])]),unavailable:g.unavailable.map(t=>[t.command,level>1?'需连接或启用':t.reason])})))
   let index=compactJson(0);if(index.length>14000)index=compactJson(1);if(index.length>14000)index=compactJson(2)
   return `【能力地图】这是宿主已接入的能力索引，ID=prefix+command。ready仅表示当前允许调用，不保证来源成功；unavailable是已接入但目前不能调用，应说明连接/启用条件，不能称为不存在。不把本轮展开的少数工具当成全部能力。没有索引项的能力不编造。优先匹配用户用途，静态任务可不用工具。写操作需独立用户动作及宿主确认。\n${index}\n目录只用于发现；参数以展开契约为准。规划在现有信息/规则字段里注明选中的完整工具ID和用途，不新增规划字段、不输出工具源码。`

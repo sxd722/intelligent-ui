@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {compute,normalize,W1,W2,X0} from '../src/transformer-stitch/math.mjs';
+const near=(a,b)=>assert(Math.abs(a-b)<1e-10,`${a} vs ${b}`);
+test('attention rows normalized and context independently recomputed',()=>{const r=compute();for(let i=0;i<4;i++){near(r.A[i].reduce((a,b)=>a+b),1);for(let d=0;d<4;d++){let c=0;for(let j=0;j<4;j++)c+=r.A[i][j]*r.V[j][d];near(r.C[i][d],c);near(r.R[i][d],c+X0[i][d])}}});
+test('FFN expands, clips and projects shared weights for every token',()=>{const r=compute();assert(r.Z.flat().some(z=>z<0));assert(r.Z.flat().some(z=>z>0));for(let i=0;i<4;i++){assert.equal(r.H[i].length,6);for(let n=0;n<6;n++){const z=W1[n].reduce((a,w,d)=>a+w*r.R[i][d],0);near(r.Z[i][n],z);near(r.H[i][n],Math.max(0,z))}for(let d=0;d<4;d++)near(r.Y[i][d],r.R[i][d]+W2[d].reduce((a,w,n)=>a+w*r.H[i][n],0))}});
+test('changing only one token changes its input and other contextual outputs without mutating weights',()=>{const w=JSON.stringify([W1,W2]),a=compute(),b=compute([0,1,0,0]);assert.deepEqual(a.X[0],b.X[0]);near(b.X[1][0]-a.X[1][0],1);assert.notDeepEqual(a.Y[0],b.Y[0]);assert.equal(JSON.stringify([W1,W2]),w)});
+test('ablation removes both additions; restoration rejects malformed state',()=>{const a=compute(),b=compute([0,0,0,0],false);assert.deepEqual(b.R,b.C);assert.deepEqual(b.Y,b.F);assert.notDeepEqual(a.Y,b.Y);assert.deepEqual(normalize({version:1,token:99,step:-1,edits:[NaN,Infinity,9,-9]}).edits,[0,0,2,-2]);assert.equal(normalize({version:1,token:99}).token,1)});

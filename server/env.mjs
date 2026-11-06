@@ -7,7 +7,7 @@
 import { readFileSync } from 'node:fs'
 
 export const DEFAULT_ENV_PATH =
-  '.env.local'
+  'C:/Users/USER/Documents/trae_projects/cot-genui/flywheel_genui.env'
 
 const CANDIDATES = [
   'MODEL_API_KEY',
@@ -33,9 +33,6 @@ function parseVars(raw) {
 }
 
 export function loadApiKey(path = process.env.APIKEY_FILE || DEFAULT_ENV_PATH) {
-  for (const name of CANDIDATES) {
-    if (process.env[name]?.trim()) return { ok: true, value: process.env[name].trim(), source: 'process-env' }
-  }
   let raw
   try {
     raw = readFileSync(path, 'utf8')
@@ -67,7 +64,7 @@ export function loadPexelsKey(path = process.env.APIKEY_FILE || DEFAULT_ENV_PATH
     return { ok: true, value: process.env.PEXELS_API_KEY, source: 'process-env' }
   }
   try {
-    const { vars, bareLines } = parseVars(readFileSync(process.env.PEXELS_API_KEY_FILE || '.pexels.local', 'utf8'))
+    const { vars, bareLines } = parseVars(readFileSync(process.env.PEXELS_API_KEY_FILE || 'C:/Users/USER/Desktop/pexels.txt', 'utf8'))
     const value = vars.get('PEXELS_API_KEY') || bareLines[0]
     if (value) return { ok:true, value, source:'pexels-key-file' }
   } catch { /* dedicated file optional */ }
@@ -76,5 +73,12 @@ export function loadPexelsKey(path = process.env.APIKEY_FILE || DEFAULT_ENV_PATH
     const v = vars.get('PEXELS_API_KEY')
     if (v) return { ok: true, value: v, source: 'env-file' }
   } catch { /* env file optional here */ }
-  return { ok: false, reason: 'no PEXELS_API_KEY (environment, .env.local, or configured key file)' }
+  return { ok: false, reason: 'no PEXELS_API_KEY (env, env file, or Desktop/pexels.txt)' }
+}
+
+export function loadOpenAIImageKey(){
+ if(process.env.OPENAI_IMAGES_DISABLED==='1')return {ok:false}
+ if(process.env.OPENAI_IMAGE_API_KEY)return {ok:true,value:process.env.OPENAI_IMAGE_API_KEY,source:'image-process-env'}
+ try{const {vars,bareLines}=parseVars(readFileSync(process.env.OPENAI_API_KEY_FILE||'C:/Users/USER/Desktop/oai1.txt','utf8'));const value=vars.get('OPENAI_API_KEY')||bareLines[0];if(value)return {ok:true,value,source:'openai-key-file'}}catch{}
+ return {ok:false}
 }

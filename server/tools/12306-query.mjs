@@ -1,5 +1,6 @@
 // Host-owned query adapter. Reuse the pinned upstream protocol, but filter the
-// complete response BEFORE applying the UI limit. No browser session is touched.
+// complete response; the renderer owns pagination. No browser session is touched.
+import {assertResultRows} from '../../shared/cardspec/result-pagination.mjs'
 export function validateTrainWindow(input) {
  const from=input.departureAfter??'00:00',to=input.departureBefore??'24:00'
  if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(from)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(to)&&to!=='24:00'||from>=to)throw Error('departureAfter/departureBefore require an increasing HH:MM range (end exclusive)')
@@ -8,8 +9,8 @@ export function validateTrainWindow(input) {
 export function selectTrainRows(rows,input,fromStation,toStation) {
  const window=validateTrainWindow(input)
  const filtered=rows.filter(row=>(input.exactStations===false||(row.from_code===fromStation.code&&row.to_code===toStation.code))&&row.start_time>=window.from&&row.start_time<window.to)
- const limit=input.limit??20
- return {rows:filtered.slice(0,limit),coverage:{complete:true,total:rows.length,matched:filtered.length,returned:Math.min(limit,filtered.length)},truncated:filtered.length>limit}
+ assertResultRows(filtered)
+ return {rows:filtered,coverage:{complete:true,total:rows.length,matched:filtered.length,returned:filtered.length},truncated:false}
 }
 export async function queryTrains(load,input) {
  validateTrainWindow(input)

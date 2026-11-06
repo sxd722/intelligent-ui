@@ -14,6 +14,18 @@ const id='opencli.douban.top250',catalog=[{...TOOLS[id],available:true}],signal=
 const value={items:Array.from({length:20},(_,i)=>({rowKey:'r'+i,id:String(i),title:'电影'+i,rating:8})),source:'fixture',fetchedAt:'2026-10-16T00:00:00Z',truncated:false}
 const source='<card><state id="n" type="number" initial={0}/><button onPress="inc">增加</button><text>{state.n}</text><action id="inc"><increment target="n"/></action></card>'
 
+test('HTTP adapter does not override server-owned deep unit inference settings',async()=>{
+ const res=new EventEmitter();Object.assign(res,{writeHead(){},flushHeaders(){},end(){this.writableEnded=true},write(){}})
+ const observed=[]
+ await handleCardSpec({},res,{mode:'direct',buildMode:'deep',modelProfile:'deep',messages:[{role:'user',content:'计数'}]}, {keyLoaded:true,model:'test',photo:async()=>null,researchSession:()=>null,streamUpstream:async(_m,o)=>{
+  observed.push(o)
+  if(o.buildPhase==='plan')return JSON.stringify({requirements:[{id:'R1',kind:'interaction',acceptance:'计数'}],modules:[{name:'main.cardspec',units:[{goal:'one counter'}]}],interfaces:'n'})
+  throw Object.assign(Error('test stops before browser execution'),{code:'BUILD_STALLED'})
+ }})
+ const unit=observed.find(o=>o.buildPhase==='unit')
+ assert.ok(unit);assert.equal(unit.modelOverride,'glm-5.3');assert.equal(unit.reasoningEffort,'low');assert.equal(unit.thinking.type,'disabled');assert.equal(unit.maxTokens,8192)
+})
+
 test('followup button labels stay short while the complete intent and fresh selection survive',async()=>{
  const prompt='根据当前选择给出完整规划。'+ '保留约束与确认步骤。'.repeat(10)
  const t=createGenerationTools({})

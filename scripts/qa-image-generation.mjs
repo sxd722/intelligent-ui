@@ -1,0 +1,9 @@
+import {writeFile,mkdir} from 'node:fs/promises'
+import {createDeltaApplier,isControlEvent} from '../src/delta.js'
+import {collectImages} from '../shared/cardspec/images.mjs'
+const root='artifacts/image-service-qa';await mkdir(root,{recursive:true})
+const cases=[['picnic','为一家三口做周末湖边野餐活动卡，三个活动可选择，展示当前选择的简短准备建议。轻松有设计感，不需要真实地点或工具。'],['science','给小学孩子讲解蝴蝶的四个成长阶段，点选阶段显示一句解释，用视觉来帮助识别，适合手机。']]
+for(const [id,prompt]of cases.filter(c=>!process.argv[2]||c[0]===process.argv[2])){const at=Date.now(),frames=[],applier=createDeltaApplier(),envelope={};let terminal,error,buffer='';const decoder=new TextDecoder()
+ try{const r=await fetch('http://127.0.0.1:8787/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:prompt}],format:'cardspec',mode:'direct',renderMode:'native',toolsEnabled:false,cardSize:'full',expressionDialect:'js-v1'}),signal:AbortSignal.timeout(210000)});for await(const chunk of r.body){buffer+=decoder.decode(chunk,{stream:true});let b;while((b=/\r?\n\r?\n/.exec(buffer))){const block=buffer.slice(0,b.index);buffer=buffer.slice(b.index+b[0].length);for(const line of block.split('\n')){if(!line.startsWith('data:'))continue;const raw=line.slice(5).trim();if(raw==='[DONE]')continue;const f=JSON.parse(raw);frames.push(f);if(f.type==='message_stream_complete')terminal=f.status;if(f.type==='stream_error')error=f.error?.message;if(!isControlEvent(f))applier.apply(envelope,f)}}}}catch(e){error=e.message}
+ const spec=envelope.message?.metadata?.card_spec,result={prompt,ms:Date.now()-at,terminal,error,source:envelope.message?.content?.parts?.[0],spec,resources:envelope.message?.metadata?.resources,images:spec?collectImages(spec):[],frames};await writeFile(`${root}/${id}.json`,JSON.stringify(result,null,2));console.log({id,ms:result.ms,terminal,error,images:result.images})
+}

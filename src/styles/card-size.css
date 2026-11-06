@@ -17,3 +17,13 @@
 .cs-stage[data-card-size=auto]>.cs-host-controls{flex:0 1 auto;max-height:45%;overflow:auto}
 .cs-result-card[data-card-size=auto]>.cs-result-scroll{flex:1 1 auto;min-height:0;overflow:auto}
 .card-focus--open .dil-stage[data-card-size=auto]{--cs-natural-max:min(780px,calc(100svh - 100px))}
+/* Full means normal document flow, not a taller fixed viewport. */
+.dil-stage[data-card-size=full],.cs-result-card[data-card-size=full]{aspect-ratio:auto!important;height:auto!important;max-height:none!important;overflow:visible!important}
+.dil-stage[data-card-size=full]>.cs-card,.dil-stage[data-card-size=full]>.dil-card{height:auto!important;max-height:none!important;overflow:visible!important;flex:0 0 auto}
+.dil-stage[data-card-size=full] :is(.cs-composition,.cs-composition-middle,.cs-composition-body,.cs-template-layout,.cs-template-lab,.cs-template-scroll,.cs-region,.cs-region-body,.cs-experience-body,.cs-collection-items){height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important;flex:0 0 auto}
+.dil-stage[data-card-size=full] .cs-composition-body{display:flex;flex-direction:column}
+.cs-result-card[data-card-size=full]>.cs-result-scroll{height:auto;max-height:none;overflow:visible}
+.dil-stage[data-card-size=full]>.cs-host-controls{max-height:none;overflow:visible}
+.cs-carousel[data-expanded=true] .cs-dial-track{height:auto!important;overflow:visible;display:flex;flex-direction:column;gap:12px;padding:0}
+.cs-carousel[data-expanded=true] .cs-dial-slide{position:relative!important;inset:auto!important;width:100%!important;transform:none!important;opacity:1!important;visibility:visible!important;height:auto!important}
+.cs-carousel[data-expanded=true] .cs-dial-content{height:auto;max-height:none;overflow:visible}

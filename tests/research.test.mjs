@@ -7,6 +7,15 @@ const item={url:'https://example.org/fact',title:'A fact',excerpt:'Evidence',kin
 const providers={search:async()=>({items:[{...item,kind:'search'}]}),read:async()=>item}
 const call=(name='web_read',input={url:item.url},id='call1')=>({role:'assistant',content:'draft not for renderer',reasoning_content:'original reasoning',tool_calls:[{id,type:'function',function:{name,arguments:JSON.stringify(input)}}]})
 const options={onPiece:()=>{},signal:new AbortController().signal}
+
+test('deep data discovery is bounded and JSON output mode does not suppress tool calls',async()=>{
+ const s=createResearchSession({providers});let count=0
+ await s.run(async(h,o)=>{
+  if(count<2){assert.equal(o.toolChoice,'required');assert.equal(o.responseFormat,undefined);assert.equal(o.maxTokens,2048);count++;return {message:call('web_read',{url:item.url},'call'+count)}}
+  assert.notEqual(o.toolChoice,'required');assert.deepEqual(o.responseFormat,{type:'json_object'});return {message:{content:'{"requirements":[]}'}}
+ },[],{...options,requireToolUse:true,responseFormat:{type:'json_object'}})
+ assert.equal(count,2)
+})
 test('stream fragments reconstruct tools, reasoning and usage',async()=>{
  const chunks=[{choices:[{delta:{reasoning_content:'think',tool_calls:[{index:0,id:'t',function:{name:'web_',arguments:'{"u'}}]}}]},{choices:[{delta:{tool_calls:[{index:0,function:{name:'read',arguments:'rl":"https://example.org"}'}}]}}]},{choices:[{delta:{},finish_reason:'tool_calls'}],usage:{total_tokens:12}}]
  const s=chunks.map(x=>'data: '+JSON.stringify(x)+'\n\n').join('')+'data: [DONE]\n\n';let sent

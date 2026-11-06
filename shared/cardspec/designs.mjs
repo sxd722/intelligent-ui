@@ -1,4 +1,4 @@
-import {compositionReference} from './compositions.mjs'
+import {compositionReference,FOLIO_REFERENCE} from './compositions.mjs'
 // Curated DESIGN.md translations, not a runtime Markdown/CSS execution surface.
 // Material still comes from visualStyle; recipes own color and type hierarchy.
 const sans = 'Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif'
@@ -21,6 +21,7 @@ const recipe = (label, description, material, scheme, colors, type, effect = 'no
   }),
 })
 export const DESIGNS = Object.freeze({
+  'folio': recipe('平面纸感', '图标探索、图文详情、候选与时间线；平面色块与轻分割，保留原生交互。', 'frosted-glass', 'light', {ink:'#24364b',muted:'#596676',base:'#f6f2e9',accent:'#24364b',selectedInk:'#fffaf1',surface:'#ebe5d980',solid:'#eee8dc',scrim:'linear-gradient(#f6f2e9ed,#f6f2e9ed)',fallback:'#f6f2e9'}, {font:'Georgia, "Noto Serif SC", serif',title:'23px',weight:500,tracking:'.015em',stat:'32px',radius:'12px',gap:'8px'}),
   'default': recipe('默认', '通用布局，保留组件的自然组织。', 'frosted-glass', 'light', {
     ink:'#252c35',muted:'#505966',base:'#f3f5f8',accent:'#3d526d',selectedInk:'#fff',surface:'#ffffffd9',solid:'#eef1f5',scrim:'linear-gradient(135deg,#f4f6f9dd,#e9eef4dd)',fallback:'linear-gradient(145deg,#f9fafc,#e3e9f1)',
   },{title:'22px',weight:700,tracking:'-.02em',stat:'30px',radius:'14px',gap:'8px'}),
@@ -71,4 +72,4 @@ export const DESIGNS = Object.freeze({
 })
 export const DESIGN_IDS = Object.freeze(Object.keys(DESIGNS))
 export const getDesign = id => Object.hasOwn(DESIGNS, id) ? DESIGNS[id] : null
-export const designReference = () => `design选default=默认、pearl=月距力（珠光探索）、atlas=动态学术（纸面计算）、rebel=persona（切纸选择）、parchment=羊皮纸（章节插画）、business=商务（同尺度比较）、academy=辉石（选择揭示）。先title和短caption，再用原有组件表达主体与操作；宿主负责布局、比例、材质和动画，不写装饰代码。没有真实关系或数值不要编造图表；旧design仍兼容。`+compositionReference()
+export const designReference = () => `design选folio=平面纸感、default=通用、pearl=珠光、atlas=学术、rebel=切纸、parchment=叙事、business=商务、academy=辉石；宿主管材质/构图/动效，不编造数值或关系。`+compositionReference()+FOLIO_REFERENCE

@@ -8,7 +8,9 @@ export function leaseBudget(budget){
 }
 export function inheritedBudget(id){const b=leases.get(id);if(!b)throw Object.assign(Error('增强生成预算已过期，原生卡可继续使用'),{code:'GENERATION_BUDGET'});b.check();return b}
 
-export function generationPolicy(goal,{profile,mode,debugGeneration=false}={}){
+export function generationPolicy(goal,{profile,mode,debugGeneration=false,buildMode,extendedGeneration=false}={}){
+ if(extendedGeneration===true)return {extendedGeneration:true,buildMode:buildMode==='deep'?'deep':'quick',debugGeneration:true,repairs:Infinity,profile:'adaptive-v1',complex:true,timeoutMs:Infinity,modelCalls:Infinity,reads:Infinity,plan:buildMode==='deep'?false:planningPolicy(goal).allowPlanning,mode:'direct'}
+ if(buildMode==='deep')return {buildMode:'deep',debugGeneration:true,repairs:8,profile:'adaptive-v1',complex:true,timeoutMs:600000,modelCalls:18,reads:6,plan:false,mode:'direct'}
  const text=String(goal||''),active=profile==='adaptive-v1',plan=planningPolicy(goal).allowPlanning
  const complex=plan||/(舆情|多源|多步|模拟|simulat|多选|行程|itinerary|回合|矩阵|MLP|FFN|transformer)|\d+\s*(条|段|章).{0,20}\d+\s*字|全文|长篇/i.test(text)
  return {debugGeneration,repairs:debugGeneration?8:1,profile:active?'adaptive-v1':'legacy',complex,timeoutMs:debugGeneration?900000:active&&!complex?300000:900000,
@@ -23,16 +25,16 @@ export function createGenerationBudget(policy,{now=Date.now}={}){
   policy,deadline,remaining:()=>Math.max(0,deadline-now()),
   model(kind='generate'){
    check()
-   if(['plan','analyze','dataset-analyze'].includes(kind)&&models>=policy.modelCalls-(1+Math.max(0,(policy.repairs||1)-repairs)))throw failure('已为完整生成和校验修复预留预算；跳过本次可选规划/分析，保留现有资料')
+   if(Number.isFinite(policy.modelCalls)&&['plan','analyze','dataset-analyze'].includes(kind)&&models>=policy.modelCalls-(1+Math.max(0,(policy.repairs||1)-repairs)))throw failure('已为完整生成和校验修复预留预算；跳过本次可选规划/分析，保留现有资料')
    if(models>=policy.modelCalls)throw failure('本次模型调用预算已用完')
    models++;events.push({kind,atMs:now()-started})
   },
   remainingModels:()=>Math.max(0,policy.modelCalls-models),
-  generationReserve:()=>1+Math.max(0,(policy.repairs||1)-repairs),
+  generationReserve:()=>Number.isFinite(policy.repairs)?1+Math.max(0,(policy.repairs||1)-repairs):1,
   read(){check();if(reads>=policy.reads)throw failure('本次真实取数预算已用完');reads++;},
   repair(){check();if(repairs>=(policy.repairs||1))throw failure('本次修复预算已用完');repairs++;},
   usable(){if(firstUsableMs==null)firstUsableMs=now()-started},
   check,
-  snapshot:()=>({profile:policy.profile,complex:policy.complex,modelCalls:models,reads,repairs,firstUsableMs,elapsedMs:now()-started,deadline:new Date(deadline).toISOString(),events:[...events]})
+  snapshot:()=>({profile:policy.profile,extendedGeneration:policy.extendedGeneration===true,complex:policy.complex,modelCalls:models,reads,repairs,firstUsableMs,elapsedMs:now()-started,deadline:Number.isFinite(deadline)?new Date(deadline).toISOString():null,events:[...events]})
  }
 }

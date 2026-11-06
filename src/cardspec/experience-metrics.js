@@ -7,7 +7,7 @@ export function clippedBox(box,clip,{x=true,y=true}={}){
 }
 export function measureVisualViewports(stage){
  const visuals=[]
- for(const element of [...stage.querySelectorAll('.cs-point-map-canvas,.cs-chart-pan,.cs-diagram-pan,.cs-heatmap-scroll,.cs-collection-items,.cs-experience-results,.cs-table-pan,.cs-carousel-track')].slice(0,24)){
+ for(const element of [...stage.querySelectorAll('.cs-point-map-canvas,.cs-chart-pan,.cs-diagram-pan,.cs-heatmap-scroll,.cs-collection-items,.cs-experience-results,.cs-table-pan,.cs-carousel-track,.cs-dial-track')].slice(0,24)){
   const rect=element.getBoundingClientRect();if(!rect.width||!rect.height)continue
   let box=rect,hidden=false
   for(let ancestor=element;ancestor;ancestor=ancestor.parentElement){

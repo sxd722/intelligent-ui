@@ -8,10 +8,10 @@ const root=fileURLToPath(new URL('../',import.meta.url)),target=path.join(root,'
 const localOnly=['src/cardspec/RecoveryLab.jsx','shared/cardspec/recovery-train-fixture.mjs']
 const publicSource=p=>!localOnly.includes(path.relative(root,p).replaceAll('\\','/'))
 await mkdir(path.join(target,'ui'),{recursive:true})
-for(const name of ['src','shared','demos','index.html','catalog.html','cardspec-lab.html','design-templates.html','pearl-review.html','package.json','package-lock.json']){
+for(const name of ['src','shared','demos','index.html','catalog.html','cardspec-lab.html','design-templates.html','pearl-review.html','reuse-check.html','reuse-review.html','package.json','package-lock.json']){
  await cp(path.join(root,name),path.join(target,'ui',name),{recursive:true,filter:publicSource})
 }
-for(const name of ['shared','server/cardspec','server/compiler','server/prompt.mjs','server/research']){
+for(const name of ['shared','server/cardspec','server/compiler','server/prompt.mjs','server/research','server/image-service.mjs']){
  await cp(path.join(root,name),path.join(target,name),{recursive:true,filter:publicSource})
 }
 for(const relative of [...localOnly.map(n=>'ui/'+n),'shared/cardspec/recovery-train-fixture.mjs']){
@@ -31,8 +31,8 @@ await writeFile(sandboxDocumentPath,sandboxDocumentSource.slice(0,scriptStart)
 // Only the fixed trusted iframe renderer gets an inline-script hash. Model JS
 // stays in QuickJS, not in this document. No blanket unsafe-inline scripts.
 const rendererHash=createHash('sha256').update(SANDBOX_RENDER_SCRIPT).digest('base64')
-const csp=`default-src 'self'; script-src 'self' 'unsafe-eval' 'sha256-${rendererHash}'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'`
-for(const entry of ['index.html','catalog.html','cardspec-lab.html','design-templates.html','pearl-review.html']){
+const csp=`default-src 'self'; script-src 'self' 'unsafe-eval' 'sha256-${rendererHash}'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'`
+for(const entry of ['index.html','catalog.html','cardspec-lab.html','design-templates.html','pearl-review.html','reuse-check.html','reuse-review.html']){
  const html=await readFile(path.join(target,'ui',entry),'utf8')
  await write('ui/'+entry,html.replace(/<head>/,'<head><meta http-equiv="Content-Security-Policy" content="'+csp+'"/>'))
 }
@@ -43,9 +43,9 @@ import react from '@vitejs/plugin-react'
 import {resolve} from 'node:path'
 import {cpSync} from 'node:fs'
 export default defineConfig({
- worker:{format:'es'},define:{'import.meta.env.VITE_CLOUD_NO_TOOLS':JSON.stringify('0'),'import.meta.env.VITE_CLOUD_DEMO_TOOLS':JSON.stringify('1')},
+ worker:{format:'es'},define:{'import.meta.env.VITE_SAME_KIND_ENABLED':JSON.stringify('1'),'import.meta.env.VITE_SAME_KIND_BROWSER':JSON.stringify('1'),'import.meta.env.VITE_CLOUD_NO_TOOLS':JSON.stringify('0'),'import.meta.env.VITE_CLOUD_DEMO_TOOLS':JSON.stringify('1')},
  plugins:[react(),{name:'copy-demos',closeBundle(){cpSync('demos','dist/demos',{recursive:true})}}],
- build:{outDir:'dist',rollupOptions:{input:{main:resolve('index.html'),catalog:resolve('catalog.html'),cardspecLab:resolve('cardspec-lab.html'),designTemplates:resolve('design-templates.html'),pearlReview:resolve('pearl-review.html')}}}
+ build:{outDir:'dist',rollupOptions:{input:{main:resolve('index.html'),catalog:resolve('catalog.html'),cardspecLab:resolve('cardspec-lab.html'),designTemplates:resolve('design-templates.html'),pearlReview:resolve('pearl-review.html'),reuseCheck:resolve('reuse-check.html'),reuseReview:resolve('reuse-review.html')}}}
 })
 `)
 const pkg=JSON.parse(await readFile(path.join(target,'ui/package.json'),'utf8'))
@@ -71,12 +71,18 @@ runDebugBrowser.runnerKind='cloud-compile-only'
 `)
 await write('server/cardspec/debug-artifacts.mjs',`export async function saveDebugArtifact(){throw Error('Cloud diagnostics are embedded in card metadata; no filesystem artifacts')}
 `)
+// Deep completion requires browser evidence. Do not expose a control that can
+// only loop on an unverified result in Workers, or silently relax its gate.
+await write('server/cardspec/deep-build.mjs',`export async function buildDeepCard(){throw Error('深度构建目前需要本地浏览器验收，请在本地使用；GPT Site 支持快速生成和编译/逻辑修复。')}
+`)
 const debugPath=path.join(target,'server/cardspec/debug-session.mjs')
 await writeFile(debugPath,(await readFile(debugPath,'utf8'))
  .replace(/export const DEBUG_INSTRUCTION='[^\n]*'/,"export const DEBUG_INSTRUCTION='云端card_test只编译候选并做有界逻辑检查，不执行浏览器点击，不验证实际工具结果；结果partial表示未完成交互验证。可先按契约布局。检查可用后单独调用card_commit(version)提交原稿，不再抄写源码；也可直接输出完整CardSpec。不要删除功能规避错误。'")
  .replace('在无网络的真实渲染器中调试完整候选。CLI仅mock，不产生真实证据；返回错误、控件和交互变化。','云端只检查完整候选的编译和有界逻辑；不执行浏览器交互。可用候选返回partial及version，可用card_commit提交。'))
 const appPath=path.join(target,'ui/src/App.jsx')
-await writeFile(appPath,(await readFile(appPath,'utf8')).replace('生成期调试与修复（最多 8 次）','编译与逻辑修复（最多 8 次，云端无浏览器调试）'))
+await writeFile(appPath,(await readFile(appPath,'utf8')).replace('生成期调试与修复（最多 8 次）','编译与逻辑修复（最多 8 次，云端无浏览器调试）')
+ .replace("localStorage.getItem('cardspec-build-mode')==='deep'?'deep':'quick'","'quick'")
+ .replace('<option value="deep">深度实验 · 需求/模块/验收</option>','<option value="deep" disabled>深度构建 · 需本地浏览器验收</option>'))
 const source=(await readFile(path.join(root,'server/index.mjs'),'utf8')).replace(/\r\n/g,'\n')
 function replaceRequired(text,pattern,replacement){
  if(!pattern.test(text))throw Error('Local server export boundary changed: '+pattern)
@@ -86,7 +92,7 @@ let core=source.slice(source.indexOf('const PHASES ='),source.indexOf('// ------
 core=replaceRequired(core,/const keyInfo = loadApiKey\(\)[\s\S]*?(?=\/\/ ---------------------------------------------------------------- design languages)/,'')
 core=replaceRequired(core,/function readBody\(req, limit = 1024 \* 1024\) \{[\s\S]*?\n\}\n/,'async function readBody(req){ return req.bodyText }\n')
 core=replaceRequired(core,/async function streamUpstream\(messages, options\) \{[\s\S]*?\n\}/,`async function streamUpstream(messages,options){
- const policy='当前云端是模拟CLI演示环境。目录中的CLI只返回虚构样本，所有查询结果、统计、日期、坐标和图片都必须标注演示，不声称实时新闻、真实用户态度、真实地点或可购余票。可通过目录取数、声明binding并刷新；glm.generate是真实模型生成，可按用户操作生成下一页/slot/JSON。未开放的CLI不可用，无web搜索或任意网络读取。Pexels图片仅为示意，保留署名。Web开启可声明sandbox，React/内联SVG/静态CSS源码随CardSpec一次生成并预编译，使用内联CSS或styles，不使用Tailwind类名；关闭仅原生CardSpec。'
+ const policy='当前云端是模拟CLI演示环境。目录中的CLI返回样本数据，数据模式由宿主统一披露，卡片正文不重复免责声明，不把样本说成实时事实。可通过目录取数、声明binding并刷新；glm.generate是真实模型生成，可按用户操作生成下一页/slot/JSON。未开放的CLI不可用，无web搜索或任意网络读取。普通query用Pexels摄影，gen:前缀用OpenAI GPT Image原创插画；来源与署名由宿主图片信息入口提供，正文不重复AI标签。两者均缓存。Web开启可声明sandbox，React/内联SVG/静态CSS源码随CardSpec一次生成并预编译，使用内联CSS或styles，不使用Tailwind类名；关闭仅原生CardSpec。'
  const scoped=messages.map((m,i)=>i===0&&m.role==='system'?{...m,content:m.content+'\\n'+policy}:m)
  if(options.research)return options.research.run(modelRound,scoped,options)
  options.budget?.model(options.stage||'generate')
@@ -98,6 +104,7 @@ core=replaceRequired(core,/const scopedPayload=localToolRequest\(req,PORT\)\?pay
 core=replaceRequired(core,/toolCatalog:toolService.catalog,researchSession,recordGeneration:recordAdaptiveGeneration/,'toolCatalog:async()=>(await toolService.catalog()).filter(t=>t.available),researchSession')
 core=replaceRequired(core,/await pexelsPhoto\(r.attrs.query, controller.signal\)/,'await pexelsPhoto?.(r.attrs.query, controller.signal)')
 const imports=`import {generationModelOptions} from '../shared/cardspec/generation-settings.mjs'
+import {refinePrompt} from './cardspec/refine-prompt.mjs'
 import {randomUUID} from 'node:crypto'
 import {legacyPrompts} from './prompt.mjs'
 import {parse,stripCodeFences,splitCardText} from './compiler/parse.mjs'
@@ -121,7 +128,7 @@ export function createEngine({model,baseUrl,key,fetchImpl=fetch,photo=null,origi
  const researchSession=(onEvent,options={})=>options.enabled===false?null:createResearchSession({onEvent,maxRounds:5,maxCalls:options.budget?.policy.reads||10,maxContextChars:18000,timeoutMs:options.budget?.remaining()||options.timeoutMs||240000,budget:options.budget,extensions:createGenerationTools({...options,analyze:createDatasetAnalyzer((messages,params)=>modelRound(messages,{...params,...generationModelOptions(options.modelProfile)}),options.budget),invoke:options.invoke||((...args)=>toolService.invoke(...args))})})
  const toolService=createToolService({streamUpstream,researchSession,keyLoaded:keyInfo.ok,photo,opencli:createOpenCli({origin})})
  ${core}
- return {handleChat,placeholderSvg,toolService}
+ return {handleChat,placeholderSvg,toolService,streamUpstream,refinePrompt:(payload,signal)=>refinePrompt(payload,{streamUpstream,signal})}
 }
 `)
 await mkdir(path.join(target,'server/tools'),{recursive:true})
@@ -129,6 +136,7 @@ let toolSource=await readFile(path.join(root,'server/tools/service.mjs'),'utf8')
 toolSource=toolSource.replace("import {toolAssets} from './assets.mjs'","const toolAssets={attach:value=>value}")
  .replace("from './opencli.mjs'","from '../cloud-tools.mjs'").replace("from './write-operations.mjs'","from '../cloud-tools.mjs'").replace("from './autocli.mjs'","from '../cloud-tools.mjs'")
 await write('server/tools/service.mjs',toolSource)
+await write('server/tools/result-cache.mjs',await readFile(path.join(root,'server/tools/result-cache.mjs'),'utf8'))
 // The Worker pre-instantiates a bundled WASM module; no remote runtime download.
 const rich=await readFile(path.join(target,'server/cardspec/rich-validation.mjs'),'utf8')
 await write('server/cardspec/rich-validation.mjs',rich.replace("import('quickjs-emscripten')","import('../cloud-logic.mjs')"))

@@ -7,7 +7,6 @@ sites/
 .env
 .env.*
 !.env.example
-.pexels.local
 *.env
 *.pem
 *.key

@@ -15,11 +15,11 @@ const height=locator=>locator.evaluate(el=>el.getBoundingClientRect().height)
 
 test('carousel height is tallest page, freezes after completion and adapts to width',async({page})=>{
  await source(page,`<card><carousel><carousel-item><text>短页</text></carousel-item><carousel-item><strong>较长页</strong><text>${'阅读时给每个观点一点空间。'.repeat(12)}</text></carousel-item></carousel></card>`)
- await expect(page.locator('.cs-carousel-track')).toHaveAttribute('data-content-height',/\d+/)
+ await expect(page.locator('.cs-dial-track')).toHaveAttribute('data-content-height',/\d+/)
  const before=await height(page.locator('.cs-carousel'))
  await page.getByRole('button',{name:'下一项',exact:true}).click();await expect(page.locator('.cs-carousel')).toHaveAttribute('data-active-index','1')
  expect(await height(page.locator('.cs-carousel'))).toBe(before)
- expect(await page.locator('.cs-slide').nth(1).evaluate(el=>el.scrollHeight<=el.clientHeight+1)).toBe(true)
+ expect(await page.locator('.cs-dial-slide').nth(1).evaluate(el=>el.scrollHeight<=el.clientHeight+1)).toBe(true)
  await page.getByLabel('宽度',{exact:true}).selectOption('320')
  await expect.poll(()=>height(page.locator('.cs-carousel'))).toBeGreaterThan(before)
  await page.locator('.cs-stage').screenshot({path:'artifacts/experience-qa/carousel.png'})

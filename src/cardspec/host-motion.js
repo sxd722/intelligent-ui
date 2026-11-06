@@ -9,31 +9,44 @@ function designFrames(root,frames){
  return frames
 }
 const navigationAnimations=new WeakMap()
+const pileOf=root=>root?.closest?.('.cs-card-pile[data-stacked]')||root?.querySelector?.('.cs-card-pile[data-stacked]')
 // Animate existing DOM only: no duplicate controls, remounts or delayed actions.
 export function animateNavigation(root,direction=1){
  if(!root)return
  navigationAnimations.get(root)?.cancel();root.style.transform=''
+ const pile=pileOf(root);if(pile){delete pile.dataset.pilePhase;pile.style.removeProperty('--pile-drag')}
  const mode=effectiveMotion();if(mode==='off'||document.hidden||!root.animate)return
  const offset=mode==='light'?'0px':`${direction*100}%`
- const a=root.animate([{opacity:mode==='light'?.65:1,transform:`translateX(${offset})`},{opacity:1,transform:'translateX(0)'}],{duration:mode==='light'?120:240,easing:MOTION_EASE})
+ const a=root.animate([{opacity:mode==='light'?.65:1,transform:`translateX(${offset})${pile&&mode==='full'?' scale(.97) rotate('+direction*1.5+'deg)':''}`},{opacity:1,transform:'translateX(0) scale(1) rotate(0deg)'}],{duration:mode==='light'?120:pile?360:240,easing:MOTION_EASE})
  const reduced=matchMedia('(prefers-reduced-motion: reduce)')
  const suspend=()=>{if(document.hidden||reduced.matches)a.cancel()}
- const cleanup=()=>{document.removeEventListener('visibilitychange',suspend);reduced.removeEventListener('change',suspend);if(navigationAnimations.get(root)===a)navigationAnimations.delete(root)}
+ const cleanup=()=>{document.removeEventListener('visibilitychange',suspend);reduced.removeEventListener('change',suspend);if(navigationAnimations.get(root)===a)navigationAnimations.delete(root);if(root.isConnected)root.dispatchEvent(new CustomEvent('cardspec-navigation-settled',{bubbles:true}))}
  document.addEventListener('visibilitychange',suspend);reduced.addEventListener('change',suspend)
  navigationAnimations.set(root,a);a.onfinish=cleanup;a.oncancel=cleanup
 }
 export async function exitNavigation(root,direction=1){
- if(!root||effectiveMotion()!=='full'||document.hidden||!root.animate)return
+ if(!root)return
+ if(effectiveMotion()!=='full'||document.hidden||!root.animate){cancelNavigation(root);return}
+ const start=root.style.transform||'translateX(0)',pile=pileOf(root)
  cancelNavigation(root)
- const a=root.animate([{transform:'translateX(0)'},{transform:`translateX(${-direction*100}%)`}],{duration:180,easing:'cubic-bezier(.4,0,1,1)'})
+ if(pile)pile.dataset.pilePhase='exit'
+ const a=root.animate([{transform:start},{transform:`translateX(${-direction*100}%)${pile?' rotate('+(-direction*3)+'deg) scale(.96)':''}`}],{duration:pile?230:180,easing:'cubic-bezier(.4,0,1,1)',fill:'forwards'})
  navigationAnimations.set(root,a)
  const stop=()=>{if(document.hidden||effectiveMotion()!=='full')a.cancel()}
  const unsubscribe=motionPreference.subscribe(stop),reduced=matchMedia('(prefers-reduced-motion: reduce)')
  reduced.addEventListener('change',stop);document.addEventListener('visibilitychange',stop)
- try{await a.finished}catch{}finally{unsubscribe();reduced.removeEventListener('change',stop);document.removeEventListener('visibilitychange',stop);if(navigationAnimations.get(root)===a)navigationAnimations.delete(root)}
+ try{await a.finished}catch{}finally{a.cancel();unsubscribe();reduced.removeEventListener('change',stop);document.removeEventListener('visibilitychange',stop);if(navigationAnimations.get(root)===a)navigationAnimations.delete(root)}
 }
-export function dragNavigation(root,dx){if(root&&effectiveMotion()==='full')root.style.transform=`translateX(${Math.max(-28,Math.min(28,dx*.18))}px)`}
-export function cancelNavigation(root){if(root){navigationAnimations.get(root)?.cancel();navigationAnimations.delete(root);root.style.transform=''}}
+export function dragNavigation(root,dx){if(root&&effectiveMotion()==='full'){const x=Math.max(-90,Math.min(90,dx*.55));root.style.transform=`translateX(${x}px) rotate(${x/60}deg)`;pileOf(root)?.style.setProperty('--pile-drag',`${-x*.06}px`)}}
+export function settleNavigation(root){
+ if(!root)return
+ const from=root.style.transform;cancelNavigation(root)
+ if(!from||effectiveMotion()!=='full'||document.hidden||!root.animate)return
+ const a=root.animate([{transform:from},{transform:'translateX(0) rotate(0deg)'}],{duration:200,easing:MOTION_EASE})
+ navigationAnimations.set(root,a)
+ const done=()=>{if(navigationAnimations.get(root)===a)navigationAnimations.delete(root)};a.onfinish=done;a.oncancel=done
+}
+export function cancelNavigation(root){if(root){navigationAnimations.get(root)?.cancel();navigationAnimations.delete(root);root.style.transform='';const pile=pileOf(root);if(pile){delete pile.dataset.pilePhase;pile.style.removeProperty('--pile-drag')}}}
 export function attachContentMotion(stage){
  if(!stage)return()=>{}
  const preference=matchMedia('(prefers-reduced-motion: reduce)'),active=new Map(),pending=new Set(),positions=new Map()

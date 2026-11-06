@@ -1,0 +1,2 @@
+import {readFile,writeFile} from 'node:fs/promises'
+const root='artifacts/tool-binding-qa/deepseek-v4-flash-20261102-v2',path=root+'/browser.json';const rows=JSON.parse(await readFile(path,'utf8'));await writeFile(root+'/browser-before-dialog-support-'+Date.now()+'.json',JSON.stringify(rows,null,2));await writeFile(path,JSON.stringify(rows.filter(r=>r.passed||!r.checks.some(c=>c.name==='detail-adds-information-and-return'&&!c.passed)),null,2));

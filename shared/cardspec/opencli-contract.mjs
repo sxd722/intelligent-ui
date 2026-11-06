@@ -57,7 +57,7 @@ export const OPENCLI_DEFINITIONS = [
     "site": "12306",
     "command": "trains",
     "module": "12306/trains.js",
-    "description": "List trains between two 12306 stations on a given date (anonymous, no login required) Host filters exact stations and departureAfter/departureBefore BEFORE limit. Use these arguments for time ranges instead of filtering a limited list. available/bookable are booking flags, NOT ticket counts; display second_seat/first_seat/etc. Use rowKey for selection, code is not unique.",
+    "description": "List trains between two 12306 stations on a given date (anonymous, no login required) Host returns all matching trains and paginates in the UI; legacy limit is ignored. Use exactStations and departureAfter/departureBefore for business constraints, not presentation limits. available/bookable are booking flags, NOT ticket counts; display second_seat/first_seat/etc. Use rowKey for selection, code is not unique.",
     "browser": false,
     "strategy": "public",
     "auth": "none",
@@ -2606,7 +2606,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "店铺 ID（来自 search 的 shop_id 列，或 https://www.dianping.com/shop/<id> URL 段）",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         }
       }
@@ -3234,7 +3234,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "动态 ID（从 feed 命令的 url 中获取）",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         }
       }
@@ -3619,12 +3619,9 @@ export const OPENCLI_DEFINITIONS = [
       ],
       "properties": {
         "noteId": {
-          "type": [
-            "string",
-            "integer"
-          ],
+          "type": "string",
           "description": "Full Xiaohongshu note URL with xsec_token",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         }
       }
@@ -3746,12 +3743,9 @@ export const OPENCLI_DEFINITIONS = [
       ],
       "properties": {
         "noteId": {
-          "type": [
-            "string",
-            "integer"
-          ],
+          "type": "string",
           "description": "Full Xiaohongshu note URL with xsec_token",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         },
         "limit": {
@@ -3816,7 +3810,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "User id or profile URL",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         },
         "limit": {
@@ -3869,7 +3863,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "User id or profile URL (defaults to current logged-in user)",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         },
         "limit": {
@@ -3924,7 +3918,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "User id or profile URL (defaults to current logged-in user)",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         },
         "limit": {
@@ -4144,7 +4138,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "Note ID (from creator-notes or note-detail page URL)",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         }
       }
@@ -4417,7 +4411,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "Answer ID, full Zhihu answer URL, or typed target (answer:<qid>:<aid>)",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         },
         "maxContent": {
@@ -4477,7 +4471,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "Answer ID, full Zhihu answer URL, or typed target (answer:<qid>:<aid>)",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         },
         "limit": {
@@ -4735,7 +4729,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "收藏夹 ID (数字，可从收藏夹 URL 中获取)",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         },
         "offset": {
@@ -4935,7 +4929,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "Post ID (numeric idstr or mblogid from URL)",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         }
       }
@@ -5426,7 +5420,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "Playlist URL or playlist ID (PLxxxxxx)",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         },
         "limit": {
@@ -5978,7 +5972,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "Podcast ID (from xiaoyuzhoufm.com URL)",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         }
       }
@@ -6025,7 +6019,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "Podcast ID (from xiaoyuzhoufm.com URL)",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         },
         "limit": {
@@ -7033,7 +7027,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "车系 ID（来自 search 的 series_id，或 /auto/series/<id> URL）",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         }
       }
@@ -7076,7 +7070,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "车系 ID（来自 search 的 series_id，或 /auto/series/<id> URL）",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         },
         "status": {
@@ -7131,7 +7125,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "车系 ID（来自 search 的 series_id，或 /auto/series/<id> URL）",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         }
       }
@@ -7174,7 +7168,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "车系 ID（来自 search 的 series_id，或 /auto/series/<id> URL）",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         }
       }
@@ -7218,7 +7212,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "车系 ID（来自 search 的 series_id，或 /auto/series/<id> URL）",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         },
         "limit": {
@@ -7325,7 +7319,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "车系 ID（来自 brand 的 series_id，或 k.autohome.com.cn/<id> URL）",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         }
       }
@@ -7419,7 +7413,7 @@ export const OPENCLI_DEFINITIONS = [
             "integer"
           ],
           "description": "车源 ID（来自 browse 的 clue_id，或 /car-detail/c<id>.html URL）",
-          "maxLength": 128,
+          "maxLength": 8192,
           "minLength": 1
         }
       }

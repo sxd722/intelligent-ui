@@ -7,10 +7,10 @@ import {createBoundBrowser} from '../server/tools/opencli-bound.mjs'
 const route={from:'杭州东',to:'上海南',date:'2026-10-14',departureAfter:'12:00',departureBefore:'18:00',limit:2}
 const station={code:'HGH'},destination={code:'SNH'}
 const row=(start_time,other={})=>({train_no:'same',code:'G1',from_code:'HGH',to_code:'SNH',from_station:'杭州东',to_station:'上海南',departure_date:route.date,start_time,second_seat:'无',available:true,...other})
-test('station and half-open time filters run before limit over the complete response',()=>{
+test('station and half-open time filters preserve all matches regardless of legacy page limit',()=>{
  const rows=[...Array.from({length:120},()=>row('11:30')),row('12:00',{to_code:'AOH'}),row('12:00'),row('13:00'),row('17:59'),row('18:00')]
  const r=selectTrainRows(rows,route,station,destination)
- assert.deepEqual(r.rows.map(x=>x.start_time),['12:00','13:00']);assert.equal(r.coverage.matched,3);assert.equal(r.truncated,true)
+ assert.deepEqual(r.rows.map(x=>x.start_time),['12:00','13:00','17:59']);assert.equal(r.coverage.matched,3);assert.equal(r.truncated,false)
  const all=selectTrainRows(rows,{...route,limit:100},station,destination);assert.equal(all.rows.length,3);assert.equal(all.truncated,false)
  const empty=selectTrainRows(rows,{...route,departureAfter:'20:00',departureBefore:'24:00'},station,destination);assert.equal(empty.coverage.matched,0);assert.equal(empty.coverage.complete,true)
  assert.equal(selectTrainRows(rows,{...route,exactStations:false,limit:100},station,destination).rows.length,4)

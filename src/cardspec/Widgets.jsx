@@ -1,51 +1,17 @@
-import {effectiveMotion} from '../motion-preference.mjs'
+
 import React, { useEffect, useId, useRef, useState } from 'react'
 import { diagramLayout,chartNumber } from '../../shared/cardspec/widgets.mjs'
-import { NavigationBar, useNavigationOwner } from './Navigation.jsx'
+
 import { useIntrinsicHeight } from './sizing.js'
 import { useViewState } from './view-state.jsx'
 import {useChartMotion} from './useChartMotion.js'
 import {useGraphicMotion} from './useGraphicMotion.js'
 
-export function Carousel({ p, fire, children, streaming }) {
-  const track = useRef(null), activeRef = useRef(0), [active, setActive] = useState(0)
-  const count = children.length
-  const size=useIntrinsicHeight(track,streaming,el=>Math.max(48,...[...el.children].map(slide=>{
-    const style=getComputedStyle(slide)
-    return (slide.firstElementChild?.getBoundingClientRect().height||0)+parseFloat(style.paddingTop)+parseFloat(style.paddingBottom)+parseFloat(style.borderTopWidth)+parseFloat(style.borderBottomWidth)+1
-  })))
-  const go = (next) => {
-    const index = Math.max(0, Math.min(count - 1, next)), el = track.current, slide = el?.children[index]
-    if (slide) el.scrollTo({ left: slide.offsetLeft - el.children[0].offsetLeft, behavior: effectiveMotion()==='off' ? 'instant' : 'smooth' })
-  }
-  useEffect(() => {
-    const el = track.current
-    const update = () => {
-      const slides = [...el.children]
-      const next = slides.reduce((best, slide, index) => Math.abs(slide.offsetLeft - slides[0].offsetLeft - el.scrollLeft) < Math.abs(slides[best].offsetLeft - slides[0].offsetLeft - el.scrollLeft) ? index : best, 0)
-      setActive(next)
-      if (activeRef.current !== next) { activeRef.current = next; fire('onIndexChange', { index: next, value: next }) }
-    }
-    el.addEventListener('scroll', update, { passive: true })
-    const observer = new ResizeObserver(update); observer.observe(el); update()
-    return () => { el.removeEventListener('scroll', update); observer.disconnect() }
-  }, [count, fire])
-  useEffect(() => { if (p.index != null && p.index !== activeRef.current) go(p.index) }, [p.index, count])
-  const navigation={label:`${p.label || '展示'}分页`,value:`${count ? active+1 : 0} / ${count} · 左右滑动`,count,previousLabel:'上一项',nextLabel:'下一项',previousText:'‹',nextText:'›',disabledPrevious:active===0 || !count,disabledNext:active>=count-1,previous:()=>go(active-1),next:()=>go(active+1)}
-  const builtIn=useNavigationOwner(p.ownerId,p.navigation==='external',navigation)
-  return <section className="cs-carousel" role="region" aria-roledescription="carousel" aria-label={p.label || '滑动展示'} data-active-index={active}>
-    <div className="cs-carousel-track" ref={track} style={size.height?{height:size.height}:undefined} data-content-height={size.height} tabIndex={0} onKeyDown={(e) => {
-      if (e.target !== e.currentTarget) return
-      const next = e.key === 'ArrowRight' ? active + 1 : e.key === 'ArrowLeft' ? active - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? count - 1 : null
-      if (next != null) { e.preventDefault(); go(next) }
-    }}>{children.map((child, index) => <div className="cs-slide" key={child.key || index} role="group" aria-roledescription="slide" aria-label={`${index + 1} / ${count}`}>{child}</div>)}</div>
-    {builtIn && <NavigationBar model={navigation} className="cs-carousel-nav"/>}
-  </section>
-}
+export {Carousel} from './CarouselDial.jsx'
 
 export function Slider({ p, fire }) {
   const id = useId(), value = p.value ?? p.min ?? 0
-  return <label className="cs-slider" htmlFor={id}><span>{p.label} <output>{value}{p.unit || ''}</output></span><input id={id} type="range" min={p.min ?? 0} max={p.max ?? 100} step={p.step ?? 1} value={value} disabled={p.disabled} aria-valuetext={`${value}${p.unit || ''}`} onChange={(e) => fire('onChange', { value: Number(e.target.value) })}/><span className="cs-range-labels"><span>{p.min ?? 0}</span><span>{p.max ?? 100}{p.unit || ''}</span></span></label>
+  return <label className="cs-slider" htmlFor={id}><span>{p.label} <output>{value}{p.unit || ''}</output></span><input id={id} type="range" aria-label={p.label || undefined} min={p.min ?? 0} max={p.max ?? 100} step={p.step ?? 1} value={value} disabled={p.disabled} aria-valuetext={`${value}${p.unit || ''}`} onChange={(e) => fire('onChange', { value: Number(e.target.value) })}/><span className="cs-range-labels"><span>{p.min ?? 0}</span><span>{p.max ?? 100}{p.unit || ''}</span></span></label>
 }
 
 export function Diagram({ type, p, fire, streaming }) {

@@ -3,7 +3,9 @@
 const selector='button,input,select,textarea,summary,[role="button"],[role="tab"],[role="radio"]'
 export function debugControls(card){
  if(!card)return []
- const all=[...card.querySelectorAll(selector)]
+ const modal=[...card.querySelectorAll('dialog[open],[role="dialog"][aria-modal="true"]')].filter(el=>el.getClientRects().length&&(el.matches(':modal')||el.getAttribute('aria-modal')==='true')).at(-1)
+ if(modal)card=modal
+ const all=[...card.querySelectorAll(selector)].filter(el=>!el.closest('[data-host-inspector]'))
  return all.filter(el=>{
   if(el.closest('[hidden],[inert],[aria-hidden="true"]')||!el.getClientRects().length)return false
   if(el.checkVisibility&&!el.checkVisibility({checkVisibilityCSS:true,checkOpacity:true}))return false
@@ -16,11 +18,11 @@ export function debugControls(card){
  }).map(el=>{
   const owner=el.closest('[data-cs-node]'),path=owner?.getAttribute('data-cs-node')
   const siblings=all.filter(c=>c.closest('[data-cs-node]')===owner)
-  const role=el.getAttribute('role')||(el.tagName==='INPUT'?(['checkbox','radio'].includes(el.type)?el.type:'textbox'):el.tagName==='TEXTAREA'?'textbox':el.tagName==='SELECT'?'combobox':el.tagName==='SUMMARY'?'button':el.tagName.toLowerCase())
+  const role=el.getAttribute('role')||(el.tagName==='INPUT'?(el.type==='range'?'slider':['checkbox','radio'].includes(el.type)?el.type:'textbox'):el.tagName==='TEXTAREA'?'textbox':el.tagName==='SELECT'?'combobox':el.tagName==='SUMMARY'?'button':el.tagName.toLowerCase())
   const labelled=(el.getAttribute('aria-labelledby')||'').split(/\s+/).map(id=>document.getElementById(id)?.textContent||'').join(' ').trim()
-  const name=(el.getAttribute('aria-label')||labelled||el.labels?.[0]?.textContent||el.innerText||el.textContent||'').trim()
+  const name=(el.getAttribute('aria-label')||labelled||el.labels?.[0]?.textContent||el.innerText||el.textContent||'').replace(/\s+/g,' ').trim()
   const handle=encodeURIComponent(path||`unowned:${role}:${name}`)+':'+siblings.indexOf(el)
   el.setAttribute('data-debug-handle',handle)
-  return {handle,component:path,role,name,disabled:!!el.disabled||el.getAttribute('aria-disabled')==='true'}
+  return {handle,component:path,role,name,disabled:!!el.disabled||el.getAttribute('aria-disabled')==='true',...(el.tagName==='INPUT'?{value:el.value,min:el.getAttribute('min'),max:el.getAttribute('max'),step:el.getAttribute('step'),checked:el.checked}:{})}
  }).slice(0,40)
 }

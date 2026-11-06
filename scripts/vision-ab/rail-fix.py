@@ -1,0 +1,2 @@
+from pathlib import Path
+p=Path('src/rail-stitch/App.jsx');s=p.read_text(encoding='utf-8-sig');s=s.replace("key,at:v.fetchedAt", "key,truncated:!!v.truncated,at:v.fetchedAt");s=s.replace("{routes[l].status==='loading'?'…':routes[l].rows.length}","{routes[l].status==='loading'?'…':routes[l].rows.length+(routes[l].truncated?'+':'')}");s=s.replace("<span>{active.stale&&active.rows.length?'旧结果 · 暂不可固定':''}</span>","<span>{active.stale&&active.rows.length?'旧结果 · 暂不可固定':active.truncated?'仅展示已取得班次':''}</span>");p.write_text(s,encoding='utf-8')

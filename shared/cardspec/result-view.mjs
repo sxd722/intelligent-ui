@@ -1,9 +1,10 @@
 // Host presentation of observed data; no inferred facts or generated URLs.
 import {toolMediaSrc} from './tool-media.mjs'
+import {taskDetailRequest} from './task-relations.mjs'
 export const fieldLabels={time:'时间',note:'说明',stage:'舞台',category:'类别',cost:'费用',source:'来源',analysisLabel:'样本分类',analysisQuote:'原文依据',title:'标题',name:'名称',rating:'评分',score:'评分',year:'年份',genres:'类型',directors:'导演',casts:'演员',duration:'时长',summary:'简介',content:'内容',description:'说明',brand:'品牌',official_price:'指导价',dealer_price:'经销商价',dimension:'维度',same_level_avg:'同级均值',author:'作者',user:'用户',rank:'排名',likes:'点赞',comments:'评论',country:'地区',fetchedAt:'获取时间'}
 Object.assign(fieldLabels,{originalTitle:'原名',ratingCount:'评分人数',type:'条目类型',authors:'作者',translators:'译者',publisher:'出版社',publishDate:'出版日期',publishYear:'出版年份',pageCount:'页数',binding:'装帧',price:'价格',series:'系列'})
 Object.assign(fieldLabels,{sub_brand:'厂商',used_price:'二手报价',review_count:'评价数',reviews:'评价数',models:'在售款型',sale_rank:'销量排名',score_rank:'评分排名',pictures:'图片数',dimensions:'车身尺寸',wheelbase:'轴距',power:'动力',engine:'发动机',gearbox:'变速箱',energy:'能源类型',acceleration:'加速时间',drivetrain:'驱动方式',suspension:'悬挂',airbags:'气囊',address:'地址',hours:'营业时间',features:'服务设施',cuisine:'品类',district:'商圈',taste:'口味',environment:'环境',service:'服务',ingredients:'食材',subway:'交通',url:'来源链接'})
-const technicalField=k=>/^(?:rowKey|id|.*_id|.*Id|url|.*_url|fetchedAt)$/.test(k)
+const technicalField=k=>/^(?:raw|rawRef|viewKey|entityId|\$display|rowKey|id|.*_id|.*Id|url|.*_url|fetchedAt)$/.test(k)
 Object.assign(fieldLabels,{car:'车型',open:'营业状态'})
 const imageField=k=>/^(?:cover|poster|image|thumbnail|thumb_url|image_url|assetRef)$/.test(k)
 const narrativeField=k=>/^(?:summary|content|description|review|synopsis|introduction|简介|内容|说明|评价)$/.test(k)
@@ -38,7 +39,8 @@ export const resultImageSources=row=>resultImages(row).map(toolMediaSrc)
 export const resultTitle=row=>String(row.title||row.name||row.label||row.dimension||row.field||row.code||row.user||row.author||row.car||row.id||'条目').slice(0,200)
 export const entityKey=(tool,row)=>`${tool.split('.').slice(0,2).join('.')}:${row.series_id||row.subject_id||row.id||row.appId||row.rowKey||row.url||JSON.stringify(row)}`
 // Relations are curated host contracts, not shell commands or model URLs.
-export function detailRequests(tool,row){
+export function detailRequests(tool,row,input={}){
+  const taskDetail=taskDetailRequest(tool,row,input);if(taskDetail)return [taskDetail]
   if(['opencli.douban.top250','opencli.douban.movie-hot','opencli.douban.search'].includes(tool)&&row.id&&row.type!=='music')return [
     {tool:'opencli.douban.subject',input:{id:row.id,type:row.type==='book'?'book':'movie'},kind:'facts'},
     ...(row.type==='book'?[]:[{tool:'opencli.douban.photos',input:{id:row.id,type:'R',limit:1},kind:'media'}]),

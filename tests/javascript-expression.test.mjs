@@ -9,6 +9,14 @@ import {collectionBindings} from '../shared/cardspec/tool-collection-state.mjs'
 const parse=s=>parseExpression(s,{dialect:'js-v1'})
 const run=(s,scope={})=>evaluate(parse(s),scope)
 const compile=body=>compileCard(`<card actionMode="snapshot">${body}</card>`,{final:true,context:{expressionDialect:'js-v1'}})
+
+test('bounded facet flattening and Set-to-array deduplication do not expose constructors',()=>{
+ assert.deepEqual(run('Array.from(new Set(data.rows.flatMap(row=>row.tags)))',{data:{rows:[{tags:['a','b']},{tags:['b','c']}]}}),['a','b','c'])
+ assert.deepEqual(run('[1,2].flatMap((n,i)=>[n,i])'),[1,0,2,1])
+ assert.throws(()=>run('data.rows.flatMap(x=>data.rows)',{data:{rows:Array(40).fill(1)}}),/limit/)
+ assert.throws(()=>run('[1].flatMap(x=>data.large)',{data:{large:Array(150000).fill(1)}}),/collection\/string limit/)
+ for(const source of ['new Set([1])','Array.from({length:99999})','new Function("return 1")()','[1].map(Set=>Array.from(new Set([1])))'])assert.throws(()=>run(source))
+})
 test('familiar math, methods, templates, spreads and computed properties',()=>{
  assert.equal(run('Math.round(12.35 * 10) / 10'),12.4)
  assert.deepEqual(run('[...data.rows, 4].filter(n => n % 2 === 0).map((n, i) => ({id: String(n), label: `${i}: ${n}`}))',{data:{rows:[1,2,3]}}),[{id:'2',label:'0: 2'},{id:'4',label:'1: 4'}])

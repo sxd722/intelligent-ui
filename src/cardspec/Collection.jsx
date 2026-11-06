@@ -2,12 +2,12 @@ import {StudyCollection} from './StudyCollection.jsx'
 import React,{useEffect,useState} from 'react'
 import {useViewState} from './view-state.jsx'
 import {useCardSize} from '../CardSize.jsx'
-import {collectionRows,collectionFields,collectionTitle,collectionPage} from '../../shared/cardspec/collection.mjs'
+import {collectionRows,collectionFields,collectionTitle,collectionPage,collectionFacts,collectionEvent} from '../../shared/cardspec/collection.mjs'
 import {fieldLabels,displayValue,detailPresentation} from '../../shared/cardspec/result-view.mjs'
 import {DetailFacts} from './DetailFacts.jsx'
 import {useCompositionSpace} from './useCompositionSpace.js'
 function Cover({row}){const [failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[row.assetRef]);return row.assetRef&&!failed?<img src={'/api/tools/assets/'+encodeURIComponent(row.assetRef)} alt="来源图片" onError={()=>setFailed(true)} loading="lazy"/>:<span className="cs-collection-mark" aria-hidden="true">{collectionTitle(row).slice(0,1)}</span>}
-export function Collection({p,fire}){return ["folio","spread"].includes(p.presentation)?<StudyCollection p={p} fire={fire}/>:<StandardCollection p={p} fire={fire}/>}
+export function Collection({p,fire}){const size=useCardSize();return size!=='full'&&["folio","spread"].includes(p.presentation)?<StudyCollection p={p} fire={fire}/>:<StandardCollection p={p} fire={fire}/>}
 function StandardCollection({p,fire}){
  const [root,height]=useCompositionSpace()
  const size=useCardSize()
@@ -23,7 +23,7 @@ function StandardCollection({p,fire}){
   <header><strong>{p.label||'候选'}</strong><small>{rows.length} / {items.length} 项{p.partial?' · 部分结果':''}</small></header>
   {hasFilter&&(size==='square'?<details className="cs-collection-filter" open={!!view.filtersOpen} onToggle={e=>{if(e.currentTarget.open!==!!view.filtersOpen)patch({filtersOpen:e.currentTarget.open})}}><summary>筛选{view.query||view.group?' · '+[view.query,view.group].filter(Boolean).join(' / '):'已获取结果'}</summary>{filters}</details>:filters)}
   <div className={'cs-collection-items '+(p.presentation||'compact')}>
-   {rows.slice(start,end).map(r=><button type="button" className="cs-collection-item" aria-pressed={String(selectedId)===String(r.rowKey??r.id)} key={r.rowKey??r.id} onClick={()=>{if(fire('onSelect',{id:r.rowKey??r.id,value:r.rowKey??r.id,item:r})!==false)patch({selected:String(r.rowKey??r.id),selectedItem:r})}}>{p.presentation==="poster"&&r[p.timeKey||"time"]!=null?<time className="cs-collection-time">{String(r[p.timeKey||"time"])}</time>:<Cover row={r}/>}<span><strong>{collectionTitle(r,p.titleKey)}</strong>{p.presentation==="poster"?<span className="cs-collection-tag">{displayValue(r[p.subtitleKey||"note"])}</span>:<span className="cs-collection-facts">{fields.slice(0,3).map(f=><span key={f}><small>{fieldLabels[f]||f}</small>{displayValue(r[f])}</span>)}</span>}</span></button>)}
+   {rows.slice(start,end).map(r=><button type="button" className="cs-collection-item" aria-pressed={String(selectedId)===String(r.rowKey??r.id)} key={r.rowKey??r.id} onClick={()=>{if(fire('onSelect',collectionEvent(r))!==false)patch({selected:String(r.rowKey??r.id),selectedItem:r})}}>{p.presentation==="poster"&&r[p.timeKey||"time"]!=null?<time className="cs-collection-time">{String(r[p.timeKey||"time"])}</time>:<Cover row={r}/>}<span><strong>{collectionTitle(r,p.titleKey)}</strong>{p.presentation==="poster"?<span className="cs-collection-tag">{r.$display?collectionFacts(r,fields,fieldLabels).slice(0,3).map(f=>f.label+' '+f.text).join(' · '):displayValue(r[p.subtitleKey||"note"])}</span>:<span className="cs-collection-facts">{collectionFacts(r,fields,fieldLabels).slice(0,3).map(f=><span key={f.key} data-slot={f.key} data-slot-status={f.status}><small>{f.label}</small>{f.text}</span>)}</span>}</span></button>)}
   </div>
   {!rows.length&&<p>当前筛选没有匹配项{p.partial?'（来源数据不完整）':''}</p>}
   {count>1&&<nav className="cs-row" aria-label="集合分页"><button className="cs-button" disabled={!page} onClick={()=>patch({pageStart:(page-1)*pageSize})}>上一组</button><span>{page+1} / {count}</span><button className="cs-button" disabled={page===count-1} onClick={()=>patch({pageStart:(page+1)*pageSize})}>下一组</button></nav>}

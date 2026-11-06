@@ -1,0 +1,29 @@
+/* Group columns stay semantically independent; flat lists remain row-major. */
+.cs-stage .cs-card .cs-list-columns{display:grid!important;grid-template-columns:repeat(var(--list-columns),minmax(0,1fr));gap:10px!important;align-items:start;min-width:0;padding:0;list-style:none}
+.cs-list-group{margin:0!important;list-style:none;min-width:0;border-radius:14px;background:color-mix(in srgb,var(--mock-accent,currentColor) 9%,transparent);overflow:hidden;--list-accent:var(--mock-ink,var(--color-text-prose,#375749))}
+.cs-list-group:nth-child(even){background:color-mix(in srgb,#5295b5 9%,transparent);--list-accent:color-mix(in srgb,var(--mock-ink,var(--color-text-prose,#375749)) 70%,#2283ac)}
+.cs-stage .cs-card .cs-list-group-heading{padding:10px 9px;min-height:36px;font:600 13px/1.45 system-ui;color:var(--list-accent);background:color-mix(in srgb,var(--list-accent) 8%,transparent);overflow-wrap:anywhere}
+.cs-stage .cs-card .cs-list-group-heading .cs-row{flex-wrap:wrap;gap:4px!important}.cs-stage .cs-card .cs-list-group-heading .cs-badge{background:transparent;padding:0;color:inherit}
+.cs-list-group-items{padding:6px;margin:0;list-style:none;display:flex;flex-direction:column;gap:7px}
+.cs-stage .cs-card .cs-list[data-list-style]:not([data-list-style=plain]) .cs-list-item{position:relative;min-width:0;gap:5px!important;padding:9px!important;border:0!important;border-radius:11px;background:color-mix(in srgb,var(--mock-bg,var(--color-bg,#fff)) 70%,transparent);box-shadow:0 3px 12px #00000005;overflow-wrap:anywhere}
+.cs-stage .cs-card .cs-list[data-list-style=timeline] .cs-list-group-items{padding-left:15px}
+.cs-stage .cs-card .cs-list[data-list-style=timeline] .cs-list-group-items>.cs-list-item:before{content:'';position:absolute;left:-9px;top:16px;width:5px;height:5px;border-radius:50%;background:var(--list-accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--list-accent) 13%,transparent)}
+.cs-stage .cs-card .cs-list[data-list-style=timeline] .cs-list-group-items>.cs-list-item:after{content:'';position:absolute;left:-7px;top:25px;bottom:-15px;width:1px;background:color-mix(in srgb,var(--list-accent) 22%,transparent)}
+.cs-stage .cs-card .cs-list[data-list-style=timeline] .cs-list-group-items>.cs-list-item:last-child:after{display:none}
+.cs-stage .cs-card .cs-list-item-designed .cs-row{flex-wrap:wrap;gap:5px!important;min-width:0}
+.cs-stage .cs-card .cs-list-item-designed .cs-pressable{min-width:0;width:100%;min-height:44px;white-space:normal;text-align:left;padding:3px!important;background:transparent!important;box-shadow:none!important;gap:5px!important}
+.cs-stage .cs-card .cs-list-item-designed .cs-pressable strong{font-size:13px;line-height:1.5;text-align:left}
+.cs-stage .cs-card .cs-list-item-designed .cs-caption{font-size:12px;line-height:1.5;white-space:normal}
+.cs-stage .cs-card .cs-list-item-designed .cs-check{min-height:44px;gap:5px;font-size:12px}
+.cs-stage .cs-card .cs-list-thumbnail{position:relative;display:block;isolation:isolate;width:100%;height:48px;min-height:48px;overflow:hidden;border-radius:8px;background:color-mix(in srgb,var(--list-accent,currentColor) 8%,transparent)}
+.cs-list-thumbnail img{width:100%;height:100%;object-fit:cover}.cs-list-thumbnail svg{display:block}
+.cs-stage .cs-card .cs-list-item-designed:focus-within{outline:2px solid var(--list-accent,currentColor);outline-offset:1px}
+@container(max-width:350px){.cs-stage .cs-card .cs-list-columns[data-columns="3"]{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container(max-width:260px){.cs-stage .cs-card .cs-list-columns{grid-template-columns:1fr}}
+
+.cs-mock-composition:has(.cs-list-columns)>.cs-mock-art{flex-basis:20%;max-height:120px}
+@container(max-width:330px){.cs-mock-composition:has(.cs-list-columns)>.cs-mock-art{flex-basis:44px}}
+.cs-mock-composition>header:has(.cs-card-settings){position:relative;padding-right:48px;min-height:44px;box-sizing:border-box}
+.cs-mock-composition>header>.cs-card-settings{position:absolute;right:0;top:0}
+@container(max-width:330px){.cs-stage .cs-card .cs-list-group-heading{padding:7px 6px;font-size:12px}.cs-stage .cs-card .cs-list-group-heading .cs-caption{font-size:10px}.cs-stage .cs-card .cs-list-thumbnail{height:28px;min-height:28px}.cs-stage .cs-card .cs-list-item-designed{padding:7px!important}}
+@container(max-width:330px){.cs-stage .cs-card .cs-list-item-designed .cs-pressable>.cs-row>strong{order:-1;flex-basis:100%}.cs-stage .cs-card .cs-list-item-designed .cs-pressable>.cs-row>[aria-hidden=true]{display:none}}

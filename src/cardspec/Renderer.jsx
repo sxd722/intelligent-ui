@@ -1,5 +1,18 @@
+import {resolveMockDesign} from '../../shared/cardspec/design-mock-layout.mjs'
+import {DetailStage} from './Folio.jsx'
+import {ListLayout,ListGroup,ListItem} from './ListLayout.jsx'
+import {projectListColumns} from '../../shared/cardspec/list-composition.mjs'
+import {MockComposition} from './MockComposition.jsx'
+import {ImageCredit} from './ImageCredit.jsx'
 import {ComparisonChart} from './ComparisonChart.jsx'
+import {CardSettings,ChoiceTile} from './CompactChoices.jsx'
+import {plannerPresentation,plannerSelectedIds} from '../../shared/cardspec/planner-presentation.mjs'
+import {isSupportingContent} from '../../shared/cardspec/supporting-content.mjs'
+import {ToolView} from './ToolView.jsx'
+import {projectDecisionActions} from '../../shared/cardspec/decision-profile.mjs'
+import {TaskBoard} from './TaskBoard.jsx'
 import {Collection} from './Collection.jsx'
+import {decorateToolRows} from '../../shared/cardspec/tool-slots.mjs'
 import {isolateCollectionRows} from '../../shared/cardspec/collection-rows.mjs'
 import {Experience,PointMap} from './Experience.jsx'
 import {SeriesChart} from './SeriesChart.jsx'
@@ -50,6 +63,7 @@ import { useCardSize } from '../CardSize.jsx'
 import { Clock } from './Clock.jsx'
 import { measureExperience } from './experience-metrics.js'
 import './seamless.css'
+import './folio.css'
 
 const scalar = (v) => v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v)
 const safeLink = (value) => {
@@ -58,6 +72,7 @@ const safeLink = (value) => {
 const safeBackgroundUrl = safePhotoUrl
 
 function useBackgroundPhoto(query, supplied, streaming, enabled) {
+  if(supplied?.status==='deferred')supplied=null
   const key = photoKey(query, 'background'), [resolved, setResolved] = useState(null)
   const [imageState, setImageState] = useState(null)
   useEffect(() => {
@@ -132,13 +147,15 @@ function Calendar({ p, fire, context }) {
   </div>
 }
 
-function Region({ p:requested, children, identity }) {
-  const [regionRoot,space]=useCompositionSpace({reservePagination:true})
-  const adapt=space!==null&&requested.overflow==='scroll'&&children.length>1
-  const p=adapt?{...requested,overflow:'paginate'}:requested
+function Region({ p:requested, children, identity, session }) {
+  const [regionRoot,space]=useCompositionSpace({reservePagination:true,fill:['scroll','paginate'].includes(requested.overflow),sharePage:true})
+  // Keep requested scrolling continuous: never paginate a heading away from its explanation.
+  const adapt=false
   const cardSize=useCardSize()
+  const p=requested.role==='details'?{...requested,overflow:'details'}:cardSize==='full'&&['scroll','paginate'].includes(requested.overflow)?{...requested,overflow:undefined}:requested
   const body = useRef(null), dialog = useRef(null), [page, setPage] = useViewState('page',0), [pageSize, setPageSize] = useState(3)
   const [open, setOpen] = useState(false)
+  useEffect(()=>{if(p.overflow!=='details'||!session)return;const page=session.current();session.setRegionVisibility?.(p.ownerId,open,page);return()=>session.setRegionVisibility?.(p.ownerId,false,page)},[session,p.ownerId,p.overflow,open])
   const previousReset=useRef(scalar(p.resetKey)), detailHeight=useRef(0)
   useLayoutEffect(()=>{const el=body.current;if(!el||p.resetKey===undefined||cardSize!=='auto')return;detailHeight.current=Math.min(200,Math.max(detailHeight.current,el.getBoundingClientRect().height));el.style.minHeight=detailHeight.current+'px'},[p.resetKey,cardSize])
   useLayoutEffect(() => {const value=scalar(p.resetKey);if(previousReset.current!==value){previousReset.current=value;if(body.current)body.current.scrollTop=0;setPage(0)}}, [scalar(p.resetKey)])
@@ -164,14 +181,14 @@ function Region({ p:requested, children, identity }) {
   const count = Math.max(1, Math.ceil(children.length / pageSize)), current = Math.min(page, count - 1)
   const navigation={label:p.label || '分页',value:`${current+1} / ${count}`,count,disabledPrevious:current===0,disabledNext:current+1>=count,previous:()=>setPage(current-1),next:()=>setPage(current+1)}
   const builtIn=useNavigationOwner(p.ownerId,p.navigation==='external' && p.overflow==='paginate',navigation)
-  if (p.overflow === 'details') return <div className="cs-details">
+  if (p.overflow === 'details') return <div className="cs-details" data-motion={p.motion} data-motion-key={p.motionKey}>
     <button type="button" onClick={() => setOpen(true)}>{p.label || '查看详情'}</button>
     <dialog ref={dialog} className="cs-dialog" onCancel={() => setOpen(false)} onClose={() => setOpen(false)} aria-label={p.label || '详情'}>
       <header><strong>{p.label || '详情'}</strong><button type="button" aria-label="关闭详情" onClick={() => setOpen(false)}>×</button></header>
       <div className="cs-stack">{children}</div>
     </dialog>
   </div>
-  return <section ref={regionRoot} style={space!==null&&p.overflow==='paginate'?{height:space}:undefined} className={`cs-region${p.presentation === 'magazine' ? ' cs-magazine' : ''}`} data-cs-node={identity} data-role={p.role || 'content'} data-overflow={p.overflow} data-adapted-overflow={adapt?'paginate':undefined} data-priority={p.priority || 'required'} data-grow={p.grow || undefined} data-surface={p.surface} data-tone={p.tone}>
+  return <section ref={regionRoot} data-motion={p.motion} data-motion-key={p.motionKey} style={space!==null&&['scroll','paginate'].includes(p.overflow)?{height:space}:undefined} className={`cs-region${p.presentation === 'magazine' ? ' cs-magazine' : ''}`} data-cs-node={identity} data-role={p.role || 'content'} data-overflow={p.overflow} data-adapted-overflow={adapt?'paginate':undefined} data-priority={p.priority || 'required'} data-grow={p.grow || undefined} data-surface={p.surface} data-tone={p.tone}>
     <div className="cs-region-body" ref={body} style={{ gap: `var(--cs-space-${p.space || 'normal'})`, alignItems: p.align, justifyContent: { between: 'space-between', start: 'flex-start', end: 'flex-end' }[p.justify] || p.justify }} aria-label={p.label} tabIndex={p.overflow === 'scroll' || p.overflow === 'paginate' ? 0 : undefined}>
       {p.overflow === 'paginate' ? children.slice(current * pageSize, (current + 1) * pageSize).map((child) => <div className="cs-page-item" key={child.key}>{child}</div>) : p.presentation === 'magazine' ? children.map(child=><article className="cs-fragment" key={child.key}>{child}</article>) : children}
     </div>
@@ -179,11 +196,12 @@ function Region({ p:requested, children, identity }) {
   </section>
 }
 function ProgressiveList({children,attrs,flow}){
- const size=useCardSize(),pageSize=size==='square'?3:6
+ const size=useCardSize(),pageSize=size==='full'?Math.max(1,children.length):size==='square'?3:6
  const [position,setPosition]=useViewState('listPage',0),page=Math.min(Math.floor(position/pageSize),Math.max(0,Math.ceil(children.length/pageSize)-1))
  return <div className="cs-progressive-list"><ul {...attrs} className="cs-stack cs-list" style={flow}>{children.slice(page*pageSize,(page+1)*pageSize)}</ul>{children.length>pageSize&&<nav className="cs-row" aria-label="列表分组"><button className="cs-button" disabled={!page} onClick={()=>setPosition((page-1)*pageSize)}>上一组</button><span>{page+1} / {Math.ceil(children.length/pageSize)}</span><button className="cs-button" disabled={(page+1)*pageSize>=children.length} onClick={()=>setPosition((page+1)*pageSize)}>下一组</button></nav>}</div>
 }
 function ImageNode({ p, resource, streaming }) {
+  if(resource?.status==='deferred')resource=null
   const asset=Object.hasOwn(p,'assetRef'),validAsset=typeof p.assetRef==='string'&&/^asset\.v1\.[\w-]+\.[\w-]+$/.test(p.assetRef)&&p.assetRef.length<=3000
   const key = asset?p.assetRef:photoKey(p.query,p.mediaRole), [resolved, setResolved] = useState(null)
   useEffect(() => {
@@ -203,8 +221,8 @@ function ImageNode({ p, resource, streaming }) {
   const failed = status === 'error' || resource?.status === 'error'
   return <div className="cs-photo"><figure className="cs-image" data-media-role={p.mediaRole || 'hero'} data-loaded={status === 'loaded'}>
     {src && <img src={src} alt={p.alt || p.query || ''} onLoad={() => setStatus('loaded')} onError={() => setStatus('error')} hidden={failed} />}
-    {(!src || status !== 'loaded') && <span role="status">{failed ? '图片暂不可用' : '图片加载中…'}</span>}
-  </figure>{asset&&<small className="cs-photo-credit">来源图片</small>}{resource?.provider === 'Pexels' && <small className="cs-photo-credit">示意 · Photo by {safeLink(resource.photoUrl) ? <a href={safeLink(resource.photoUrl)} target="_blank" rel="noreferrer">{resource.photographer || 'photographer'}</a> : resource.photographer} · <a href="https://www.pexels.com" target="_blank" rel="noreferrer">Pexels</a></small>}</div>
+    {(!src || status !== 'loaded') && <span role="status">{failed ? '图片暂不可用' : /^gen:/i.test(p.query||'') ? '生成插画中…' : '图片加载中…'}</span>}
+  </figure><ImageCredit resource={resource} asset={asset}/></div>
 }
 
 function Node({ node, scope, runtime, identity }) {
@@ -221,9 +239,15 @@ function Node({ node, scope, runtime, identity }) {
     }
     if (p.visible === false || (node.type === 'if' && !p.test)) return null
     validateWidget(node.type, p)
-    const resultSources=['collection','experience','map','table','chart','heatmap'].includes(node.type)
+    const resultSources=node.type==='tool-view'?[p.binding]:['collection','experience','map','table','chart','heatmap'].includes(node.type)
       ?['items','rows','data','values'].flatMap(key=>activeCollectionBindings(runtime.spec,node.props[key],scope)):[]
     const sourceLeases=[...(runtime.sourceLeases||[]),...(runtime.session?.sourceLeases(resultSources)||[])]
+    // Only decorate an unambiguous, registered result. Keep original event data
+    // and IDs; semantic facts belong to the host rather than generated fields.
+    if(['collection','experience'].includes(node.type)&&Array.isArray(p.items)&&new Set(resultSources).size===1){
+      const tool=runtime.spec.bindings?.[resultSources[0]]?.tool
+      p.items=decorateToolRows(tool,p.items)
+    }
     const argumentLeases=node.props.args?runtime.session?.sourceLeases(Object.keys(runtime.spec.bindings||{}))||[]:[]
     const fire = (eventName, event = {}) => {
       try {
@@ -247,25 +271,33 @@ function Node({ node, scope, runtime, identity }) {
       runtime.notify()
     }}>{(local,dispatch,onError)=>renderChildren(node.children,{...scope,local},{...runtime,localLogic:true,fire:dispatch,error:onError,notify:()=>{}},identity)}</LogicPanel>
     const children = renderChildren(node.children, scope, p.presentation === 'magazine' ? {...runtime,magazine:true} : runtime, identity, node.type==='region'&&['paginate','scroll'].includes(p.overflow))
-    const attrs = { 'data-motion':p.motion,'data-motion-key':p.motionKey,'data-cs-component': node.type, 'data-cs-node': identity, 'data-tone': p.tone, 'data-size': p.size, 'data-surface': p.surface, 'data-priority': p.priority, 'data-grow': p.grow || undefined, 'data-align':p.align }
+    const attrs = { 'data-cs-on-press':node.props.onPress?.value,'data-cs-on-change':node.props.onChange?.value,'data-motion':p.motion,'data-motion-key':p.motionKey,'data-cs-component': node.type, 'data-cs-node': identity, 'data-tone': p.tone, 'data-size': p.size, 'data-surface': p.surface, 'data-priority': p.priority, 'data-grow': p.grow || undefined, 'data-align':p.align }
     const flow = { gap: `var(--cs-space-${p.space || 'normal'})`, alignItems: p.align, justifyContent: { between: 'space-between', start: 'flex-start', end: 'flex-end' }[p.justify] || p.justify, flexWrap: p.wrap ? 'wrap' : undefined }
     switch (node.type) {
+      case 'tool-view': return <ToolView p={p} runtime={runtime} scope={scope} fire={fire}/>
+      case 'task-board': return <TaskBoard p={p} runtime={runtime} scope={scope} fire={fire}/>
       case 'experience': return <Experience p={p} fire={fire}>{children}</Experience>
-      case 'map': return <PointMap p={p} fire={fire}/>
+      case 'map': return <PointMap p={runtime.plannerSelection&&!p.selectedIds?{...p,selectedIds:runtime.plannerSelection}:p} fire={fire}/>
+      case 'settings': return <CardSettings>{children}</CardSettings>
+      case 'choice-grid': return <div {...attrs} className="cs-choice-grid" role="group" aria-label={p.label||'候选'}>{children}</div>
+      case 'choice-item': {
+        const item=node.plannerChoice&&node.props.args?evaluate(node.props.args,scope):null
+        return <ChoiceTile p={{...p,summary:item?.summary||item?.tag, rating:item?.rating}} fire={fire} attrs={attrs}>{children}</ChoiceTile>
+      }
       case 'sandbox': return <SandboxPanel p={p} nodeId={node.id} runtime={{...runtime,toolsReady:runtime.session?.complete}}>{children}</SandboxPanel>
       case 'slot': {
         const slot=runtime.page?.slots[node.id],busy=Object.values(runtime.page?.bindings||{}).some(b=>b.status==='loading'&&b.target===`slot:${node.id}`)
         const content=slot?renderChildren(slot.spec.children,makeScope(slot.spec,slot.store),{...runtime,spec:slot.spec,store:slot.store,page:slot,resources:slot.resources,fire:(action,extra)=>runtime.session.updateSlot(node.id,action,extra)},`${identity}/generated`):children
         return <section {...attrs} className="cs-tool-slot" data-motion="slide" data-motion-key={slot?.spec?.cardId || "default"} aria-label={p.label||'动态内容'} aria-busy={busy}>{content}{slot&&<EvidenceSources research={slot.spec.research}/>} {busy&&<Thinking/>}</section>
       }
+      case 'detail-stage': return <DetailStage p={p} attrs={attrs}>{children}</DetailStage>
       case 'collection': return <Collection p={p} fire={fire}/>
-      case 'region': return <Region p={{...p,ownerId:node.id}} identity={identity}>{children}</Region>
+      case 'region': return <Region p={{...p,ownerId:node.id}} identity={identity} session={runtime.session}>{children}</Region>
       case 'navigation': return <ExternalNavigation target={p.target} identity={identity} label={p.label}/>
       case 'if': return <>{children}</>
-      case 'list': if(children.length>6&&!runtime.streaming)return <ProgressiveList children={children} attrs={{...attrs,"aria-label":p.label}} flow={flow}/>; return <ul {...attrs} aria-label={p.label} className="cs-stack cs-list" style={flow}>{children}</ul>
-      case 'list-item': return <li {...attrs} className="cs-stack" style={flow}>{p.onPress
-        ? <button type="button" data-cs-node={`${identity}/@press`} className="cs-button cs-pressable cs-stack" style={flow} aria-label={p.label} disabled={p.disabled} onClick={()=>fire('onPress')}>{p.label&&<strong>{p.label}</strong>}{children}</button>
-        : children}</li>
+      case 'list': if(children.length>6&&!runtime.streaming&&!p.columns&&!p.presentation)return <ProgressiveList children={children} attrs={{...attrs,"aria-label":p.label}} flow={flow}/>; return <ListLayout p={p} attrs={attrs} flow={flow}>{children}</ListLayout>
+      case 'list-group': return <ListGroup p={p} attrs={attrs} heading={node.headerNodes?renderChildren(node.headerNodes,scope,runtime):null}>{children}</ListGroup>
+      case 'list-item': return <ListItem p={p} attrs={attrs} flow={flow} identity={identity} fire={fire} streaming={runtime.streaming}>{children}</ListItem>
       case 'stack': case 'box': case 'carousel-item': return <div {...attrs} className="cs-stack" style={flow}>{children}</div>
       case 'row': case 'chips': return <div {...attrs} className="cs-row" style={flow} role={node.type === 'chips' ? 'group' : undefined} aria-label={p.label}>{children}</div>
       case 'grid': case 'stats': return <div {...attrs} className="cs-grid" style={{ ...flow, gridTemplateColumns: `repeat(${p.columns || (node.type === 'stats' ? Math.max(1, children.length) : 2)}, minmax(0, 1fr))` }}>{children}</div>
@@ -294,7 +326,7 @@ function Node({ node, scope, runtime, identity }) {
       case 'swipe-stack': return <div {...attrs}><SwipeStack p={p} fire={fire} streaming={runtime.streaming}/></div>
       case 'confetti': return <Confetti p={p}/>
       case 'mermaid': return <div {...attrs}><Mermaid p={p} fire={fire} streaming={runtime.streaming}/></div>
-      case 'math': return <MathNode p={p}/>
+      case 'math': return <MathNode p={p} attrs={attrs}/>
       case 'code': return p.block ? <pre {...attrs} className="cs-code-block"><code>{p.value??children}</code></pre> : <code {...attrs} className="cs-code">{p.value??children}</code>
       case 'progress': {
         const value = Math.max(0, Math.min(1, p.value || 0)), label = p.label || '进度'
@@ -364,8 +396,13 @@ function CardContent({ spec, resources = {}, streaming = false, onPaint, onLayou
   const [, refresh] = useReducer((n) => n + 1, 0), [error, setError] = useState('')
   const [accessories, setAccessories] = useState([])
   const design = getDesign(spec?.design)
-  const template = projectTemplate(spec?.children,materialPreview==='classic'?undefined:spec?.design)
-  const composition=materialPreview==='classic'||materialPreview==='template-v1'?null:projectComposition(spec?.children,spec?.design||'default',spec?.composition)
+  const mockDesign=resolveMockDesign(spec)
+  const template = mockDesign?{id:'default'}:projectTemplate(spec?.children,materialPreview==='classic'?undefined:spec?.design)
+  const presentation=plannerPresentation(spec?.children,spec?.bindings)
+  const explicitSettings=presentation.nodes.filter(n=>n.type==='settings')
+  const supporting=presentation.nodes.filter(isSupportingContent)
+  const displayNodes=projectListColumns(projectDecisionActions(presentation.nodes.filter(n=>n.type!=='settings'&&!supporting.includes(n)),spec?.bindings),mockDesign)
+  const composition=mockDesign?null:materialPreview==='classic'||materialPreview==='template-v1'?null:projectComposition(displayNodes,spec?.design||'default',spec?.composition)
   const visualStyle = VISUAL_STYLE_IDS.includes(spec?.visualStyle) ? spec.visualStyle : design?.material
   const background = useBackgroundPhoto(spec?.backgroundQuery, resources[photoKey(spec?.backgroundQuery, 'background')], streaming, !!visualStyle)
   useEffect(()=>{
@@ -377,7 +414,7 @@ function CardContent({ spec, resources = {}, streaming = false, onPaint, onLayou
     if(changed)session?.save()
   },[streaming,page?.id,background.resource])
   const creditUrl = safeLink(background.resource?.photoUrl) || safeLink(background.resource?.photographerUrl)
-  const creditVisible = visualStyle && background.status === 'loaded' && (background.resource?.provider === 'Pexels' || background.resource?.photographer || creditUrl)
+  const creditVisible = visualStyle && background.status === 'loaded' && (['Pexels','OpenAI'].includes(background.resource?.provider) || background.resource?.photographer || creditUrl)
   useEffect(() => attachContentMotion(stage.current), [])
   useLayoutEffect(() => attachComposition(stage.current), [])
   useLayoutEffect(() => attachScrollAffordances(stage.current), [])
@@ -401,30 +438,45 @@ function CardContent({ spec, resources = {}, streaming = false, onPaint, onLayou
     const frame = requestAnimationFrame(() => { second = requestAnimationFrame(() => { painted.current = true; onPaint?.(performance.now()) }) })
     return () => { cancelAnimationFrame(frame); cancelAnimationFrame(second) }
   }, [spec?.revision])
-  let children, accessoryContent
+  let children, accessoryContent,plannerNotes,supportingNotes
   try {
     if (spec) {
       const store = page?.store||stores.current.get(spec.cardId), scope = makeScope(spec, store,{bindings:page?.bindings})
       const runtime = { spec, store, resources, streaming,page,session,fire:session?((action,extra)=>session.fire(action,extra)):null,notify: () => { setError(''); refresh() }, error: setError }
-      if(composition){
-        children=<CompositionLayout composition={composition} header={renderChildren(composition.header,scope,runtime)} items={composition.body.flatMap(node=>renderChildren([node],scope,runtime,'',true).map(content=>({id:content.key||node.id,type:node.type,content})))} controls={renderChildren(composition.controls,scope,runtime)} footer={renderChildren(composition.footer,scope,runtime)} page={page} session={session}/>
+      if(presentation.collections.length)runtime.plannerSelection=plannerSelectedIds(presentation.collections,scope,evaluate)
+      const settings=[...renderChildren(explicitSettings,scope,runtime),...(presentation.settings.length?[<CardSettings key="host-settings">{renderChildren(presentation.settings,scope,runtime)}</CardSettings>]:[])]
+      plannerNotes=renderChildren(presentation.notes,scope,runtime)
+      supportingNotes=supporting.map(n=><details className="cs-card-notes" key={n.id}><summary>{n.props.label?scalar(evaluate(n.props.label,scope)):'资料与说明'}</summary>{renderChildren(n.children,scope,runtime,`/${n.id}`)}</details>)
+      if(mockDesign){
+        const mockLayout=projectComposition(displayNodes,spec.design==='folio'?'folio':'default')||{header:[],body:displayNodes,controls:[],footer:[]}
+        const grouped=mockLayout.body.some(n=>n.type==='list'&&n.children.some(c=>c.type==='list-group'))
+        const overview=grouped?mockLayout.body.filter(n=>['stats','stat','progress'].includes(n.type)):[]
+        if(overview.length)mockLayout.body=mockLayout.body.filter(n=>!overview.includes(n))
+        children=<MockComposition recipe={spec.design} design={mockDesign} header={[...renderChildren(mockLayout.header,scope,runtime),...settings,...(overview.length?[<CardSettings key="list-overview" label="概览">{renderChildren(overview,scope,runtime)}</CardSettings>]:[])]} body={[...mockLayout.body,...mockLayout.controls].map(node=><div className="cs-composition-item" key={node.id}>{renderChildren([node],scope,runtime)}</div>)} footer={renderChildren(mockLayout.footer,scope,runtime)}/>
+      }else if(composition){
+        const items=composition.body.flatMap(node=>{
+          if(node.type==='choice-grid'){
+            const tiles=renderChildren(node.children,scope,runtime,`/${node.id}`)
+            return Array.from({length:Math.ceil(tiles.length/2)},(_,i)=>({id:`${node.id}/row-${i}`,type:'choice-grid',content:<div className="cs-choice-grid" role="group" aria-label="候选">{tiles.slice(i*2,i*2+2)}</div>}))
+          }
+          return renderChildren([node],scope,runtime,'',true).map(content=>({id:content.key||node.id,type:node.type,content}))
+        })
+        children=<CompositionLayout composition={composition} header={[...renderChildren(composition.header,scope,runtime),...settings]} items={items} controls={renderChildren(composition.controls,scope,runtime)} footer={renderChildren(composition.footer,scope,runtime)} page={page} session={session}/>
       }else if(template.id!=='default'){
         children=<TemplateLayout id={template.id} header={renderChildren(template.header,scope,runtime)} page={page} session={session}>{template.body.map(node=><div className="cs-template-item" data-template-role={templateRole(node)} key={node.id}>{renderChildren([node],scope,runtime)}</div>)}</TemplateLayout>
       }else{
-        children = renderChildren(spec.children.filter((n) => !accessories.includes(n.id)), scope, runtime)
+        children = [...settings,...renderChildren(displayNodes.filter((n) => !accessories.includes(n.id)), scope, runtime)]
         accessoryContent = renderChildren(spec.children.filter((n) => accessories.includes(n.id)), scope, runtime)
       }
     }
   } catch (e) { children = <div className="cs-error" data-cs-error="">{e.message}</div> }
   return <div className="cs-shell"><div ref={stage} className="dil-stage cs-stage" data-composition-version={composition?2:undefined} data-composition-family={composition?.family} data-layout-template={composition?"default":template.id} data-template-reason={template.reason} data-motion-level={motionLevel} data-material-version={materialPreview==='classic'?'1':'2'} data-card-size={cardSize} data-theme={spec?.theme || 'editorial'} data-palette={spec?.palette || 'a'} data-streaming={streaming || undefined} data-visual-style={visualStyle} data-design={design ? spec.design : undefined} style={design ? {...design.tokens, colorScheme:design.scheme} : undefined}>
-    {visualStyle && <div className="cs-background" data-status={background.status} data-position={spec.backgroundPosition || 'center'} aria-hidden="true">
+    {visualStyle && !mockDesign && <div className="cs-background" data-status={background.status} data-position={spec.backgroundPosition || 'center'} aria-hidden="true">
       <PhotoStage photo={background} crop={spec.backgroundPosition} mask={spec.backgroundMask}/><div className="cs-background-scrim"/><div className="cs-ambient"/>{!composition&&template.id==='default'&&materialPreview!=='classic'&&design?.effect&&<HostEffect kind={design.effect}/>}
     </div>}
     <div className="cs-card">{children}</div>
     {footer}{overlay}
     {streaming && <Thinking placement="card" empty={!spec?.children?.length} />}
     {error && <div className="cs-action-error" role="alert">{error}</div>}
-  </div><EvidenceSources research={spec?.research}/>{creditVisible && <small className="cs-background-credit">背景摄影：{creditUrl
-    ? <a href={creditUrl} target="_blank" rel="noreferrer noopener">{background.resource.photographer || '摄影作者'}</a>
-    : background.resource?.photographer || '摄影作者'}{background.resource?.provider === 'Pexels' && <> · <a href="https://www.pexels.com" target="_blank" rel="noreferrer noopener">Pexels</a></>}</small>}{accessoryContent?.length > 0 && <div className="cs-accessory" data-cs-accessory="">{accessoryContent}</div>}</div>
+  </div>{mockDesign&&<details className="cs-card-notes"><summary>设计参考图</summary><img src={mockDesign.url} alt="生成的构图参考" style={{width:"100%",maxWidth:432,borderRadius:12}}/><p>组件为实际交互；主视觉与缩略插画复用参考图。</p></details>}{supportingNotes}{plannerNotes?.length>0&&<details className="cs-card-notes"><summary>使用说明</summary>{plannerNotes}</details>}<EvidenceSources research={spec?.research}/>{creditVisible && <ImageCredit resource={background.resource} background/>}{accessoryContent?.length > 0 && <div className="cs-accessory" data-cs-accessory="">{accessoryContent}</div>}</div>
 }

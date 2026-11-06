@@ -1,0 +1,9 @@
+import {writeFile,mkdir} from 'node:fs/promises'
+import {createDeltaApplier,isControlEvent} from '../src/delta.js'
+import {collectImages} from '../shared/cardspec/images.mjs'
+const root='artifacts/cloud-reuse-qa/images';await mkdir(root,{recursive:true})
+const cases=[['story','做一个孩子睡前的月球小狐狸探险故事卡，配一张原创绘本插画，点按钮在两个故事片段间切换。用图片营造故事气氛，文字很短，不需要工具。'],['photo','做一张海边野餐准备卡，用一张真实海滩摄影图，两个可勾选的准备事项，不需要实时工具。'],['implicit','做一张幻想森林探险卡，小朋友可选择树屋或蘑菇小径，两处地点都有一句生动的场景介绍，视觉像儿童绘本，手机上使用。']]
+for(const [id,prompt]of cases.filter(c=>!process.argv[2]||c[0]===process.argv[2])){const at=Date.now(),frames=[],applier=createDeltaApplier(),envelope={};let terminal,error,buffer='';const decoder=new TextDecoder()
+ try{const r=await fetch('http://127.0.0.1:8794/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:prompt}],format:'cardspec',mode:'direct',renderMode:'native',toolsEnabled:false,cardSize:'full',expressionDialect:'js-v1'}),signal:AbortSignal.timeout(210000)});for await(const chunk of r.body){buffer+=decoder.decode(chunk,{stream:true});let b;while((b=/\r?\n\r?\n/.exec(buffer))){const block=buffer.slice(0,b.index);buffer=buffer.slice(b.index+b[0].length);for(const line of block.split('\n')){if(!line.startsWith('data:'))continue;const raw=line.slice(5).trim();if(raw==='[DONE]')continue;const f=JSON.parse(raw);frames.push(f);if(f.type==='message_stream_complete')terminal=f.status;if(f.type==='stream_error')error=f.error?.message;if(!isControlEvent(f))applier.apply(envelope,f)}}}}catch(e){error=e.message}
+ const spec=envelope.message?.metadata?.card_spec,result={prompt,ms:Date.now()-at,terminal,error,source:envelope.message?.content?.parts?.[0],spec,resources:envelope.message?.metadata?.resources,images:spec?collectImages(spec):[],frames};await writeFile(`${root}/${id}.json`,JSON.stringify(result,null,2));console.log({id,ms:result.ms,terminal,error,images:result.images})
+}

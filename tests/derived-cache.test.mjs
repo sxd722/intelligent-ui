@@ -1,4 +1,3 @@
-import {existsSync} from 'node:fs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
@@ -40,7 +39,7 @@ test('cycles, failed computations and genuinely expensive expressions retain the
  Object.defineProperty(s2.context,'input',{get(){if(fails)throw Error('temporary');return {n:7}}})
  const scope=makeScope(s2,createStore());assert.throws(()=>scope.derived.a,/temporary/);fails=false;assert.equal(scope.derived.a,7)
 })
-test('immutable R14 small-data graph compiles without raising operation limits',{skip: ["artifacts/javascript-upgrade/deep-baselines-r14/sentiment.json"].every(existsSync) ? false : "Private historical replay artifacts excluded from source export"}, ()=>{
+test('immutable R14 small-data graph compiles without raising operation limits',()=>{
  const r=JSON.parse(readFileSync('artifacts/javascript-upgrade/deep-baselines-r14/sentiment.json','utf8'))
  const source=r.trace.filter(x=>x.type==='diagnostics').at(-1).source
  const result=compileCard(source,{final:true,context:{...context,datasets:Object.fromEntries(r.records.map(x=>[x.id,x.value]))}})

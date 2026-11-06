@@ -1,0 +1,31 @@
+import {test,expect} from '@playwright/test'
+
+for(const size of ['square','auto'])for(const width of ['320','360','432'])test(`arc preserves caption and all controls: ${size}/${width}`,async({page})=>{
+ await page.goto('/cardspec-lab.html?fixture=dialAcademy')
+ await page.getByLabel('卡片尺寸',{exact:true}).selectOption(size)
+ await page.getByLabel('宽度',{exact:true}).selectOption(width)
+ const dial=page.locator('.cs-carousel-dial'),track=page.locator('.cs-dial-track')
+ await expect(page.locator('.cs-composition-item[data-kind=caption]')).toBeVisible()
+ const height=await track.evaluate(el=>el.offsetHeight)
+ await page.getByRole('button',{name:'下一项',exact:true}).click()
+ await expect(dial).toHaveAttribute('data-active-index','1')
+ await expect(page.locator('.cs-composition-item[data-kind=caption]')).toContainText('海岸留白')
+ expect(await track.evaluate(el=>el.offsetHeight)).toBe(height)
+ await track.press('End');await expect(dial).toHaveAttribute('data-active-index','2')
+ await expect(page.getByRole('button',{name:'下一项',exact:true})).toBeDisabled()
+ await track.press('Home');await expect(dial).toHaveAttribute('data-active-index','0')
+ await expect.poll(async()=>JSON.parse(await page.getByTestId('layout').innerText()).pass).toBe(true)
+ expect(await page.locator('.cs-carousel-nav').count()).toBe(0)
+})
+
+test('late result sets resize the dial without clipping new controls',async({page})=>{
+ await page.goto('/cardspec-lab.html?fixture=dialDefault')
+ await page.getByText('输入 DSL 验证',{exact:true}).click()
+ await page.getByLabel('DSL源码',{exact:true}).fill(`<card schemaVersion="1"><state id="ready" type="boolean" initial={false}/><data id="rows" value={[{"id":"a","title":"延迟候选"}]}/><carousel id="late"><each items={state.ready ? data.rows : []} itemKey={item.id}><carousel-item><title>{item.title}</title><input label="备注" value=""/></carousel-item></each></carousel><button onPress="load">载入候选</button><action id="load"><set target="ready" value={true}/></action></card>`)
+ await page.getByRole('button',{name:'应用源码',exact:true}).click()
+ const before=await page.locator('.cs-dial-track').evaluate(el=>el.offsetHeight)
+ await page.getByRole('button',{name:'载入候选',exact:true}).click()
+ await expect.poll(()=>page.locator('.cs-dial-track').evaluate(el=>el.offsetHeight)).toBeGreaterThan(before)
+ await expect(page.getByLabel('备注',{exact:true})).toBeInViewport()
+ await expect.poll(async()=>JSON.parse(await page.getByTestId('layout').innerText()).pass).toBe(true)
+})

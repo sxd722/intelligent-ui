@@ -1,7 +1,10 @@
 import {PageDots,PageDotsOutlet,usePageSwipe} from './PageDots.jsx'
+import {RenderOrigin} from './RenderOrigin.jsx'
 import {usePageTransition} from './page-transition.jsx'
+import {CardPile} from './CardPile.jsx'
+import {cancelNavigation} from './host-motion.js'
 import {followupEntries} from '../../shared/cardspec/followups.mjs'
-import React,{createContext,useContext,useEffect,useLayoutEffect,useRef,useSyncExternalStore,useState} from 'react'
+import React,{createContext,useContext,useEffect,useLayoutEffect,useRef,useSyncExternalStore,useState,useCallback} from 'react'
 import { createCardSession } from './tool-session.mjs'
 import { useCardSize } from '../CardSize.jsx'
 import {useSandboxMode} from '../SandboxMode.jsx'
@@ -12,15 +15,15 @@ import './tool-card.css'
 export const ToolSettings=createContext(true)
 export function captureView(root){
   if(!root)return {}
-  const elements=[...root.querySelectorAll('.cs-card,.cs-experience-body,.cs-experience-tabs,.cs-experience-facets,.cs-host-controls,.cs-result-scroll,.cs-region-body,.cs-carousel-track,.cs-diagram-pan,.cs-chart-pan,.cs-table-pan,.cs-mermaid-pan,.cs-code-block,details')]
+  const elements=[...root.querySelectorAll('.cs-card,.cs-experience-body,.cs-experience-tabs,.cs-experience-facets,.cs-host-controls,.cs-result-scroll,.cs-region-body,.cs-carousel-track,.cs-diagram-pan,.cs-chart-pan,.cs-table-pan,.cs-mermaid-pan,.cs-code-block,.tb-body,details')]
   const stage=root.querySelector('.cs-stage')
   return {width:stage?.clientWidth,height:stage?.clientHeight,elements:elements.map((el,i)=>({i,top:el.scrollTop,left:el.scrollLeft,...(el.tagName==='DETAILS'?{open:el.open}:{})}))}
 }
 function restoreView(root,view){
-  const elements=[...root.querySelectorAll('.cs-card,.cs-experience-body,.cs-experience-tabs,.cs-experience-facets,.cs-host-controls,.cs-result-scroll,.cs-region-body,.cs-carousel-track,.cs-diagram-pan,.cs-chart-pan,.cs-table-pan,.cs-mermaid-pan,.cs-code-block,details')]
+  const elements=[...root.querySelectorAll('.cs-card,.cs-experience-body,.cs-experience-tabs,.cs-experience-facets,.cs-host-controls,.cs-result-scroll,.cs-region-body,.cs-carousel-track,.cs-diagram-pan,.cs-chart-pan,.cs-table-pan,.cs-mermaid-pan,.cs-code-block,.tb-body,details')]
   for(const saved of view?.elements||[]){const el=elements[saved.i];if(el){if(saved.open!==undefined)el.open=saved.open;el.scrollTo({top:saved.top,left:saved.left,behavior:'instant'})}}
 }
-export function ToolCard({spec,resources,streaming,toolsReady=true,persistenceKey,transport,hostNavigation,hostNotice,children,onDebugSession,debugAuthorizeWrite}){
+export function ToolCard({spec,resources,streaming,toolsReady=true,persistenceKey,transport,hostNavigation,hostNotice,deckNavigation,children,onDebugSession,debugAuthorizeWrite}){
   const slide=useRef(null),[dotsOutlet,setDotsOutlet]=useState(null)
   const cardSize=useCardSize(),sizeRef=useRef(cardSize)
   const renderMode=useSandboxMode(),modeRef=useRef(renderMode);modeRef.current=renderMode
@@ -42,6 +45,12 @@ export function ToolCard({spec,resources,streaming,toolsReady=true,persistenceKe
   useSyncExternalStore(session.subscribe,session.snapshot,session.snapshot)
   useEffect(()=>{onDebugSession?.(session)},[session,onDebugSession])
   const page=session.current()
+  const [contentNavigation,setContentNavigation]=useState(null),pendingPage=useRef(null)
+  const registerNavigation=useCallback(model=>{
+    setContentNavigation(model?{...model,pageId:page.id}:null)
+    if(model){page.viewState.contentPageCount=model.count;session.save()
+      if(pendingPage.current?.id===page.id){const target=pendingPage.current.index;pendingPage.current=null;if(target!==model.index)model.move(Math.min(target,model.count-1))}}
+  },[page.id,session])
   const transition=usePageTransition(slide,session.index,page.id)
   useLayoutEffect(()=>{session.updateRoot(spec,resources)},[spec,resources,session])
   useEffect(()=>{let intersecting=false
@@ -64,7 +73,14 @@ export function ToolCard({spec,resources,streaming,toolsReady=true,persistenceKe
   },[session])
   const navigate=offset=>{session.saveView(captureView(root.current));transition(session.index+offset,to=>session.navigate(to-session.index))}
 
- const swipe=usePageSwipe(session.pages.length,session.index,i=>navigate(i-session.index))
+ const content=contentNavigation?.pageId===page.id?contentNavigation:null
+ const screens=session.pages.flatMap((p,i)=>Array.from({length:cardSize==='full'?1:Math.max(1,p.id===page.id?content?.count||1:p.viewState.contentPageCount||1)},(_,part)=>({page:i,part})))
+ const activeScreen=Math.max(0,screens.findIndex(s=>s.page===session.index&&s.part===(content?.index||0)))
+ const moveScreen=i=>{const target=screens[i];if(!target)return;if(target.page===session.index){cancelNavigation(slide.current);content?.move(target.part)}else{pendingPage.current={id:session.pages[target.page].id,index:target.part};navigate(target.page-session.index)}}
+ const deckOffset=deckNavigation?.index||0,totalScreens=screens.length+(deckNavigation?.count||1)-1
+ const moveUnified=i=>{if(i<deckOffset)deckNavigation?.move(i);else if(i>=deckOffset+screens.length)deckNavigation?.move(i-screens.length+1);else moveScreen(i-deckOffset)}
+ const swipe=usePageSwipe(totalScreens,deckOffset+activeScreen,moveUnified,slide)
+ const pileCards=[...(deckNavigation?.cards||[]).slice(0,deckOffset),...session.pages.map(p=>({id:p.id})),...(deckNavigation?.cards||[]).slice(deckOffset+1)]
   const busyBindings=Object.entries(page.bindings).filter(([,b])=>b.status==='loading')
   const hasTools=Object.keys(page.spec.bindings||{}).length>0
   const overlay=<>    {confirmation&&<section className="cs-write-confirm" role="dialog" aria-modal="false" aria-label="确认外部操作">
@@ -79,6 +95,7 @@ export function ToolCard({spec,resources,streaming,toolsReady=true,persistenceKe
   const footer=<div className="cs-host-controls" aria-label="卡片操作">
     {session.busy&&!hasTools&&<div className="cs-host-progress" role="status"><span>正在生成内容</span><button onClick={()=>session.cancel()}>取消</button></div>}
     {hasTools&&<details className="cs-host-tools"><summary>数据与工具{busyBindings.length?" · 更新中":Object.values(page.bindings).some(b=>b.status==='error')?" · 需处理":""}</summary><div className="cs-tool-status" aria-live="polite">
+      {Object.entries(page.bindings).filter(([,b])=>b.cache?.status==='hit'||b.cache?.status==='coalesced').map(([id,b])=><span key={'cache-'+id}>{id} · {b.cache.status==='hit'?'复用近期缓存':'合并相同查询'} · {new Date(b.cache.fetchedAt).toLocaleTimeString()}<button type="button" disabled={!enabled||session.busy||b.status==='loading'} onClick={()=>session.retry(id)}>刷新数据</button></span>)}
       {!enabled?<span>工具增强已关闭</span>:busyBindings.length||session.busy?<><span>{busyBindings.find(([,b])=>b.progress)?.[1].progress||(session.busy?'正在生成内容':'正在更新数据')}</span><button type="button" onClick={()=>session.cancel()}>取消</button></>:<span>{Object.values(page.bindings).some(b=>b.updatedAt)?'数据更新于 '+new Date(Math.max(...Object.values(page.bindings).map(b=>Date.parse(b.updatedAt)||0))).toLocaleTimeString():''}</span>}
       {Object.entries(page.bindings).filter(([,b])=>b.errorInfo&&b.status==='error').map(([id,b])=><details key={'error-'+id}><summary>{b.errorInfo.message} · {b.errorInfo.recovery==='edit_input'?'请修改查询':'自动刷新已暂缓'}</summary><small>{b.errorInfo.code}：{b.errorInfo.detail}</small></details>)}
       {Object.values(page.bindings).some(b=>b.status==='success'&&b.value?.items?.length>0)&&<label>内容重排 <select aria-label="内容重排方式" value={adaptLayout} onChange={e=>setAdaptLayout(e.target.value)}><option value="list">列表</option><option value="gallery">图库</option><option value="table">对照表</option><option value="editorial">分段阅读</option></select></label>}
@@ -96,11 +113,12 @@ export function ToolCard({spec,resources,streaming,toolsReady=true,persistenceKe
     {hostNotice&&<small role="status">{hostNotice}</small>}
   </div>
   return <div className="cs-tool-card" ref={root} {...swipe}>
-    <PageDotsOutlet.Provider value={dotsOutlet}><div className="cs-page-viewport"><div ref={slide}>
+    <CardPile cards={pileCards} index={deckOffset+session.index}><PageDotsOutlet.Provider value={{register:registerNavigation}}><div className="cs-page-viewport"><div ref={slide}>
     {page.resultView?<ResultBrowser page={page} session={session} footer={footer} overlay={overlay}/>:children({page,session,streaming:streaming&&session.index===0,footer,overlay})}
-    </div></div></PageDotsOutlet.Provider>
+    </div></div></PageDotsOutlet.Provider></CardPile>
     <div className="cs-external-pages" ref={setDotsOutlet}/>
-    <PageDots count={session.pages.length} index={session.index} onChange={i=>navigate(i-session.index)} label="卡片页面历史" className="cs-history"/>
+    <PageDots count={totalScreens} index={deckOffset+activeScreen} onChange={moveUnified} label="卡片页面" className="cs-history"/>
     {hostNavigation}
+    <RenderOrigin root={root} pageId={page.id}/>
   </div>
 }

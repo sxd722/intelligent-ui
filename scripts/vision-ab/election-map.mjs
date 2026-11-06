@@ -1,0 +1,11 @@
+import fs from 'node:fs/promises';
+const dir='src/election-stitch';await fs.mkdir(dir,{recursive:true});
+const url='https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-albers-10m.json';const response=await fetch(url);if(!response.ok)throw Error(response.status);const topology=await response.json();
+await fs.writeFile('artifacts/election-stitch/states-albers-10m.json',JSON.stringify(topology));
+const {scale,translate}=topology.transform;const arcs=topology.arcs.map(arc=>{let x=0,y=0;return arc.map(([dx,dy])=>{x+=dx;y+=dy;return [(x*scale[0]+translate[0]).toFixed(2),(y*scale[1]+translate[1]).toFixed(2)]})});
+const ring=ids=>{const points=ids.flatMap((id,i)=>{const list=id<0?[...arcs[~id]].reverse():arcs[id];return i?list.slice(1):list});return 'M'+points.map(p=>p.join(',')).join('L')+'Z'};
+const states=topology.objects.states.geometries.map(g=>({id:g.id,name:g.properties.name,d:(g.type==='Polygon'?[g.arcs]:g.arcs).flatMap(poly=>poly.map(ring)).join('')}));
+if(states.length!==51||states.some(s=>/NaN|undefined/.test(s.d)))throw Error('invalid state geometry');
+await fs.writeFile(dir+'/states.json',JSON.stringify(states));
+await fs.writeFile(dir+'/GEOMETRY.md',`Geometry: ${url}\nUS Atlas 3.0.1, ISC license, redistributed US Census 2017 state boundaries. Albers USA projection, 975x610. Includes 50 states + DC. State boundaries are not congressional district boundaries.\nhttps://github.com/topojson/us-atlas\n`);
+const license=await fetch('https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/LICENSE');if(!license.ok)throw Error('license unavailable');await fs.writeFile(dir+'/US-ATLAS-LICENSE.txt',await license.text());console.log('real state paths',states.length);

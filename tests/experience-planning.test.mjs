@@ -12,6 +12,17 @@ import {cardGenerationPrompt,CARD_DSL_PROMPT} from '../server/cardspec/prompt.mj
 const plan={goal:'理解',pattern:'quantities',primary:'柱状图',interaction:'参数改变数值',followups:['保存','比较'],resources:['示例数值'],disclosure:'先结论后说明'}
 const card='<card schemaVersion="1" actionMode="snapshot"><state id="n" type="number" initial={1}/><action id="add"><increment target="n"/></action><button onPress="add">增加</button><text>{state.n}</text></card>'
 const stream=value=>async(_m,o)=>{o.onUsage?.({total_tokens:10});o.onPiece({content:value})}
+
+test('page and slot plans accept zero followups in a single planning call',async()=>{
+ for(const target of ['page','slot:detail']){
+  const intended={...plan,followups:[]};let calls=0
+  const r=await planExperience({target,goal:'调整参数理解动画',cardSize:'square',streamUpstream:async(m,o)=>{
+   calls++;assert.match(m[0].content,/followups按需0–2个，可为空/)
+   o.onPiece({content:JSON.stringify(intended)})
+  }})
+  assert.equal(r.status,'succeeded');assert.deepEqual(r.plan.followups,[]);assert.equal(calls,1)
+ }
+})
 test('experience plan is bounded intent, not a component tree',()=>{assert.deepEqual(validateExperiencePlan(plan),plan);assert.throws(()=>validateExperiencePlan({...plan,children:[]}));assert.throws(()=>validateExperiencePlan({...plan,primary:'<card>正文'}));assert.throws(()=>validateExperiencePlan({...plan,resources:[{},{}]}))})
 test('planned generation substitutes generic advice; observed actions retain no user values',()=>{
  assert.equal(cardGenerationPrompt(null),CARD_DSL_PROMPT)

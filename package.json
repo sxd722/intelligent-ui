@@ -5,9 +5,9 @@
   "type": "module",
   "description": "Generative interactive-card pipeline: model emits DIL source -> server-side streaming incremental compiler -> delta v1 SSE protocol -> client-side DIL runtime with streaming render",
   "scripts": {
-    "dev": "concurrently -k -n server,web -c blue,green \"node --env-file-if-exists=.env.local server/index.mjs\" \"vite\"",
+    "dev": "concurrently -k -n server,web -c blue,green \"node server/index.mjs\" \"vite\"",
     "build": "vite build",
-    "start": "node --env-file-if-exists=.env.local server/index.mjs",
+    "start": "node server/index.mjs",
     "preview": "node scripts/preview.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:e2e": "playwright test",
@@ -15,7 +15,9 @@
     "qa:replay": "node scripts/replay-cardspec.mjs",
     "tools:install": "node scripts/install-opencli.mjs",
     "tools:spotify-auth": "node scripts/opencli-spotify-auth.mjs",
-    "prebuild": "node scripts/build-sandbox-runtime.mjs && node scripts/build-pearl-reference.mjs && node scripts/build-h5-baseline.mjs && node scripts/build-native-baselines.mjs"
+    "prebuild": "node scripts/build-sandbox-runtime.mjs && node scripts/build-pearl-reference.mjs && node scripts/build-h5-baseline.mjs && node scripts/build-native-baselines.mjs",
+    "portfolio:build": "node scripts/build-golden-portfolio.mjs",
+    "postbuild": "node scripts/build-golden-portfolio.mjs"
   },
   "dependencies": {
     "acorn": "8.15.0",
@@ -24,6 +26,7 @@
     "dompurify": "^3.4.17",
     "esbuild": "0.21.5",
     "katex": "^0.19.0",
+    "leaflet": "1.9.4",
     "postcss": "8.5.6",
     "quickjs-emscripten": "0.31.0",
     "react": "^18.3.1",

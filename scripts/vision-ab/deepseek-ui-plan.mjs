@@ -1,0 +1,13 @@
+import fs from 'node:fs/promises';import {createModelClient} from '../../server/research/model-client.mjs';import {loadApiKey} from '../../server/env.mjs';
+const root='artifacts/deepseek-vision-20261104',dest='dist/deepseek-vision';
+const recognized=JSON.parse(await fs.readFile(root+'/structure.json'));
+const original=JSON.parse(await fs.readFile('artifacts/rsi-adaptive/runs/9e80a8e0-4279-44d0-870c-a6b1d1f12ae2.json'));
+const system=`你是一位交互设计师。根据前一步识图结果和用户需求，给出松散、完整、可实现的UI设计，用中文Markdown回答，不写代码或CardSpec，不写像素坐标或组件语法。设计结构描述全部区域的用途、顺序和主次关系。列出所有交互点：触发动作、状态变化、用户能看到的结果、再次操作/返回方式；同时明确哪些区域只是装饰。给出初始状态、一个完整操作路径、手机窄屏/自然高度适配、必要的加载失败和恢复行为。功能紧扣原始任务；识图中的interactionHypotheses只是假设，不必实现，不添加没有意义的按钮或保存A/B。识图的5个导航项是视觉占位，不能因此删掉实际6个悲剧要素。知识事实待资料核实；本轮只规划内容槽位，不编造剧作例子。默认一个核心联动，必要的二级交互按价值决定，区分必需与可选。约1000–1400中文字，重点是可观察的反馈，避免大段泛化原则。`;
+const input={request:original.goal,recognizedDesign:recognized};
+const model='volcengine/deepseek-v4.1-flash',round=createModelClient({base:process.env.MODEL_BASE_URL||'https://model-gateway.example.invalid/v1',key:loadApiKey().value,model});
+await fs.writeFile(root+'/ui-plan-request.json',JSON.stringify({model,system,input,temperature:.5,maxTokens:3200},null,2));
+const start=Date.now(),result=await round([{role:'system',content:system},{role:'user',content:JSON.stringify(input)}],{temperature:.5,maxTokens:3200,signal:AbortSignal.timeout(90000)});
+const evidence={model:result.model,elapsedMs:Date.now()-start,usage:result.usage,answer:result.message.content,inputKind:'previous recognition JSON + original CUJ; no second image analysis'};
+await fs.writeFile(root+'/ui-plan-result.json',JSON.stringify(evidence,null,2));await fs.writeFile(root+'/ui-plan.md',result.message.content);
+for(const f of ['ui-plan-request.json','ui-plan-result.json','ui-plan.md'])await fs.copyFile(root+'/'+f,dest+'/'+f);
+console.log(JSON.stringify(evidence));

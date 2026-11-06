@@ -2,6 +2,9 @@
 const P = (d, key) => <path key={key} d={d} />
 
 export const ICONS = {
+  user:['M20 21v-2a7 7 0 0 0-14 0v2','M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0'],
+  'message-circle':['M21 11a9 9 0 0 1-9 9 10 10 0 0 1-4-.8L3 21l1.8-5A9 9 0 1 1 21 11'],
+  landmark:['m3 9 9-6 9 6H3','M5 10v8m5-8v8m4-8v8m5-8v8M3 21h18'],
   sprout: [
     'M7 20h10',
     'M10 20c5.5-2.5.8-6.4 3-10',

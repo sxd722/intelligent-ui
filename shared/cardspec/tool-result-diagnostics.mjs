@@ -1,4 +1,4 @@
-import {referencePaths} from './dataflow.mjs'
+import {referencePaths,visitExpression} from './dataflow.mjs'
 import {canonicalInput,prefetchedInvocation} from './prefetch.mjs'
 import {evaluate} from './expression.mjs'
 import {createStore,makeScope} from './store.mjs'
@@ -8,13 +8,15 @@ import {TOOLS} from './tools.mjs'
 // can be intentional; lack of a card consumer is therefore not a compile error.
 export function toolResultDiagnostics(spec,records=spec.prefetched||[]){
  const paths=[],seen=new Set()
- function read(ast){for(const p of referencePaths(ast)){
+ function read(ast){
+  visitExpression(ast,node=>{if(node.type==='call'&&['compose','helper:compose'].includes(node.name)){const source=node.args?.[0];if(source?.type==='object')for(const entry of source.entries||[]){const value=Array.isArray(entry)?entry[1]:entry.value;if(value?.type==='literal'&&typeof value.value==='string')paths.push(['bindings',value.value,'value'])}}});
+  for(const p of referencePaths(ast)){
   paths.push(p)
   if(['data','derived'].includes(p[0])&&p[1]&&!seen.has(p.slice(0,2).join('.'))){
    seen.add(p.slice(0,2).join('.'));read(spec[p[0]]?.[p[1]])
   }
  }}
- function walk(nodes){for(const n of nodes||[]){read(n.props);read(n.value);walk(n.children)}}
+ function walk(nodes){for(const n of nodes||[]){if(n.type==='tool-view'){if(n.props.binding?.type==='literal')paths.push(['bindings',n.props.binding.value,'value']);for(const id of Object.values(n.props.bindings?.value||{}))paths.push(['bindings',id,'value'])}read(n.props);read(n.value);walk(n.children)}}
  walk(spec.children)
  for(const steps of Object.values(spec.actions||{}))read(steps)
  for(const b of Object.values(spec.bindings||{}))read(b.input)

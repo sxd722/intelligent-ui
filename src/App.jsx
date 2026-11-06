@@ -1,4 +1,10 @@
+import {DesignPreview} from './DesignPreview.jsx'
+import {Inspector} from './StreamInspector.jsx'
+import {createStreamNarrative} from './stream-narrative.mjs'
+import PromptComposer from './PromptComposer.jsx'
+import {SameKind} from './SameKind.jsx'
 import {CardFocus} from './CardFocus.jsx'
+import {ExamplePrompts} from './ExamplePrompts.jsx'
 import {CardDeck} from './cardspec/CardDeck.jsx'
 import {SandboxModeControl,useSandboxMode} from './SandboxMode.jsx'
 import {DEFAULT_CARDSPEC_MODE} from '../shared/cardspec/experience.mjs'
@@ -17,20 +23,11 @@ import { generationHistory } from './generation-history.mjs'
 import { Recovery } from './cardspec/Recovery.jsx'
 import {MotionControl} from './MotionControl.jsx'
 import { CardSizeControl,useCardSize } from './CardSize.jsx'
-import {MODEL_PROFILES,normalizeModelProfile} from '../shared/cardspec/generation-settings.mjs'
+import {MODEL_PROFILES,normalizeModelProfile,supportsDesignImage} from '../shared/cardspec/generation-settings.mjs'
 
 const MAX_FRAMES = 400
 const CLOUD_NO_TOOLS = import.meta.env.VITE_CLOUD_NO_TOOLS === '1'
 const CLOUD_DEMO_TOOLS = import.meta.env.VITE_CLOUD_DEMO_TOOLS === '1'
-
-function classifyFrame(f) {
-  if (f && f.type === 'stream_error') return 'error'
-  if (f && (f.type === 'phase_begin' || f.type === 'phase_end')) return 'control'
-  if (isControlEvent(f)) return 'control'
-  if (Array.isArray(f.v)) return 'patch'
-  if (f.v !== undefined && f.p === undefined && f.o === undefined) return 'shorthand'
-  return 'patch'
-}
 
 // ---------- reasoning (light font, collapsible; live while streaming) ----------
 
@@ -68,7 +65,7 @@ function DilStage({ theme = 'editorial', palette = 'a', themeLabel, children }) 
   )
 }
 
-function PhaseView({ phase, theme, palette, themeLabel, onTelemetry, recovery }) {
+function PhaseView({ phase, theme, palette, themeLabel, onTelemetry, recovery, designPreview }) {
   const msg = phase.message
   const live = phase.live
   const reasoning = msg?.reasoning ?? ''
@@ -86,7 +83,7 @@ function PhaseView({ phase, theme, palette, themeLabel, onTelemetry, recovery })
       </header>
       <ReasoningBlock text={reasoning} live={live} />
       {kind === 'dil' || kind === 'cardspec' ? (
-        <AssistantDil message={msg} format={kind} streaming={live} theme={theme} palette={palette} onTelemetry={onTelemetry} recovery={recovery} />
+        <AssistantDil message={msg} format={kind} designPreview={designPreview} streaming={live} theme={theme} palette={palette} onTelemetry={onTelemetry} recovery={recovery} />
       ) : (
         <div className={`phase-doc${live ? ' phase-doc--live' : ''}`}>
           {live && <Thinking />}
@@ -102,7 +99,7 @@ function PhaseView({ phase, theme, palette, themeLabel, onTelemetry, recovery })
   )
 }
 
-function AssistantDil({ message, format, streaming, theme, palette, onTelemetry, recovery }) {
+function AssistantDil({ message, format, streaming, theme, palette, onTelemetry, recovery, designPreview }) {
   const dil = message?.metadata?.model_dil_v2
   const cardSpec = message?.metadata?.card_spec
   const isCardSpec = format === 'cardspec' || message?.metadata?.format === 'cardspec'
@@ -132,11 +129,13 @@ function AssistantDil({ message, format, streaming, theme, palette, onTelemetry,
           <Markdown text={intro} />
         </div>
       ) : null}
-      <CardFocus>{isCardSpec ? failed && !cardSpec ? <Recovery {...recoveryProps}/> : <div inert={failed?'':undefined}><CardDeck deck={message?.metadata?.card_deck} recovery={recoveryProps} spec={cardSpec} toolsReady={!failed && (message?.status === "succeeded" || message?.metadata?.core_ready === true)} persistenceKey={cardSpec?`cardspec:pages:${cardSpec.cardId}`:undefined} resources={message?.metadata?.resources} streaming={streaming && !message?.metadata?.core_ready} onPaint={(at) => onTelemetry?.({ type: 'client_first_paint', at })} onLayout={(layout) => onTelemetry?.({ type: 'client_layout', layout })} /></div> : <DilStage theme={theme} palette={palette}>
+      {cardSpec?.requirementCoverage&&<details className="card-prose"><summary>需求覆盖 · {cardSpec.requirementCoverage.status==='checked'?'行为断言通过，内容待评审':cardSpec.requirementCoverage.status==='partial'?'部分完成':'未逐项验证'}</summary><p>{cardSpec.requirementCoverage.scope}</p><ul>{cardSpec.requirementCoverage.items.map(r=><li key={r.id}>{r.quote} — {r.status==='checked'?'行为检查通过':r.status==='blocked'?'事实受阻':r.status==='limited'?'行为通过，事实有限':'未验证'}{r.reason?'：'+r.reason:''}</li>)}</ul></details>}
+      <CardFocus><DesignPreview design={isCardSpec?(designPreview||cardSpec?.context?.designMock):null} pending={streaming&&!(cardSpec&&message?.metadata?.core_ready)}>{isCardSpec ? failed && !cardSpec ? <Recovery {...recoveryProps}/> : <div inert={failed?'':undefined}><CardDeck deck={message?.metadata?.card_deck} recovery={recoveryProps} spec={cardSpec} toolsReady={!failed && (message?.status === "succeeded" || message?.metadata?.core_ready === true)} persistenceKey={cardSpec?`cardspec:pages:${cardSpec.cardId}`:undefined} resources={message?.metadata?.resources} streaming={streaming} onPaint={(at) => onTelemetry?.({ type: 'client_first_paint', at })} onLayout={(layout) => onTelemetry?.({ type: 'client_layout', layout })} /></div> : <DilStage theme={theme} palette={palette}>
         <DilCard dil={dil} streaming={streaming} />
         {streaming && <Thinking placement="card" empty={!dil?.code} />}
-      </DilStage>}</CardFocus>
+      </DilStage>}</DesignPreview></CardFocus>
       {isCardSpec && failed && cardSpec && <Recovery {...recoveryProps} retained/>}
+      {isCardSpec && !streaming && !failed && cardSpec && !CLOUD_NO_TOOLS && recovery?.onReused && <SameKind browserValidation={import.meta.env.VITE_SAME_KIND_BROWSER === '1'} available={import.meta.env.VITE_SAME_KIND_ENABLED !== '0'} key={cardSpec.cardId} spec={cardSpec} source={message?.metadata?.validated_source||message?.content?.parts?.[0]||''} resources={message?.metadata?.resources} busy={recovery.busy} onResult={recovery.onReused} onNormal={recovery.onEdit}/>}
       {!isCardSpec && message?.metadata?.diagnostics?.some((d) => d.severity === 'error') && <div className="diag-pill">{dil?.code ? '本次更新未通过校验，保留上一个有效版本' : '本次生成未通过校验，尚未生成可用卡片'}</div>}
       {outro ? (
         <div className={`card-prose${streaming ? ' card-prose--live' : ''}`}>
@@ -147,8 +146,8 @@ function AssistantDil({ message, format, streaming, theme, palette, onTelemetry,
   )
 }
 
-export function AssistantTurn({ turn, onTelemetry, goal, onRetry, onEdit, busy }) {
-  const recovery={goal,onRetry,onEdit,busy,failed:['failed','cancelled'].includes(turn.status),cancelled:turn.status==='cancelled',error:turn.error}
+export function AssistantTurn({ turn, onTelemetry, goal, onRetry, onEdit, onReused, busy }) {
+  const recovery={goal,onRetry,onEdit,onReused,busy,failed:['failed','cancelled'].includes(turn.status),cancelled:turn.status==='cancelled',error:turn.error}
   const hasCardPhase=turn.phases.some(p=>p.kind==='cardspec')
   return (
     <div className="turn">
@@ -156,6 +155,7 @@ export function AssistantTurn({ turn, onTelemetry, goal, onRetry, onEdit, busy }
         <PhaseView
           key={p.id}
           phase={p}
+          designPreview={turn.designPreview}
           theme={turn.theme}
           palette={turn.palette}
           themeLabel={turn.themeLabel}
@@ -175,87 +175,6 @@ function PlanDocument({ document: doc }) {
 
 // ---------- stream inspector ----------
 
-function Inspector({ frames, current, exportTrace }) {
-  const [tab, setTab] = useState('frames')
-  const framesRef = useRef(null)
-  useEffect(() => {
-    if (tab === 'frames' && framesRef.current) {
-      framesRef.current.scrollTop = framesRef.current.scrollHeight
-    }
-  }, [frames, tab])
-
-  const dil = current?.message?.metadata?.model_dil_v2
-  const spec = current?.message?.metadata?.card_spec
-  const programKey = useMemo(() => {
-    const m = /"key":"(body:\d+)"/.exec(dil?.code ?? '')
-    return m ? m[1] : '—'
-  }, [dil?.code])
-  const constants = dil?.constants ?? {}
-
-  return (
-    <aside className="inspector">
-      <div className="tabs">
-        {['frames', 'compiled', 'source', 'fallback', 'diagnostics'].map((t) => (
-          <button key={t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
-            {t}
-          </button>
-        ))}
-        <button className="tab" onClick={exportTrace}>导出</button>
-      </div>
-      <div className="panel" ref={framesRef}>
-        {tab === 'frames' ? (
-          frames.length === 0 ? (
-            <div style={{ color: 'var(--color-text-tertiary)' }}>no frames yet — send a message</div>
-          ) : (
-            frames.map((f, i) => <pre key={i} className={`frame frame--${classifyFrame(f)}`}>{JSON.stringify(f)}</pre>)
-          )
-        ) : null}
-        {tab === 'compiled' ? (
-          spec ? <div className="code-view">{JSON.stringify(spec, null, 2)}</div> : !dil ? (
-            <div style={{ color: 'var(--color-text-tertiary)' }}>no compiled program yet</div>
-          ) : (
-            <>
-              <div className="kv">
-                <b>program key</b>
-                <span>{programKey}</span>
-                <b>constants</b>
-                <span>{Object.keys(constants).length} entries</span>
-                <b>required</b>
-                <span>{(dil.requiredComponents ?? []).join(', ') || '—'}</span>
-                <b>diagnostics</b>
-                <span>
-                  {(dil.recoveryDiagnostics ?? []).map((d, i) => (
-                    <span key={i} className="diag-pill">
-                      {d.code} @{d.line}:{d.column}
-                    </span>
-                  ))}
-                  {!(dil.recoveryDiagnostics ?? []).length ? 'clean' : null}
-                </span>
-                <b>appData</b>
-                <span>{Object.keys(dil.appData?.opGenui?.componentResults ?? {}).length} async component(s)</span>
-              </div>
-              <div className="code-view">{dil.code}</div>
-            </>
-          )
-        ) : null}
-        {tab === 'source' ? (
-          <div className="src-view">{(current?.message?.content?.parts?.[0] ?? '').trim() || '— empty —'}</div>
-        ) : null}
-        {tab === 'fallback' ? (
-          <div className="src-view">{(dil?.fallbackMarkdown ?? '').trim() || '— empty —'}</div>
-        ) : null}
-        {tab === 'diagnostics' && <div className="code-view">{JSON.stringify(current?.message?.metadata?.diagnostics || dil?.recoveryDiagnostics || [], null, 2)}</div>}
-      </div>
-    </aside>
-  )
-}
-
-const HINTS = [
-  '帮我做一张喝水打卡卡片,可以记录每天 8 杯水',
-  '给小朋友做一张养蚕成长卡:6 个阶段 + 每日照顾清单 + 观察记录',
-  '做一个番茄钟工作卡:阶段切换 + 今日任务清单',
-  '做一份旅行清单卡:分类待办 + 预算输入 + 打包进度'
-]
 
 function turnDslSource(turn) {
   const dsl = turn?.phases?.find((p) => p.kind === 'dil' || p.kind === 'cardspec')
@@ -271,14 +190,19 @@ export default function App() {
   const [toolsEnabled,setToolsEnabled]=useState(()=>{if(CLOUD_DEMO_TOOLS){try{return localStorage.getItem('cardspec-cloud-demo-tools')!=='off'}catch{return true}}return !CLOUD_NO_TOOLS&&restored.toolsEnabled!==false})
   useEffect(()=>{if(CLOUD_DEMO_TOOLS)try{localStorage.setItem('cardspec-cloud-demo-tools',toolsEnabled?'on':'off')}catch{}},[toolsEnabled])
   const [persistenceError,setPersistenceError]=useState('')
-  const [input, setInput] = useState('')
+  const [input, setInputValue] = useState('')
+  const [draftRevision,setDraftRevision]=useState(0)
+  const setInput=useCallback(value=>{setInputValue(value);setDraftRevision(n=>n+1)},[])
   const [streaming, setStreaming] = useState(false)
   const [frames, setFrames] = useState([])
   const [rev, setRev] = useState(0)
   const [theme, setTheme] = useState('light')
   const [inspectorOpen, setInspectorOpen] = useState(() => window.innerWidth >= 900)
   const [mode, setMode] = useState(DEFAULT_CARDSPEC_MODE)
+  const [designMode,setDesignMode]=useState(()=>{try{return localStorage.getItem('cardspec-design-mode')==='image-first'?'image-first':'host'}catch{return 'host'}})
   const [designPreference,setDesignPreference]=useState('auto')
+  const [buildMode,setBuildMode]=useState(()=>{try{return localStorage.getItem('cardspec-build-mode')==='deep'?'deep':'quick'}catch{return 'quick'}})
+  const [extendedGeneration,setExtendedGeneration]=useState(()=>{try{return localStorage.getItem('cardspec-extended-generation')==='1'}catch{return false}})
   const [debugGeneration,setDebugGeneration]=useState(()=>{try{return localStorage.getItem('cardspec-debug-generation')==='1'}catch{return false}})
   const [generationProfile,setGenerationProfile]=useState(()=>{try{return localStorage.getItem('cardspec-generation-profile')==='adaptive-v1'?'adaptive-v1':'legacy'}catch{return 'legacy'}})
   const [expressionDialect,setExpressionDialect]=useState(()=>{try{const saved=localStorage.getItem('cardspec-expression-dialect');return saved==='js-v1'||(!saved&&CLOUD_DEMO_TOOLS)?'js-v1':'legacy'}catch{return CLOUD_DEMO_TOOLS?'js-v1':'legacy'}})
@@ -292,6 +216,7 @@ export default function App() {
   const abortRef = useRef(null)
   const listRef = useRef(null)
   const traceRef = useRef([])
+  const narrativeRef = useRef(createStreamNarrative())
   const traceTurnRef = useRef(null)
   useEffect(()=>{const timer=setTimeout(()=>setPersistenceError(saveConversation(window.sessionStorage,messages,toolsEnabled)),250);return()=>clearTimeout(timer)},[messages,rev,toolsEnabled])
 
@@ -304,7 +229,9 @@ export default function App() {
   }, [messages.length, rev, streaming])
 
   const pushFrame = useCallback((f) => {
-    traceRef.current.push({ at: performance.now(), frame: f })
+    const at = performance.now()
+    traceRef.current.push({ at, frame: f })
+    narrativeRef.current.push(f, at)
     setFrames((prev) => {
       const next = prev.concat([f])
       return next.length > MAX_FRAMES ? next.slice(next.length - MAX_FRAMES) : next
@@ -326,6 +253,7 @@ export default function App() {
       traceTurnRef.current = turnId
       turnRef.current = newTurn
       traceRef.current = []
+      narrativeRef.current = createStreamNarrative()
       setFrames([])
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', content: userText }, newTurn])
       applierRef.current = createDeltaApplier()
@@ -343,7 +271,7 @@ export default function App() {
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: historyForApi, mode:requestedFormat==='dil'&&mode==='experience'?'direct':mode, format:requestedFormat, turnId,toolsEnabled,cardSize,renderMode,designPreference,generationProfile,debugGeneration,expressionDialect,modelProfile,resumeToken }),
+          body: JSON.stringify({ messages: historyForApi, mode:requestedFormat==='dil'&&mode==='experience'?'direct':mode, format:requestedFormat, turnId,toolsEnabled,cardSize,renderMode,designMode,designPreference,generationProfile,buildMode,debugGeneration,extendedGeneration,expressionDialect,modelProfile,resumeToken }),
           signal: controller.signal
         })
         if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`)
@@ -416,6 +344,11 @@ export default function App() {
                 setRev((r) => r + 1)
                 continue
               }
+              if (frame.type === 'design_mock' && frame.status === 'ready') {
+                turnRef.current.designPreview = frame.mock
+                setRev((r) => r + 1)
+                continue
+              }
               if (isControlEvent(frame)) {
                 continue
               }
@@ -455,7 +388,7 @@ export default function App() {
         setStreaming(false)
       }
     },
-    [input, messages, pushFrame, streaming, mode, format,toolsEnabled,cardSize,renderMode,designPreference,generationProfile,debugGeneration,expressionDialect,modelProfile]
+    [input, messages, pushFrame, streaming, mode, format,toolsEnabled,cardSize,renderMode,designMode,designPreference,generationProfile,buildMode,debugGeneration,extendedGeneration,expressionDialect,modelProfile]
   )
 
   const liveTurn = turnRef.current
@@ -463,7 +396,7 @@ export default function App() {
     abortRef.current?.abort();abortRef.current=null
     turnRef.current=null;traceTurnRef.current=null;traceRef.current=[]
     applierRef.current=createDeltaApplier()
-    setMessages([]);setFrames([]);setInput('');setStreamError(null);setStreaming(false)
+    narrativeRef.current=createStreamNarrative();setMessages([]);setFrames([]);setInput('');setStreamError(null);setStreaming(false)
     setPersistenceError(clearConversation(window.sessionStorage));setClearOpen(false)
   }
   const inspectorCurrent = useMemo(() => {
@@ -485,11 +418,16 @@ export default function App() {
             onClick={() => setMode(mode==='direct'?(format==='dil'?'staged':'experience'):mode==='experience'?'staged':'direct')}
             disabled={streaming}
           >
-            {generationProfile==='adaptive-v1'&&format==='cardspec'?'按需规划 → 核心卡 → 增强':mode==='experience'&&format!=='dil'?'体验规划 → 卡片生成':mode === 'staged' ? ' Pipeline: 3-phase ' : ' Pipeline: direct'}
+            {buildMode==='deep'&&format==='cardspec'?'需求 → 模块 → 验收':generationProfile==='adaptive-v1'&&format==='cardspec'?'按需规划 → 核心卡 → 增强':mode==='experience'&&format!=='dil'?'体验规划 → 卡片生成':mode === 'staged' ? ' Pipeline: 3-phase ' : ' Pipeline: direct'}
           </button>
           <label className="chip">协议 <select aria-label="渲染协议" value={format} onChange={(e) => setFormat(e.target.value)} disabled={streaming} style={{ background: 'transparent', color: 'inherit', border: 0 }}><option value="dil">DIL（原版）</option><option value="cardspec">CardSpec v1</option></select></label>
-          {format==='cardspec'&&<label className="chip">设计家族 <select aria-label="设计家族" value={designPreference} disabled={streaming} onChange={e=>setDesignPreference(e.target.value)}><option value="auto">模型选择</option><option value="pearl">月距力</option><option value="atlas">动态学术</option><option value="rebel">Persona</option><option value="parchment">羊皮纸叙事</option><option value="business">专业商务</option><option value="academy">辉石学院</option><option value="default">默认</option></select></label>}
-          {format==='cardspec'&&<label className="chip" title="错误自动重试，最多 8 次修复、24 次模型调用、15 分钟；通过后停止。重复失败稿、取消或预算耗尽时结束。"><input type="checkbox" checked={debugGeneration} disabled={streaming} onChange={e=>{setDebugGeneration(e.target.checked);try{localStorage.setItem('cardspec-debug-generation',e.target.checked?'1':'0')}catch{}}}/>生成期调试与修复（最多 8 次）</label>}
+          {format==='cardspec'&&<label className="chip" title="GPT Image 出图后直接交给所选模型；省去独立识别调用，素材缓存后复用">设计流程 <select aria-label="设计流程" value={designMode} disabled={streaming} onChange={e=>{setDesignMode(e.target.value);try{localStorage.setItem('cardspec-design-mode',e.target.value)}catch{}}}><option value="host">宿主构图 · 快速</option><option value="image-first" disabled={!supportsDesignImage(modelProfile)}>图片先行 · GPT Image</option></select></label>}
+          {format==='cardspec'&&designMode==='image-first'&&<span className="chip" title="GPT Image 出图后直接交给所选生成模型，不再额外调用识别模型">{supportsDesignImage(modelProfile)?"设计图直传 · 所选模型":"当前深度模型未通过图片验证，请切换模型或使用宿主构图"}</span>}
+          {format==='cardspec'&&<label className="chip">设计家族 <select aria-label="设计家族" value={designPreference} disabled={streaming} onChange={e=>setDesignPreference(e.target.value)}><option value="auto">模型选择</option><option value="folio">平面纸感 · Folio</option><option value="pearl">月距力</option><option value="atlas">动态学术</option><option value="rebel">Persona</option><option value="parchment">羊皮纸叙事</option><option value="business">专业商务</option><option value="academy">辉石学院</option><option value="default">默认</option></select></label>}
+          {format==='cardspec'&&<label className="chip">构建 <select aria-label="构建模式" value={buildMode} disabled={streaming} onChange={e=>{setBuildMode(e.target.value);try{localStorage.setItem('cardspec-build-mode',e.target.value)}catch{}}}><option value="quick">快速 · 直接构建</option><option value="deep">深度实验 · 需求/模块/验收</option></select></label>}
+          {format==='cardspec'&&<label className="chip" title={extendedGeneration?'不设任务总时限及调用/修复总次数；保留取消、无进展检测、单轮资源与沙箱保护。':buildMode==='deep'?'深度构建自动验收；最多18次模型调用、8次修复、10分钟。未覆盖需求不能标记完成。':'错误自动重试，最多 8 次修复、24 次模型调用、15 分钟；通过后停止。重复失败稿、取消或预算耗尽时结束。'}><input type="checkbox" checked={renderMode==='web'||extendedGeneration||buildMode==='deep'||debugGeneration} disabled={streaming||renderMode==='web'||extendedGeneration||buildMode==='deep'} onChange={e=>{setDebugGeneration(e.target.checked);try{localStorage.setItem('cardspec-debug-generation',e.target.checked?'1':'0')}catch{}}}/>生成期调试与修复{extendedGeneration?'（持续）':'（最多 8 次）'}</label>}
+          {format==='cardspec'&&<label className="chip" title="不设任务总时限、模型调用和修复总次数；扩大单次输出容量，保留网关/上下文上限、无进展停止及沙箱保护。可随时停止；可能增加 API 用量。"><input type="checkbox" aria-label="扩展构建" checked={extendedGeneration} disabled={streaming} onChange={e=>{setExtendedGeneration(e.target.checked);try{localStorage.setItem('cardspec-extended-generation',e.target.checked?'1':'0')}catch{}}}/>扩展构建 · 不设总时限</label>}
+          {format==='cardspec'&&extendedGeneration&&<span className="muted" role="note">持续构建至通过或停止；保留单轮容量、沙箱保护与无进展检测，可能增加 API 用量。</span>}
           {format==='cardspec'&&<label className="chip"><input type="checkbox" checked={generationProfile==='adaptive-v1'} disabled={streaming} onChange={e=>{const profile=e.target.checked?'adaptive-v1':'legacy';setGenerationProfile(profile);try{localStorage.setItem('cardspec-generation-profile',profile)}catch{}}}/>自适应体验（实验）</label>}
           {format==='cardspec'&&<label className="chip">类 JS 表达式 <select aria-label="表达式版本" value={expressionDialect} disabled={streaming} onChange={e=>{setExpressionDialect(e.target.value);try{localStorage.setItem('cardspec-expression-dialect',e.target.value)}catch{}}}><option value="legacy">原版</option><option value="js-v1">JavaScript（实验）</option></select></label>}
           {format==='cardspec'&&<label className="chip">模型 <select aria-label="生成模型" value={modelProfile} disabled={streaming} onChange={e=>{setModelProfile(e.target.value);try{localStorage.setItem('cardspec-model-profile',e.target.value)}catch{}}}>{Object.entries(MODEL_PROFILES).map(([value,p])=><option key={value} value={value}>{p.label}</option>)}</select></label>}
@@ -498,11 +436,13 @@ export default function App() {
           {CLOUD_NO_TOOLS&&<span className="chip" title="支持模型生成及卡内本地交互；不查询实时资料，也不连接外部工具">云端 · 无工具生成</span>}
           <span className="spacer" />
           <a className="chip" href={CLOUD_NO_TOOLS||CLOUD_DEMO_TOOLS?'/cardspec-showcase/index.html':'/workbench.html'} target="_blank" rel="noreferrer">{CLOUD_NO_TOOLS||CLOUD_DEMO_TOOLS?'五个能力演示 ↗':'体验工作台 ↗'}</a>
+          {!CLOUD_NO_TOOLS&&!CLOUD_DEMO_TOOLS&&<a className="chip" href="/golden-cases/">Golden Case Portfolio ↗</a>}
           <a className="chip" href="/design-templates.html?preset=pearl">Preset · 月距力 ↗</a>
           <a className="chip" href="/pearl-review.html">Pearl · 整卡样板对照 ↗</a>
           <a className="chip" href="/design-templates.html?preset=atlas">Preset · 动态学术 ↗</a>
           <a className="chip" href="/design-templates.html?preset=rebel">Preset · persona ↗</a>
           {!CLOUD_NO_TOOLS&&!CLOUD_DEMO_TOOLS&&<a className="chip" href="/glm-browser-20261022/report.html" target="_blank" rel="noreferrer">生成实测报告 ↗</a>}
+          {!CLOUD_NO_TOOLS&&!CLOUD_DEMO_TOOLS&&<a className="chip" href="/tool-discovery-lab.html" target="_blank" rel="noreferrer">工具发现对照 ↗</a>}
           <button className="icon-btn" onClick={()=>setClearOpen(true)} disabled={!messages.length&&!frames.length&&!streaming}>清空对话</button>
           <button className="icon-btn" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
             {theme === 'light' ? '🌙 dark' : '☀️ light'}
@@ -512,7 +452,7 @@ export default function App() {
           </button>
         </header>
         {CLOUD_NO_TOOLS&&<p data-testid="cloud-generation-notice" role="note" style={{margin:0,padding:'8px 16px',fontSize:12,color:'var(--color-text-secondary)'}}>云端自由生成 · 无外部工具。可计算与互动，实时资料请自行提供。</p>}
-        {CLOUD_DEMO_TOOLS&&<div data-testid="cloud-demo-notice" role="note" style={{padding:'8px 16px',fontSize:12,background:'var(--color-surface)',color:'var(--color-text-secondary)'}}>演示模式：新闻、用户反馈、地点、影片和车次均为虚构样本，图片为演示插画；不代表实时事实，不可据此购票或出行。GLM生成仍为真实调用。<div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:6}}>{['尊界舆情观察','萧山周末亲子计划','今晚看什么电影','Transformer计算显微镜','杭州上海往返订票助手'].map(prompt=><button type="button" key={prompt} disabled={streaming} className="chip" onClick={()=>setInput(prompt+'。使用演示数据，提供可筛选、渐进展开的互动卡片。')}>{prompt}</button>)}</div></div>}
+        {CLOUD_DEMO_TOOLS&&<div data-testid="cloud-demo-notice" role="note" style={{padding:'8px 16px',fontSize:12,background:'var(--color-surface)',color:'var(--color-text-secondary)'}}><details><summary>运行说明</summary><p>CLI使用样本数据，模型生成与图片服务为真实调用。数据模式、来源与图片署名可在详情中查看。</p></details><div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:6}}>{['尊界舆情观察','萧山周末亲子计划','今晚看什么电影','Transformer计算显微镜','杭州上海往返订票助手'].map(prompt=><button type="button" key={prompt} disabled={streaming} className="chip" onClick={()=>setInput(prompt+'。提供可筛选、渐进展开的互动卡片。')}>{prompt}</button>)}</div></div>}
         {clearOpen&&<section role="alertdialog" aria-label="清空对话记录" aria-describedby="clear-history-description" style={{padding:'12px 16px',background:'var(--color-bg-secondary, #f2f4f7)'}}>
           <p id="clear-history-description">清空当前标签页的全部对话和卡片历史？生成会停止，清空后无法恢复。尺寸设置和工具连接会保留。</p>
           <button className="icon-btn" onClick={()=>setClearOpen(false)} autoFocus>取消</button>
@@ -525,15 +465,9 @@ export default function App() {
             <div className="empty-state">
               <h2>让模型生成一张可交互卡片</h2>
               <p style={{ margin: 0, fontSize: '0.82rem' }}>
-                {CLOUD_NO_TOOLS?'输入需求即可生成。支持计算、图表、表单、模拟器和本地互动；实时新闻、余票、价格等需你提供资料，不会自动查询。':'三阶段:意图与信息规划 → 发散交互方案 → 流式编译渲染(delta v1 协议全程可见)'}
+                {CLOUD_NO_TOOLS?'输入需求即可生成。支持计算、图表、表单、模拟器和本地互动；实时新闻、余票、价格等需你提供资料，不会自动查询。':'选择一个场景，或描述你的需求。生成将遵循上方的模式、工具与 Web 内容设置。'}
               </p>
-              <div className="hints">
-                {HINTS.map((h) => (
-                  <button key={h} className="hint" onClick={() => send(h)} disabled={streaming}>
-                    {h}
-                  </button>
-                ))}
-              </div>
+              <ExamplePrompts disabled={streaming} onChoose={prompt=>{setInput(prompt);document.querySelector('.composer textarea')?.focus()}}/>
             </div>
           ) : null}
 
@@ -546,7 +480,8 @@ export default function App() {
               <AssistantTurn key={m.id} turn={m} onTelemetry={recordTelemetry} busy={streaming}
                 goal={messages.slice(0,i).findLast(t=>t.role==='user')?.content || ''}
                 onRetry={()=>send(messages.slice(0,i).findLast(t=>t.role==='user')?.content,m.format,m.phases?.findLast(p=>p.message?.metadata?.resumeToken)?.message?.metadata?.resumeToken)}
-                onEdit={()=>{setInput(messages.slice(0,i).findLast(t=>t.role==='user')?.content || '');document.querySelector('.composer textarea')?.focus()}} />
+                onEdit={text=>{setInput(typeof text==='string'?text:messages.slice(0,i).findLast(t=>t.role==='user')?.content || '');document.querySelector('.composer textarea')?.focus()}}
+                onReused={(result,prompt)=>setMessages(prev=>[...prev,{id:crypto.randomUUID(),role:'user',content:'做同款：'+prompt},{id:crypto.randomUUID(),role:'assistant',format:'cardspec',status:'succeeded',startedAt:performance.now(),phases:[{id:crypto.randomUUID(),phase:'dsl',title:'同款 · '+Math.round(result.elapsedMs/1000)+' 秒',kind:'cardspec',status:'succeeded',live:false,message:{status:'succeeded',content:{parts:[result.source]},metadata:{format:'cardspec',card_spec:result.spec,validated_source:result.source,resources:result.resources}}}]}])} />
             )
           )}
 
@@ -558,33 +493,13 @@ export default function App() {
         </main></ToolSettings.Provider>
 
         <footer className="composer">
-          <div className="composer-inner">
-            <textarea
-              value={input}
-              placeholder="描述你想要的交互卡片…"
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault()
-                  send()
-                }
-              }}
-            />
-            {streaming ? (
-              <button className="stop-btn" onClick={() => abortRef.current?.abort()}>
-                停止
-              </button>
-            ) : (
-              <button className="send-btn" onClick={() => send()} disabled={!input.trim()}>
-                发送
-              </button>
-            )}
-          </div>
+          {messages.length>0&&<details className="composer-examples"><summary>场景示例</summary><ExamplePrompts disabled={streaming} onChoose={prompt=>{setInput(prompt);document.querySelector('.composer-examples')?.removeAttribute('open');document.querySelector('.composer textarea')?.focus()}}/></details>}
+          <PromptComposer key={draftRevision} input={input} onChange={setInputValue} onGenerate={send} streaming={streaming} onStop={()=>abortRef.current?.abort()} modelProfile={modelProfile} cardSize={cardSize} renderMode={renderMode} toolsEnabled={toolsEnabled} designPreference={designPreference} designMode={designMode} format={format}/>
         </footer>
       </div>
 
       <div className={inspectorOpen ? 'inspector' : 'inspector hidden'}>
-        <Inspector frames={frames} current={inspectorCurrent} rev={rev} exportTrace={() => {
+        <Inspector narrative={narrativeRef.current.snapshot()} frames={frames} current={inspectorCurrent} rev={rev} exportTrace={() => {
           const url = URL.createObjectURL(new Blob([JSON.stringify(traceRef.current, null, 2)], { type: 'application/json' }))
           const a = document.createElement('a'); a.href = url; a.download = `card-trace-${Date.now()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
         }} />

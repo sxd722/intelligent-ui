@@ -1,3 +1,6 @@
+import {PRESENTATION_POLICY} from '../../shared/cardspec/presentation-policy.mjs'
+import {BOARD_DESIGN_GUIDE} from '../../shared/cardspec/board-design.mjs'
+import {INTEGRITY_PROMPT} from '../../shared/cardspec/content-integrity.mjs'
 import {PLAN_DESIGN} from '../../shared/cardspec/plan-design.mjs'
 import {COMPACT_CARD_PROMPT} from './compact-prompt.mjs'
 import {CARD_LANGUAGE_CORE,CARD_JS_LANGUAGE_CORE} from './language-core.mjs'
@@ -11,21 +14,20 @@ import {componentIndex} from '../../shared/cardspec/capability-index.mjs'
 // Production uses compact presentation and registry disclosure while preserving
 // the proven expression/action examples. Legacy exports remain for staged/DIL QA.
 export function cardGenerationPrompt(experiencePlan,{compact=false,adaptive=false,goal='',expressionDialect='legacy'}={}){
-  const core=expressionDialect==='js-v1'?CARD_JS_LANGUAGE_CORE:CARD_LANGUAGE_CORE
+  const core=(expressionDialect==='js-v1'?CARD_JS_LANGUAGE_CORE:CARD_LANGUAGE_CORE)+'\n'+INTEGRITY_PROMPT
   if(adaptive)return COMPACT_CARD_PROMPT.split('【完整组件契约】')[0]+'\n'+core+
     '\n'+componentIndex()+'\n【按需组件】不知道选什么时用capability_find按任务查组件和工具，再用component_describe/cli_describe读取精确契约。先输出完整可用核心，细节用slot或后续页；下面是常用契约，不是能力上限。\n'+
-    registryReference({compact:true,names:[...new Set(['experience','collection','table','title','text','caption','strong','button','row','region','stat','stats','input','slider','segmented','image','chart','map','slot','if','each','checkbox','toggle','progress','icon','box','stack','grid','badge','list','list-item','select','link',
+    BOARD_DESIGN_GUIDE+'\n'+registryReference({compact:true,names:[...new Set(['task-board','settings','choice-grid','choice-item','tool-view','experience','collection','table','title','text','caption','strong','button','row','region','stat','stats','input','slider','segmented','image','chart','map','slot','if','each','checkbox','toggle','progress','icon','box','stack','grid','badge','list','list-group','list-item','select','link',
      ...(/日历|月历|calendar/i.test(goal)?['calendar']:[]),...(/轮播|左右滑|carousel/i.test(goal)?['carousel','carousel-item']:[]),
      ...(/导图|mindmap/i.test(goal)?['mindmap']:[]),...(/流程|flowchart/i.test(goal)?['flowchart']:[]),
      ...(/模拟|回合|矩阵|MLP|FFN|transformer|simulat/i.test(goal)?['logic','heatmap']:[]),
      ...(/倒计时|countdown/i.test(goal)?['countdown']:[])])]})+
-    (/候选|多选|加入比较|选.{0,4}[处部项]|candidate|shortlist/i.test(goal)?'\n【多选短例】data.rows为已有实体数组，state.chosen已声明为array：<experience preset="planner" label="候选" items={data.rows} maxSelected={3} onApply="keep" applyLabel="确认选择"/><action id="keep"><set target="chosen" value={event.items}/></action>。宿主提供筛选、分页、已选视图和恢复，确认携带完整记录；上限按任务设置，不需要限制时省略。有真实坐标可加visual="map"；不要在它外面再复制同一候选列表/统计。需要实时同步选择才加onSelect，读取event.items。':'' )+
     '\nrange(n)返回0至n-1；不限制正文行数时省略clamp。'+
-    '\n工具原文按需展开；图/筛选引用同一数据集，不把样本伪装成全量。'
+    '\n仅提交时使用的偏好放settings；图片多选可用choice-grid/choice-item，与map.selectedIds共用选中ID。短摘要+真实价格/评分，缺失不编造。来源、示意和长说明放intro/outro或详情；保留影响选择的关键未知信息。工具原文按需展开；图/筛选引用同一数据集，不把样本伪装成全量。'
   if(compact)return COMPACT_CARD_PROMPT.replace('【完整组件契约】',componentIndex()+'\n用途不确定时可用capability_find，再用component_describe/cli_describe读取精确契约。\n'+core+'\n【完整组件契约】')
   if(!experiencePlan)return CARD_DSL_PROMPT
   return CARD_DSL_PROMPT.replace(experiencePreference(),
-    '【落实体验】采用宿主提供的体验骨架及短例；一个主视觉主体、一个核心联动，两个后续意图可复用主体控件。slot只完成当前任务。正文保留一句结论、当前解释和可达的详情；真实图片用assetRef，示意用query，背景不算内容可视化。只表达证据支持的关系和数值，不强加图表或游戏。')
+    '【落实体验】采用宿主提供的体验骨架及短例；一个主视觉主体、一个核心联动，后续入口按需0–2个，可为0，不默认添加A/B保存；交互应帮助理解内容或完成任务。slot只完成当前任务。正文保留一句结论、当前解释和可达的详情；真实图片用assetRef，示意用query，背景不算内容可视化。只表达证据支持的关系和数值，不强加图表或游戏。')
     .replace(/^【内容体验[^\n]*\n?/m,'')
 }
 
@@ -35,7 +37,7 @@ const playableDesign = `【仅当用户要游戏、模拟经营或互动故事�
 趣味来自可记住的后果：至少一个早期选择改变后续事件或结局；用少量flag记录承诺/关系/物品即可。用户要幽默时，让角色、事件和后果体现语气，笑点要回应玩家选择，不只替换按钮名。幻想机制和数值可原创，在卡外一次说明即可，不要反复在卡内插入“设计参数”。未要求幽默的工具不套此语气。
 控制生成规模：按用户指定数量准备可复用事件数据，未指定时优先3–5条、每条两个简短选项，共享一个结算动作与一套视图。事件正文约20–40字、选项名约6–12字、反馈约15–30字；代价用短提示，不写成长按钮。用阶段/flag选择事件，分支汇合回主循环，不展开指数增长的剧情树，不为每一天复制UI/action。首版不同时堆背包、商店、技能树、成就、随机引擎；无随机函数时用确定性条件分支。说明选项的主要代价，结算反馈要能读完再继续；终局停用选择并提供重开。`
 
-const visualDesign = `【受控视觉风格】每张新卡只选择一个visualStyle token，并给backgroundQuery一句1–100字符的简短英文Pexels摄影检索词。背景由宿主下载、铺满卡片并加蒙版，UI材质、光影和过渡动画由对应token实现；不生成CSS、SVG、滤镜、动画参数或图片URL。
+const visualDesign = `【受控视觉风格】每张新卡只选择一个visualStyle token，并给backgroundQuery一句1–100字符的简短英文Pexels摄影检索词。背景由宿主下载、铺满卡片并加蒙版，UI材质、光影和过渡动画由对应token实现；原生组件不接收CSS、SVG或图片URL；Web开启时，原创SVG/Canvas和CSS动效只写在sandbox.source内。
 ${visualStyleReference()}
 ${designReference()}
 按任务语气和内容密度选择，不固定一种风格；以上用途只是建议，不限制组件组合。backgroundPosition可选center|top|bottom，默认为center。图片应呼应主题、构图简洁、有留白；抽象任务可选择合适的自然、建筑或纹理，不要求图片包含文字。背景是装饰素材，不能声称是新闻现场、真实角色或精确图表；承载事实的图表和数据仍由UI呈现。只修改已有卡内容时尽量沿用其风格与背景；用户要求换视觉时再更换。涉及外观、地点或对象比较时，用2–4张内容图片组织候选，选中后可用1张主图解释；按需分页，以图替代文字而非拉长卡片。背景、图标和配色名称不替代内容图；纯计算/表单不凑图。内容图片须帮助识别、比较或理解；背景不替代内容图片，避免无信息增量的重复装饰。视觉选择只需这些短字段，不占布局高度。`
@@ -45,7 +47,7 @@ ${experiencePreference()}
 模型只负责语义结构和受控逻辑，宿主负责尺寸。保留可读正文和交互目标，不要靠小字塞满。
 日期来自context；用户历史记录必须来自用户资料，无记录不编造连续打卡等数字。新闻等事实无来源时明确标注示例，不自称核实。
 方形模式内容超额用region overflow="scroll|paginate|details"，主任务必须在主卡可达。日历点击内容需在下方可见scroll region联动，但不要把这种结构用于其他任务。
-支持状态、选择、输入、计数、列表、过滤、进度、图片、思维导图、流程图、柱状/折线图、slider和链接。可用工具见宿主附加目录；真实数据来自已启用的binding或宿主提供的检索工具；不能虚构查询结果或后台任务。图片可由宿主通过Pexels检索。
+支持状态、选择、输入、计数、列表、过滤、进度、图片、思维导图、流程图、柱状/折线图、slider和链接。可用工具见宿主附加目录；真实数据来自已启用的binding或宿主提供的检索工具；不能虚构查询结果或后台任务。图片可由宿主检索Pexels照片或调用OpenAI GPT Image生成原创插画。
 面向手机：步骤、展示列表和有明确分组的内容可优先考虑carousel左右滑动，宿主提供前后按钮和页码；这只是选项，不要所有清单都改成轮播。需要并排比较、快速勾选或连续阅读时仍用list/scroll/paginate。避免嵌套同方向滑动区域。
 【选择→详情】用户需要浏览候选再深入操作时，优先将筛选表单/紧凑候选列表与结构化详情分成两页，不把完整详情挤在列表下方。第一页保留筛选与选择，条目主点击进入详情，收藏/勾选用独立且明确的操作；第二页用简短标题区、可滚动的事实/说明区、底部主要动作按宿主布局合理分区。有可信缩略图能力才展示实体图片，缺图用占位，不用装饰照片冒充真实海报/商品图。启用工具时用宿主页栈进入下一页并恢复返回状态；无需深入操作的简单列表不强制分页。
 【可达状态与即时反馈】用户点击后要求展示的详情必须立即可见，放在已展开的内容区；不要藏在默认关闭的details中。资源不足、无候选项、达到限制等边界仍须保留可见的结束、恢复或重开操作；不能把“资源不足时结束”的按钮放进“资源充足才显示”的父级if。逐步模拟正常路径和边界路径，避免没有任何可达操作的死状态。
@@ -61,14 +63,14 @@ ${capabilityReference()}
 ${playableDesign}
 ${visualDesign}
 根据信息规划输出一个JSON对象，无代码围栏：{"theme":{"language":"editorial|soft|precision|playful|dark|minimal","palette":"a|b|c"},"visualStyle":"${VISUAL_STYLE_IDS.join('|')}","backgroundQuery":"short English photo query","backgroundPosition":"center","regions":[{"id":"...","role":"summary|content|actions","priority":"required|supporting|decorative","overflow":"scroll|paginate|details（可省略）","content":["..."]}],"navigation":[{"ownerId":"组件id","kind":"page|month","controls":"builtin|external","controllerId":"仅external需要的navigation组件id"}],"spacePlan":{"primary":"主体及估计高度","companion":"联动辅助区及估计高度，或不添加的原因"},"state":{},"rules":[]}。
-同时输出experiencePlan对象：{goal:短目标,pattern:relations|compare|quantities|process|observe|explore|reading|utility,primary:主表达,interaction:动作及可见后果,followups:[两个后续意图],resources:[资料或图片需求],disclosure:详情分层}，字段均短字符串或字符串数组。
+同时输出experiencePlan对象：{goal:短目标,pattern:relations|compare|quantities|process|observe|explore|reading|utility,primary:主表达,interaction:动作及可见后果,followups:[按需0–2个后续意图，可为空],resources:[资料或图片需求],disclosure:详情分层}，字段均短字符串或字符串数组。
 【阶段边界】本阶段只规划，不编写内容或组件树。regions[].content严格为短字符串数组，每区1–3条；例如["table比较两种概念，具体数据在阶段3生成"]。禁止把content写成[{"component":"table","rows":[...]}]，不输出表格行列、Mermaid源码、LaTeX公式或逐段正文。数学/技术主题也只列知识点和交互意图。state只列必要状态及初始值，不放正文数据。所有任务控制在约600字，完整内容由下一阶段生成。
 navigation无导航时用空数组；同一ownerId只能出现一次。默认builtin，采用external仅改变控件位置，不另写翻页动作或另存一份页码。规则中说明每个辅助交互如何改变主体或反馈，方形模式确保总高度预算成立。
 若是游戏，在现有state/rules内简述回合上限、选择代价、一个延迟后果、反馈停留与终局条件；不输出完整事件文案表或DSL，细节留给生成阶段。首版只规划指标区、可切换事件/反馈/结局的主体区、操作区；未要求时不另加日志、极端值联动、规则弹窗等子系统，规划控制在约600字。主循环禁止放details，不能需要先打开弹窗才能玩。
 把主体内容分配给可伸缩区域；页头和必要操作保持简短。避免多个同时可见的纵向滚动区。滚动说明区至少能显示两行正文。
 以下高度估算仅适用于方形模式；高度不限时正文自然展开，不要求压进320px总高度。方形按最小320px而不是432px预算：内边距后约304px，正文区至少48px，标题约24px、caption约17px、按钮约36px、输入约60px、组件间距4–8px；月历最多6行日期（每行32px），连月导航约251px。用这个预算检查组合；如果核心组件已有标题/导航，就把重复页头与说明放到卡片外intro/outro，别挤占核心区。多个同类操作尽量放同一row，次要编辑用details。`
 
-export const CARD_DSL_PROMPT = `${principle}
+export const CARD_DSL_PROMPT = `${PRESENTATION_POLICY}\n${principle}
 ${playableDesign}
 ${visualDesign}
 【根节点契约】schemaVersion="1" actionMode="snapshot"；theme仅允许${THEMES.join('|')}，palette仅允许a|b|c。不要生成其它主题或配色名称。visualStyle是独立的材质token，不是theme。
@@ -111,8 +113,9 @@ role仅为summary/content/actions；supporting/decorative/required是priority值
 先按320px空间检查最小高度预算：内区304px、说明滚动区至少48px、标题24px、caption17px、按钮36px、输入60px、间距4–8px。核心组件自带标题/导航时，重复页头必须移到intro/outro；完整六周月历含月导航约251px，因此这类高密度主体不再追加卡内页头、独立日期行或统计。此规则同样适用于高图片、长列表等主体。多个操作放一row，不要竖叠按钮。
 日历是通用受控组件：month="YYYY-MM",selectedDate="YYYY-MM-DD",markedDates=[日期字符串]；已内置完整的月份标题与上/下月按钮，禁止再添加一行月份切换按钮。onMonthChange绑定单个动作，严格使用event.month和event.date更新两项状态（不能绑定仅减一月的动作，否则向右也会退月）。正文联动由state与find/filter实现，无内置新闻模板。
 通用集合规则：字符串数组的filter/includes/itemKey直接使用item，不能写item.id或item.d。需要维护record与索引数组时，保存用set record key={id}，再append索引 when={!includes(state.ids,id)}；删除用filter(state.ids,item!=id)，不能把没有任何追加效果的三元表达式当成保存。切换记录、分页或月份时同步加载该项的所有编辑草稿，无记录用空值；新增/再次保存/删除/切换到空项都要心算检查。当前日期来自context，不硬编码生成当天。
-image提供query或assetRef（二者必须且只能选一个）/alt/mediaRole：assetRef仅引用工具返回的同名宿主资源字段，可用assetRef={item.assetRef}，不生成或拼接URL，缺失时显示占位；query为Pexels示意素材。hero为headline横幅大图，thumbnail为item内64px方形小图，gallery用于展示项。query用简短英文主题，宿主检索Pexels并下载到本地缓存，自动显示摄影师/Pexels署名。包含整卡background在内总数不超过12个不同query/role；仅有内容需要时增加hero或thumbnail，不重复背景图。each里的query={item.query}可用，配row+text形成图文条目。background不是image组件的mediaRole，只由根card.backgroundQuery声明。图片为示意素材，不能当作具体新闻现场证据；有识别、比较或解释价值就增加内容图，符号性图标仍用icon。link的url必须来自已提供来源或明确给出的链接。
-【高阶组件；数据驱动，不生成SVG或坐标；Mermaid仅用mermaid组件】
+【图片来源选择】需要原创场景、绘本/故事、概念插画、示意海报时，优先实际放置<image query="gen: whimsical paper forest, editorial illustration" alt="原创森林示意" mediaRole="hero"/>，这会调用OpenAI GPT Image，无需tool binding；不要用普通Pexels词或SVG代替用户要求的生成插画。真实地点/人物/商品识别用可信assetRef或Pexels；需要数据联动的图形仍用SVG/Canvas。静态插画和可交互图形可各司其职，不强制所有任务生图。
+image提供query或assetRef（二者必须且只能选一个）/alt/mediaRole：assetRef仅引用工具返回的同名宿主资源字段，可用assetRef={item.assetRef}，不生成或拼接URL，缺失时显示占位；query默认Pexels照片；原创概念插画用gen:前缀，例如query="gen: cutaway bicycle gears, editorial illustration"。每卡最多2张生图，宿主异步加载并持久缓存，卡片无需等待。图片query必须由实际image节点引用，不能只存进data；collection不会读取imageQuery字段，需在选中项旁放<image query={derived.current.imageQuery}/>，或用each+image形成图文集合。hero为headline横幅大图，thumbnail为item内64px方形小图，gallery用于展示项。query用简短英文主题，宿主按query前缀选择Pexels或GPT Image并缓存，由宿主的图片信息入口提供署名与来源，正文不再重复标签。包含整卡background在内总数不超过12个不同query/role；旅行、生活、科普、故事等视觉任务默认安排1张内容hero或2–4张thumbnail，以图承担解释，不重复背景图；纯计算/表单及用户禁图时不凑图。each里的query={item.query}可用，配row+text形成图文条目。background不是image组件的mediaRole，只由根card.backgroundQuery声明。图片为示意素材，不能当作具体新闻现场证据；有识别、比较或解释价值就增加内容图，符号性图标仍用icon。link的url必须来自已提供来源或明确给出的链接。
+【原生高阶组件：数据驱动，由宿主绘图；原创SVG/Canvas见Web能力契约；Mermaid用mermaid组件】
 carousel包含carousel-item（可由each生成），可选index={state.page}/onIndexChange="changePage"，动作读event.index（number）。左右滑动不会丢失条目输入状态。有图的carousel-item采用上图下文：image在前，随后短标题、1–2句说明和至多一个必要控件；图片使用gallery。不要左右并排图文、不要再包一层面板；长说明放region overflow="details"。宿主按全部页面的最大自然高度测量，生成结束后高度固定；换页不改变高度，不再强制占满剩余空间。不要添加同主题hero或冗长页头。
 【通用导航契约】region overflow="paginate"、carousel和calendar默认navigation="auto"。分页region按直接条目分页，应让each条目直接进入region，不把整个list当成唯一一条。不要用分页region包裹一个carousel、calendar或另一个分页region。
 自定义导航位置必须在所有者设置navigation="external"，并且只声明一个<navigation id="pager" target="ownerId"/>。适用于列表分页、轮播与月历；控件直接使用所有者真实总数/月份及边界，不自己维护第二套页码，不另写prev/next动作。单页时翻页栏自动隐藏。external所有者和navigation暂不放each内；循环中的独立组件保留内置导航。普通的重置、筛选、收藏、答题操作可继续改变业务状态，但不得伪装成重复导航。
@@ -121,7 +124,7 @@ mindmap要求label和nodes数组，节点为{id:"root",label:"中心",descriptio
 flowchart要求label、nodes数组（id/label/description同上）、edges数组（{from:"a",to:"b",label:"可选边说明"}），可有循环，最多40节点80边；direction="vertical|horizontal"。onSelect读event.id。
 chart要求label、kind="bar|line"、data=[{id:"a",label:"一月",value:12},{id:"b",label:"二月",value:-4}]，最多40点；unit/selectedId/onSelect可选，点击数据触发event.id、event.value（number）、event.label。没有实际数据请标注示例或给空数组，不编造统计。图表用滑动保留可读标签，不把所有点挤进窄屏。
 高阶组件本身有标题与交互提示；尽量避免额外重复页头。图形按全部节点自动布局、计算自然高度并在生成结束后固定，zoom只是辅助；图形作为主体时尽量直接放card下，不嵌入一串box/scroll。节点label短至2–8字。说明只能有一个所有者：只需短说明时使用节点description，不再抄写下方详情；需要富文本详情或实验控件时设置mindmap/flowchart detailMode="external"，由下方region展示，宿主隐藏内置说明。图不是通用文章目录，只有节点关系本身值得观察时才用。
-【内容体验，适用于知识、工具、故事等任务】先想一个与主题相关的记忆点和一个有结果的动作，而不只是把正文塞进节点。可选择：生活类比+具体例子；先预测再揭晓；A/B条件切换+解释差异；参数试算+结果；有取舍的选择+短反馈。只选一个合适机制，完成主任务仍是第一位；表单和事实查询不强行游戏化。标题要有主张或问题，badge/strong/caption用于区分观点、案例与结果，避免每段同字号平铺。趣味来自具体内容与可观察后果，不靠无关emoji、假统计或重复导航。模型可用已有data/state/derive/when与segmented/chips/slider/if组合，无需JS或新增专用游戏组件。
+【内容体验，适用于知识、工具、故事等任务】先想一个与主题相关的记忆点和一个有结果的动作，而不只是把正文塞进节点。可选择：生活类比+具体例子；先预测再揭晓；情境切换+解释差异；参数试算+结果；有取舍的选择+短反馈。只选一个合适机制，完成主任务仍是第一位；表单和事实查询不强行游戏化。标题要有主张或问题，badge/strong/caption用于区分观点、案例与结果，避免每段同字号平铺。趣味来自具体内容与可观察后果，不靠无关emoji、假统计或重复导航。模型可用已有data/state/derive/when与segmented/chips/slider/if组合，无需JS或新增专用游戏组件。
 短例思路（不是固定模板）：解释缓存时用“现场制作/预先备餐”segmented，同一到达量下显示积压差异，按钮揭晓新鲜度代价；装备取舍用chips，重量来自示例数据，超过容量给对应反馈，取消选择即可撤回。知识讲解优先短观点+一个案例+一个思考动作；有主线的文章不默认改成flowchart。不要同时堆叠所有机制。
 【组件注册表：仅允许以下组件及属性；普通可见节点id可省略，声明和navigation目标的id必填。literal枚举值用引号，number/boolean/array用{表达式}】
 ${registryReference()}

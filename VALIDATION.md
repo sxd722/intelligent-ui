@@ -22,3 +22,12 @@ The same six failures were reproduced by running these three test files against 
 | `tests/style-protocol.test.mjs` | Cached Pexels metadata drops undefined fields, causing deep equality to differ from the uncached object. |
 
 This is a buildable source snapshot, not a claim that the entire existing regression suite is green. No new model generation, live-site login, purchase, or browser rebinding was required for the export. The running application on port 8787 was not restarted.
+
+## Update 2026-11-06
+
+- Refreshed sanitized source; runtime traces, real tool snapshots and credentials remain excluded.
+- Focused strict-sandbox and generation-debug tests: 24 passed, 0 failed.
+- Golden portfolio is optional when its private snapshot manifest is absent; malformed or inconsistent supplied snapshots still fail.
+- Gitleaks 8.30.1 source scan: no findings. Full regression suite was not rerun for this upload.
+
+- Sanitized checkout npm ci and npm run build passed; optional private Golden portfolio skipped. Staged diff Gitleaks scan: no findings.

@@ -32,6 +32,19 @@ test('failed bind cannot leave the previous lease usable',async()=>{
  let fail=false;const host=createBoundBrowser(async op=>{if(op==='bind'){if(fail)throw Error('wrong page');return {profile:'p',daemonPid:1}}})
  await host.bind('p');fail=true;await assert.rejects(()=>host.bind('p'),/wrong page/);await assert.rejects(()=>host.run(()=>{}),/绑定已失效/)
 })
+
+test('site auth failure mentioning profile does not release the browser lease',async()=>{
+ const {host,calls}=fixture();await host.bind('p')
+ await assert.rejects(()=>host.run(async()=>{throw Object.assign(Error('requires login — sign in to dianping.com in this profile, then retry'),{code:'AUTH_REQUIRED'})}),/login/)
+ assert.equal(host.status({daemonPid:123,profile:'p'}).bound,true);assert.deepEqual(calls,['bind'])
+ assert.equal(await host.run(async()=>42),42)
+})
+
+test('transient missing daemon status retains identity until a verified change',async()=>{
+ const {host}=fixture();await host.bind('p');assert.equal(host.status({ready:false,reason:'status timed out'}).bound,true)
+ assert.equal(host.status({daemonPid:123,profile:'p'}).bound,true)
+ assert.equal(host.status({daemonPid:124,profile:'p'}).bound,false)
+})
 test('upstream timed-out navigation retires binding before another adapter can run',async()=>{
  const {host,calls}=fixture();await host.bind('p')
  await assert.rejects(()=>host.run(async()=>{throw Error('Browser navigate command timed out after 25s; it may still complete in the browser.')}),/timed out/)

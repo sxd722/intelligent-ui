@@ -1,8 +1,8 @@
 // Recover wrappers, never rewrite JSON or choose between competing documents.
 export const PLAN_RAW_LIMIT = 5000
 export function planJsonError(code, message) { return Object.assign(new Error(message), {code}) }
-export function extractPlanJson(raw) {
-  if (raw.length > PLAN_RAW_LIMIT) throw planJsonError('PLAN_LIMIT', '规划输出超过长度上限')
+export function extractPlanJson(raw,limit=PLAN_RAW_LIMIT) {
+  if (raw.length > limit) throw planJsonError('PLAN_LIMIT', '规划输出超过长度上限')
   const text = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
   try { return {value: JSON.parse(text), extracted: false} } catch {}
   const candidates = []

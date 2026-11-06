@@ -12,7 +12,9 @@ export function createBoundBrowser(control) {
    lease={...saved}
   })},
   status(bridge){
-   if(lease&&(bridge.daemonPid!==lease.daemonPid||bridge.profile!==lease.profile))lease=null
+   // A status request can time out while the daemon is busy. Missing identity
+   // is not evidence that the user's lease changed.
+   if(lease&&((Number.isInteger(bridge.daemonPid)&&bridge.daemonPid!==lease.daemonPid)||(bridge.profile&&bridge.profile!==lease.profile)))lease=null
    return {mode:enabled?'bound':'owned',bound:!!lease,...(lease?{session:lease.session,title:lease.title,url:lease.url}:{}),reason:lease?'专用标签页已绑定；浏览器读取串行执行':enabled?'请打开并选中连接测试页，然后重新绑定':'使用独立自动化窗口'}
   },
   bind(profile){return exclusive(async()=>{if(closed)throw Error('OpenCLI closed');enabled=true;await invalidate();lease=await control('bind',{profile});return {ok:true,message:'专用标签页已绑定；只读工具可复用该页，无需创建窗口。'}})},
@@ -24,7 +26,8 @@ export function createBoundBrowser(control) {
    try{return await fn(expected)}catch(e){
     // The provider drains cancelled reads before releasing this queue. Only an
     // uncertain browser operation or a broken lease requires retiring the page.
-    if(/bound_tab|stale page|绑定|daemon|profile|超时|取消|timeout|timed out|connection dropped|connection lost|disconnected|may (still |have )?complete/i.test(e.message))await invalidate()
+    const businessFailure=['AUTH_REQUIRED','ACCESS_RESTRICTED','RATE_LIMITED','EMPTY_RESULT','SCHEMA_MISMATCH','NETWORK'].includes(e.code)
+    if(!businessFailure&&/bound_tab|stale page|绑定.{0,12}(失效|改变|丢失)|(?:daemon|profile).{0,20}(changed|restarted|改变|重启)|超时|取消|timeout|timed out|connection dropped|connection lost|disconnected|may (still |have )?complete/i.test(e.message))await invalidate()
     throw e
    }
   })},

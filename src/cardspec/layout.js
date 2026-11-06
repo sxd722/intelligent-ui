@@ -15,7 +15,7 @@ export function attachLayout(stage, onLayout) {
     if (disposed || !stage.clientHeight) return
     const card = stage.querySelector('.cs-card')
     if (!card) return
-    if(stage.dataset.compositionVersion==='2'||stage.dataset.cardSize==='auto'||stage.dataset.layoutTemplate&&stage.dataset.layoutTemplate!=='default'){
+    if(stage.dataset.compositionVersion==='2'||['auto','full'].includes(stage.dataset.cardSize)||stage.dataset.layoutTemplate&&stage.dataset.layoutTemplate!=='default'){
       minimumCandidate=0
       for(const region of card.querySelectorAll('[data-auto-overflow]')){
         delete region.dataset.autoOverflow
@@ -95,11 +95,16 @@ export function attachLayout(stage, onLayout) {
   const observer = new ResizeObserver(schedule); observer.observe(stage)
   const card=stage.querySelector('.cs-card');if(card)observer.observe(card)
   const mutation = new MutationObserver(schedule)
-  mutation.observe(stage, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['data-loaded', 'data-weeks', 'data-selected', 'data-streaming', 'data-content-height','data-card-size','data-composition','data-compose-role','data-design','data-visual-style','data-material-version','data-layout-template'] })
+  mutation.observe(stage, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['hidden','data-active-index','data-motion-level','data-paginated','data-loaded', 'data-weeks', 'data-selected', 'data-streaming', 'data-content-height','data-card-size','data-composition','data-compose-role','data-design','data-visual-style','data-material-version','data-layout-template'] })
   document.fonts?.ready.then(schedule)
   stage.addEventListener('scroll',schedule,true)
   stage.addEventListener('input',schedule,true)
   stage.addEventListener('cardspec-sandbox-layout',schedule)
+  stage.addEventListener('cardspec-navigation-settled',schedule)
+  // Transforms do not resize boxes. Re-audit their final position rather than
+  // retaining a clipping/occlusion result sampled halfway through a transition.
+  stage.addEventListener('transitionend',schedule)
+  stage.addEventListener('transitioncancel',schedule)
   schedule()
-  return () => { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); mutation.disconnect();stage.removeEventListener('scroll',schedule,true);stage.removeEventListener('input',schedule,true);stage.removeEventListener('cardspec-sandbox-layout',schedule) }
+  return () => { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); mutation.disconnect();stage.removeEventListener('scroll',schedule,true);stage.removeEventListener('input',schedule,true);stage.removeEventListener('cardspec-sandbox-layout',schedule);stage.removeEventListener('cardspec-navigation-settled',schedule);stage.removeEventListener('transitionend',schedule);stage.removeEventListener('transitioncancel',schedule) }
 }

@@ -1,4 +1,5 @@
 import {parseJavaScriptExpression,evaluateJavaScriptExpression} from './javascript-expression.mjs'
+import {composeTask,projectTaskView} from './task-composition.mjs'
 // Versioned expression languages. Source is never evaluated in the host realm.
 const blocked = new Set(['__proto__', 'prototype', 'constructor'])
 export const safeKey = (key) => typeof key === 'string' && !blocked.has(key)
@@ -106,7 +107,7 @@ export function parseExpression(source, {dialect='legacy'} = {}) {
   return ast
 }
 
-export const FUNCTION_NAMES = ['min', 'max', 'clamp', 'round', 'formatNumber', 'floor', 'ceil', 'abs', 'len', 'number', 'string', 'includes', 'filter', 'find', 'map', 'sum', 'count', 'formatDate', 'dateKey', 'monthOf', 'dayOf', 'addDays', 'addMonths', 'range']
+export const FUNCTION_NAMES = ['compose','projectView','min', 'max', 'clamp', 'round', 'formatNumber', 'floor', 'ceil', 'abs', 'len', 'number', 'string', 'includes', 'filter', 'find', 'map', 'sum', 'count', 'formatDate', 'dateKey', 'monthOf', 'dayOf', 'addDays', 'addMonths', 'range']
 export function dateKey(value, zone = 'Asia/Shanghai') {
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value
   const d = new Date(value)
@@ -188,6 +189,8 @@ export function evaluate(ast, scope, budget = { remaining: 20000 }) {
       }
       const v = a.map((x) => ev(x))
       switch (name) {
+        case 'compose': return composeTask(v[0],v[1],scope.bindings)
+        case 'projectView': return projectTaskView(v[0],v[1])
         case 'min': return Math.min(...v)
         case 'max': return Math.max(...v)
         case 'clamp': return Math.max(v[1], Math.min(v[2], v[0]))

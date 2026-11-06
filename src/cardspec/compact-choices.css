@@ -1,0 +1,32 @@
+.cs-card-settings{margin-left:auto;flex:none;align-self:flex-start}
+.cs-card-settings>button{width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:50%;background:color-mix(in srgb,var(--cs-accent,#356775) 10%,transparent);color:inherit;cursor:pointer}
+.cs-composition-heading:has(.cs-card-settings){position:relative;padding-right:48px}
+.cs-composition-heading>.cs-card-settings{position:absolute;right:0;top:0}
+.cs-settings-dialog{width:min(390px,calc(100vw - 24px));max-height:85svh;overflow:auto}
+.cs-settings-dialog .cs-row{flex-wrap:wrap}.cs-settings-dialog .cs-stack{gap:16px}
+.cs-settings-dialog header{display:flex;justify-content:space-between;align-items:center}.cs-settings-dialog header button{min-width:44px;min-height:44px}
+.cs-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 8px;align-items:start}
+.cs-stage .cs-card .cs-choice-tile{display:flex;gap:7px;align-items:start;min-width:0;padding:7px 4px;border-radius:12px;background:transparent;transition:background .18s}
+.cs-stage .cs-card .cs-choice-tile[data-selected=true]{background:transparent}
+.cs-choice-avatar{position:relative;flex:0 0 48px;width:48px}
+.cs-stage .cs-choice-avatar>[data-cs-component=image]{width:48px!important;flex-basis:48px!important}
+.cs-stage .cs-choice-avatar .cs-photo{width:48px!important;height:auto!important;min-height:0!important;aspect-ratio:auto}
+.cs-stage .cs-choice-avatar .cs-image{width:48px!important;min-height:48px!important;height:48px!important;aspect-ratio:1;border-radius:10px}
+.cs-choice-avatar .cs-photo img{width:100%;height:100%;object-fit:cover}
+.cs-stage .cs-choice-hit{position:absolute;inset:0 0 auto;height:48px;min-height:44px;width:48px;border:0;background:transparent;border-radius:10px;padding:0;cursor:pointer}
+.cs-choice-hit span{position:absolute;right:-3px;bottom:-3px;border-radius:50%;width:20px;height:20px;background:var(--cs-bg,#f5f7f9);color:var(--cs-ink,#123);font-size:14px}
+.cs-stage .cs-card button.cs-choice-hit{background:transparent!important;background-image:none!important;box-shadow:none!important;backdrop-filter:none!important;filter:none!important;opacity:1!important;transform:none!important}
+.cs-stage .cs-card button.cs-choice-hit::before,.cs-stage .cs-card button.cs-choice-hit::after{display:none!important}
+.cs-stage .cs-card button.cs-choice-hit:focus-visible{outline:2px solid var(--cs-accent,#236674);outline-offset:3px}
+.cs-choice-hit[aria-pressed=true] span{background:var(--cs-accent,#236674);color:white}
+.cs-choice-summary{min-width:0;flex:1}.cs-choice-summary .cs-stack{gap:3px!important}
+.cs-choice-description{display:block;font-size:10px;line-height:1.45;white-space:normal;overflow-wrap:anywhere;opacity:.8}
+.cs-composition:has(.cs-card-settings) .cs-composition-actions .cs-button{min-width:96px}
+.cs-composition:has(.cs-card-settings) .cs-composition-actions .cs-region-body{flex-direction:row;flex-wrap:nowrap;align-items:center}
+.cs-composition:has(.cs-card-settings) .cs-composition-actions .cs-region-body>.cs-row{flex:1;min-width:0;flex-wrap:wrap!important}
+.cs-composition:has(.cs-card-settings) .cs-composition-actions .cs-region-body>.cs-row .cs-text{flex:auto}
+.cs-choice-summary strong{font-size:12px;line-height:1.4;overflow-wrap:anywhere}.cs-choice-summary .cs-caption{font-size:10px;line-height:1.45}
+.cs-stage .cs-choice-avatar .cs-credit-toggle{font-size:7px!important;padding:2px 0!important;min-height:18px!important;white-space:nowrap;max-width:48px}
+.cs-card-notes{font-size:12px;margin-top:6px;opacity:.8}.cs-card-notes summary{cursor:pointer}
+@container (min-width:600px){.cs-choice-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.cs-choice-tile{transition:none}}

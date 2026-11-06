@@ -1,0 +1,17 @@
+import {chromium} from '@playwright/test'
+import fs from 'node:fs/promises'
+import {ROOT} from './cases.mjs'
+const browser=await chromium.launch({channel:'chrome',headless:true}),page=await browser.newPage({viewport:{width:900,height:1000}})
+page.setDefaultTimeout(3000);const r={id:'movie',checks:[],screenshots:[],errors:[]};page.on('pageerror',e=>r.errors.push(e.message))
+const state=()=>page.evaluate(()=>window.qaSession.current().store.values),scope=()=>page.evaluate(()=>{const s=window.qaScope();return {rows:s.derived.rows,pool:s.data.pool}})
+const reach=async l=>{if(await l.isVisible())return;for(const b of await page.getByRole('button',{name:/卡片页面：第 \d+ 屏/}).all()){await b.click();await page.waitForTimeout(150);if(await l.isVisible())return}throw Error('not reachable')}
+const click=async name=>{const l=page.getByRole('button',{name,exact:true}).first();await reach(l);await l.click();await page.waitForTimeout(250)}
+const check=async(name,fn)=>{try{const actual=await fn();r.checks.push({name,status:actual.pass?'pass':'fail',actual})}catch(e){r.checks.push({name,status:'fail',error:e.message.slice(0,600)})}const file=`screenshots/movie-final-${name}.png`;await page.screenshot({path:ROOT+'/'+file});r.screenshots.push(file);r.checks.at(-1).state=await state()}
+await page.goto('http://127.0.0.1:8787/complex-p0/viewer.html?id=movie');await page.waitForFunction(()=>window.qaSession);await page.waitForTimeout(1000)
+await check('hidden-idle',async()=>({pass:(await page.evaluate(()=>window.qaCalls)).length===0,calls:await page.evaluate(()=>window.qaCalls)}))
+await check('filter',async()=>{const before=(await scope()).rows.length;const l=page.getByRole('radio',{name:'剧情',exact:true});await reach(l);await l.click();const after=(await scope()).rows.length;await page.getByRole('radio',{name:'全部',exact:true}).click();return {pass:after<before,before,after}})
+await check('compare',async()=>{const data=await scope();for(const item of data.pool.slice(0,2)){const l=page.getByRole('button',{name:item.title,exact:true});await reach(l);await l.click()}await click('比较已选');return {pass:(await state()).picked.length===2&&(await state()).view==='compare',text:await page.locator('main').innerText()}})
+await check('live-detail',async()=>{const title=(await scope()).pool[0].title;await click(title);for(let i=0;i<80;i++){const calls=await page.evaluate(()=>window.qaCalls);if(calls.length>=2&&calls.every(c=>c.finishedAt))break;await page.waitForTimeout(500)}const calls=await page.evaluate(()=>window.qaCalls);return {pass:calls.some(c=>c.tool==='opencli.douban.subject'&&c.result)&&calls.some(c=>c.tool==='opencli.bilibili.search'&&c.result),calls,text:await page.locator('main').innerText()}})
+await check('return',async()=>{const before=await state();await click('返回');return {pass:(await state()).view==='list'&&JSON.stringify(before.picked)===JSON.stringify((await state()).picked)}})
+await check('reload',async()=>{const before=await state();await page.reload();await page.waitForFunction(()=>window.qaSession);await page.waitForTimeout(700);return {pass:JSON.stringify(before)===JSON.stringify(await state()),after:await state(),calls:await page.evaluate(()=>window.qaCalls)}})
+r.calls=await page.evaluate(()=>window.qaCalls);await fs.writeFile(ROOT+'/movie-browser.json',JSON.stringify(r,null,2));console.log(JSON.stringify(r.checks.map(c=>({name:c.name,status:c.status}))));await browser.close()

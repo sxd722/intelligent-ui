@@ -2,6 +2,8 @@
 
 以当前工作区 AUTHOR-API.md 为能力事实源。现有 iframe 为 sandbox=allow-scripts，无直接网络；用 call/request 访问白名单工具，不修改宿主权限。
 
+本文仅用于宿主联网 H5；它允许导入已提供的 runtime，不能搬进 CardSpec sandbox.source。后者使用 [显式 bridge](sandbox-authoring.md)，无 imports，代码随整卡交付。H5 按自己的 AUTHOR-API 限高；不要套用其他宿主的高度常数。两者均遵循 [当前设计](current-design.md) 的信息层级、材质与稳定性要求。
+
 当前宿主的 form onSubmit 可能被浏览器沙箱阻止，即使 preventDefault 也无事件。搜索用显式 type=button onClick，并在输入 onKeyDown 的 Enter 分支调用同一函数。禁止实际 form 提交；不要为此添加 allow-forms。先在同权限宿主验证点击和 Enter 各一次，确认输入值、请求参数与结果对应。
 
 状态分三类：domain（选择、数据）、navigation（页/方向/阶段）、transient（busy、controller）。前两类恢复并验证版本和字段；后一类不存。非法视图回首页，无效选择移除且解释，旧数据未知不当零。避免 normalize(normalize(x)) 丢 ID；稳定 ID 用 source+源 ID，缺 ID 从已验证源链接派生，不能按数组索引做实体身份。

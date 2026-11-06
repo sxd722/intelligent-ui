@@ -1,3 +1,4 @@
+import {generationToolDisclosure} from './tool-disclosure.mjs'
 import {sandboxMode,sandboxInstruction} from '../../shared/cardspec/sandbox-policy.mjs'
 import {sandboxEnabled} from './sandbox.mjs'
 import {PLAN_TEMPERATURE} from '../../shared/cardspec/plan-design.mjs'
@@ -16,17 +17,18 @@ import {generationSettings,generationModelOptions} from '../../shared/cardspec/g
 
 import { toolDiscoveryReference,expandedToolIds } from '../../shared/cardspec/tool-discovery.mjs'
 
-export async function handleCardSpec(req, res, payload, { streamUpstream, photo, model, keyLoaded,toolCatalog,researchSession,recordGeneration }) {
+export async function handleCardSpec(req, res, payload, { streamUpstream, photo, model, keyLoaded,toolCatalog,researchSession,recordGeneration,debugRunner }) {
   const settings=generationSettings(payload),upstream=streamUpstream
-  streamUpstream=(messages,options)=>upstream(messages,{...options,...generationModelOptions(settings.modelProfile)})
+  // Profile is the default, not a second override of server-owned build phases.
+  streamUpstream=(messages,options)=>upstream(messages,{...generationModelOptions(settings.modelProfile),...options})
   model=generationModelOptions(settings.modelProfile).modelOverride||model
   res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' })
   res.flushHeaders?.()
   const requestId = randomUUID(), turnId = payload.turnId || randomUUID(), started = performance.now()
   let cardId = randomUUID()
-  const policy=generationPolicy(payload.messages.findLast(m=>m.role==='user')?.content,{profile:payload.generationProfile,mode:payload.mode,debugGeneration:payload.debugGeneration})
+  const policy=generationPolicy(payload.messages.findLast(m=>m.role==='user')?.content,{profile:payload.generationProfile,mode:payload.mode,debugGeneration:settings.debugGeneration,buildMode:settings.buildMode,extendedGeneration:settings.extendedGeneration})
   const budget=(policy.profile==='adaptive-v1'||policy.debugGeneration)?createGenerationBudget(policy):null
-  const controller = new AbortController(), deadline = setTimeout(() => controller.abort(Object.assign(new Error(`生成超过 ${policy.timeoutMs / 60000} 分钟时限，请重试或缩小任务范围。`),{code:'GENERATION_TIMEOUT'})), policy.timeoutMs)
+  const controller = new AbortController(), deadline = Number.isFinite(policy.timeoutMs)?setTimeout(() => controller.abort(Object.assign(new Error(`生成超过 ${policy.timeoutMs / 60000} 分钟时限，请重试或缩小任务范围。`),{code:'GENERATION_TIMEOUT'})), policy.timeoutMs):null
   res.once('close', () => { if (!res.writableEnded) controller.abort() })
   const layout=generationLayout(payload.cardSize)
   payload={...payload,mode:experienceMode(policy.mode||payload.mode),renderMode:sandboxEnabled()?sandboxMode(payload.renderMode):'native'}
@@ -34,7 +36,7 @@ export async function handleCardSpec(req, res, payload, { streamUpstream, photo,
   const userGoal=payload.messages.findLast(m=>m.role==='user')?.content?.slice(0,4000)||''
   context.localDate = dateKey(context.generatedAt, context.timeZone)
   const timings = { first_reasoning_ms: null, first_content_ms: null, first_card_ms: null, phases: {}, image_resolution_ms: 0 }
-  let phase, repairCount = 0, planRepairCount = 0, lastSource = '', research
+  let phase, repairCount = 0, planRepairCount = 0, lastSource = '', research, draftShown=false
   const elapsed = () => Math.round(performance.now() - started)
   const send = (value) => { if (!res.destroyed && !res.writableEnded) res.write(`data: ${typeof value === 'string' ? value : JSON.stringify(value)}\n\n`) }
   const patch = (ops) => send({ o: 'patch', v: ops })
@@ -60,13 +62,15 @@ export async function handleCardSpec(req, res, payload, { streamUpstream, photo,
     finally { attempt.abort() }
   }
   send({ type: 'delta_encoding', value: 'v1' })
-  send({ type: 'turn_begin', turnId, requestId, format: 'cardspec', schemaVersion: 1, timeoutMs:policy.timeoutMs })
+  send({ type: 'turn_begin', turnId, requestId, format: 'cardspec', schemaVersion: 1, timeoutMs:Number.isFinite(policy.timeoutMs)?policy.timeoutMs:null,extendedGeneration:policy.extendedGeneration===true })
   try {
     if (!keyLoaded) throw new Error('server has no model API key')
     const catalog=payload.toolsEnabled===false?[]:(toolCatalog?await toolCatalog():[])
     const allowedTools=catalog.filter(t=>t.available&&!t.unsupportedReason).map(t=>t.id)
     let availableTools=expandedToolIds(catalog,userGoal)
-    const discovery=payload.toolsEnabled===false?'工具增强已关闭。':toolDiscoveryReference(catalog,userGoal)
+    const semanticDisclosure=researchSession&&catalog.length?await generationToolDisclosure(catalog,userGoal,{signal:controller.signal,expressionDialect:settings.expressionDialect}):null
+    if(semanticDisclosure)availableTools=semanticDisclosure.active
+    const discovery=payload.toolsEnabled===false?'工具增强已关闭。':semanticDisclosure?.discovery||toolDiscoveryReference(catalog,userGoal)
     const disclosure=()=>({expanded:availableTools,availableCount:allowedTools.length,unavailableCount:catalog.length-allowedTools.length,indexCharacters:discovery.length})
     let analysis, plan, experience
     if(payload.mode==='experience'){
@@ -110,17 +114,18 @@ export async function handleCardSpec(req, res, payload, { streamUpstream, photo,
         meta({ plan_document: doc }); finish()
       }
     }
-    begin('dsl', payload.mode==='experience'?'体验规划 → 卡片生成':payload.mode !== 'staged' ? 'CardSpec · 直接生成' : '阶段 3 · CardSpec 成型', 'cardspec')
+    begin('dsl', settings.buildMode==='deep'?'深度构建 · 需求 → 模块 → 验收':payload.mode==='experience'?'体验规划 → 卡片生成':payload.mode !== 'staged' ? 'CardSpec · 直接生成' : '阶段 3 · CardSpec 成型', 'cardspec')
     const checkpoint=budget&&payload.resumeToken?await loadCheckpoint(payload.resumeToken,userGoal):null
     if(budget)meta({resumeToken:requestId})
     if(checkpoint)send({type:'stream_note',note:'已恢复上次取数结果；来源时间保持原样，可在卡片内手动刷新。生成使用新的有界预算。',requestId,turnId})
     const deck=[]
     research=researchSession?.(value=>{send({...value,requestId,turnId});if(value.type==='research')send({type:'stream_note',note:value.status==='running'?'正在获取资料 · '+value.tool:value.status==='failed'?'部分资料暂不可用':'已取得资料',requestId,turnId})},{catalog,budget,modelProfile:settings.modelProfile,timeoutMs:policy.timeoutMs,initialRecords:checkpoint?.records||[],renderMode:payload.renderMode,enabled:payload.toolsEnabled!==false,goal:userGoal,...(budget?{allowPlanning:policy.plan}:{}),...(experience?.plan?{allowPlanning:false}:{})})
-    const base={streamUpstream:call,photo,catalog,research,budget,signal:controller.signal}
-    const emit=value=>{send({...value,requestId,turnId});if(value.type==='debug')send({type:'stream_note',note:value.status==='running'?'正在隔离环境中测试交互':value.status==='passed'?'模拟交互检查通过':value.status==='partial'?'部分交互未覆盖，已记录调试范围':value.status==='unverified'?'调试环境未完成验证，保留编译结果':'发现交互问题，准备修复',requestId,turnId});if(value.type==='status'&&value.status==='repairing'){repairCount++;send({type:'stream_note',note:'正在修复 CardSpec 校验或运行错误',requestId,turnId});meta({previous_source:lastSource});patch([{p:'/message/content/parts/0',o:'replace',v:''}]);lastSource=''}}
+    const base={streamUpstream:call,photo,catalog,research,budget,signal:controller.signal,...(debugRunner?{debugRunner}:{})}
+    const emit=value=>{send({...value,requestId,turnId});if(value.type==='build_progress')send({type:'stream_note',note:value.message,requestId,turnId});if(value.type==='debug')send({type:'stream_note',note:value.status==='running'?'正在隔离环境中测试交互':value.status==='passed'?'模拟交互检查通过':value.status==='partial'?'部分交互未覆盖，已记录调试范围':value.status==='unverified'?'调试环境未完成验证，保留编译结果':'发现交互问题，准备修复',requestId,turnId});if(value.type==='status'&&value.status==='repairing'){repairCount++;send({type:'stream_note',note:'正在修复 CardSpec 校验或运行错误',requestId,turnId});meta({previous_source:lastSource});patch([{p:'/message/content/parts/0',o:'replace',v:''}]);lastSource=''}}
     const first=await generateCard({...base,cardId,experience,input:{prompt:userGoal},view:{...settings,generationProfile:policy.profile,renderMode:payload.renderMode,goal:userGoal,plan,analysis,history:payload.messages.slice(0,-1),cardSize:layout.cardSize,generationMode:payload.mode},emit,
+      onDebugCandidate:c=>{draftShown=true;meta({debug_candidate:{version:c.version,status:c.spec?'testing':'invalid',diagnostics:c.diagnostics},...(c.spec?{card_spec:c.spec,card_intro:c.spec.intro,card_outro:c.spec.outro,core_ready:false}:{})});patch([{p:'/message/content/parts/0',o:'replace',v:c.source}]);send({type:'debug_candidate',version:c.version,status:c.spec?'testing':'invalid',cardIndex:0,requestId,turnId})},
       onValidated:result=>{if(!budget)return;budget.usable();timings.first_usable_ms=elapsed();meta({card_spec:result.spec,core_ready:true,resources:{},generationBudget:budget.snapshot()})},
-      onPiece:piece=>{markPiece(piece);if(piece.content){lastSource+=piece.content;patch([{p:'/message/content/parts/0',o:'append',v:piece.content}])}if(piece.reasoning)patch([{p:'/message/reasoning',o:'append',v:piece.reasoning}])},
+      onPiece:piece=>{markPiece(piece);if(piece.content){lastSource+=piece.content;patch([{p:'/message/content/parts/0',o:draftShown?'replace':'append',v:draftShown?lastSource:piece.content}]);draftShown=false}if(piece.reasoning)patch([{p:'/message/reasoning',o:'append',v:piece.reasoning}])},
       onPreview:spec=>{if(timings.first_card_ms===null)timings.first_card_ms=elapsed();meta({card_spec:spec,card_intro:spec.intro,card_outro:spec.outro})}})
     // Publish only the committed candidate; streamed drafts are trace, never history.
     lastSource=first.source
@@ -135,14 +140,15 @@ export async function handleCardSpec(req, res, payload, { streamUpstream, photo,
     for(let i=1;i<deck.length;i++){
       deck[i].status='generating';publish()
       try{
-        const next=await generateCard({...base,cardId:deck[i].id,input:{prompt:deck[i].goal},view:{...settings,generationProfile:policy.profile,renderMode:payload.renderMode,goal:userGoal,cardSize:layout.cardSize,generationMode:'direct',plan:manifest.cards[i]},emit:value=>send({...value,cardIndex:i,requestId,turnId})})
+        const next=await generateCard({...base,cardId:deck[i].id,input:{prompt:deck[i].goal},view:{...settings,generationProfile:policy.profile,renderMode:payload.renderMode,goal:userGoal,cardSize:layout.cardSize,generationMode:'direct',plan:manifest.cards[i]},emit:value=>send({...value,cardIndex:i,requestId,turnId}),
+          onDebugCandidate:c=>{Object.assign(deck[i],{source:c.source,debugCandidate:{version:c.version,status:c.spec?'testing':'invalid',diagnostics:c.diagnostics},...(c.spec?{spec:c.spec,resources:{}}:{})});publish();send({type:'debug_candidate',version:c.version,status:c.spec?'testing':'invalid',cardIndex:i,requestId,turnId})}})
         next.spec.generationPlan=null
         Object.assign(deck[i],next,{status:'ready'})
       }catch(e){Object.assign(deck[i],{status:'error',error:controller.signal.aborted?'生成已中断':e.message})}
       publish()
     }
     finish()
-    if(budget&&recordGeneration)await recordGeneration({requestId,goal:userGoal,results:deck.filter(r=>r.status==='ready'),budget:budget.snapshot()}).catch(e=>send({type:'stream_note',note:'RSI trace保存失败：'+e.message,requestId,turnId}))
+    if(budget&&recordGeneration)await recordGeneration({requestId,goal:userGoal,results:deck,budget:budget.snapshot()}).catch(e=>send({type:'stream_note',note:'RSI trace保存失败：'+e.message,requestId,turnId}))
     send({type:'server_ste_metadata',metadata:{...timings,total_ms:elapsed(),model_slug:model,mode:payload.mode,format:'cardspec',repair_count:first.repairCount,deck_count:deck.length,plan_repair_count:planRepairCount,research:research?.snapshot(),generationBudget:budget?.snapshot()},requestId,turnId})
     send({type:'message_stream_complete',status:'succeeded',requestId,turnId})
   } catch (e) {

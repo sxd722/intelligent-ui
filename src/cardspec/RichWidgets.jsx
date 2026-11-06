@@ -1,3 +1,4 @@
+import {Icon} from '../dil/icons.jsx'
 import React, { lazy, Suspense, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useIntrinsicHeight } from './sizing.js'
 import './rich-widgets.css'
@@ -6,33 +7,33 @@ import { useViewState } from './view-state.jsx'
 const MermaidView=lazy(()=>import('./MermaidView.jsx'))
 const MathView=lazy(()=>import('./MathView.jsx'))
 export function Mermaid(props) { return <Suspense fallback={<span role="status">图形排版中…</span>}><MermaidView {...props}/></Suspense> }
-export function MathNode({p}) { return <Suspense fallback={<code>{p.value}</code>}><MathView p={p}/></Suspense> }
+export function MathNode({p,attrs={}}) { return <Suspense fallback={<code {...attrs}>{p.value}</code>}><MathView p={p} attrs={attrs}/></Suspense> }
 
 export function ChoiceGroup({p,fire,kind}) {
   const track=useRef(null),thumb=useRef(null),name=useId()
   const options=p.options.map(o=>o&&typeof o==='object'?o:{value:o,label:String(o)})
   useLayoutEffect(()=>{
-    if(kind!=='segmented') return
+    if(kind!=='segmented'||p.variant==='icons') return
     const el=track.current
     const place=()=>{const active=el.querySelector('[aria-checked="true"]');if(!active||!thumb.current)return
       thumb.current.style.width=`${active.offsetWidth}px`;thumb.current.style.height=`${active.offsetHeight}px`;thumb.current.style.transform=`translate(${active.offsetLeft}px,${active.offsetTop}px)`
     }
     const observer=new ResizeObserver(place);observer.observe(el);[...el.querySelectorAll('button')].forEach(n=>observer.observe(n));place()
     return()=>observer.disconnect()
-  },[kind,p.value,JSON.stringify(options)])
-  if(kind==='select') return <label className="cs-field cs-select"><span>{p.label}</span><select value={p.value??''} disabled={p.disabled} onChange={e=>fire('onChange',{value:e.target.value})}>
+  },[kind,p.variant,p.value,JSON.stringify(options)])
+  if(kind==='select') return <label className="cs-field cs-select"><span>{p.label}</span><select aria-label={p.label} value={p.value??''} disabled={p.disabled} onChange={e=>fire('onChange',{value:e.target.value})}>
     {!options.some(o=>o.value===p.value)&&<option value="" disabled>请选择</option>}{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
   </select></label>
-  return <div className={kind==='segmented'?'cs-segmented-field':'cs-radio-field'} data-short-label={[...String(p.label||'')].length<=8||undefined}><span className="cs-control-label">{p.label}</span>
+  return <div data-choice-variant={p.variant} style={p.variant==='icons'?{'--choice-columns':Math.min(6,options.length)}:undefined} className={kind==='segmented'?'cs-segmented-field':'cs-radio-field'} data-short-label={[...String(p.label||'')].length<=8||undefined}><span className="cs-control-label">{p.label}</span>
     <div className={kind==='segmented'?'cs-segmented':'cs-radio-group'} ref={track} role="radiogroup" aria-label={p.label}>
-      {kind==='segmented'&&<i ref={thumb} className="cs-segmented-thumb" hidden={!options.some(o=>o.value===p.value)} aria-hidden="true"/>}
+      {kind==='segmented'&&p.variant!=='icons'&&<i ref={thumb} className="cs-segmented-thumb" hidden={!options.some(o=>o.value===p.value)} aria-hidden="true"/>}
       {options.map((o,i)=>kind==='radio-group'?<label className="cs-radio-option" key={o.value} data-selected={p.value===o.value||undefined}><input type="radio" name={name} value={o.value} checked={p.value===o.value} disabled={p.disabled} onChange={()=>fire('onChange',{value:o.value})}/><span>{o.label}</span></label>:
         <button type="button" key={o.value} role="radio" disabled={p.disabled} aria-checked={p.value===o.value} data-selected={p.value===o.value||undefined} tabIndex={p.value===o.value||(!options.some(o=>o.value===p.value)&&i===0)?0:-1} onClick={()=>{if(!p.disabled)fire('onChange',{value:o.value})}} onKeyDown={e=>{
           if(p.disabled)return
           const delta=['ArrowRight','ArrowDown'].includes(e.key)?1:['ArrowLeft','ArrowUp'].includes(e.key)?-1:0
           const next=e.key==='Home'?0:e.key==='End'?options.length-1:delta?(i+delta+options.length)%options.length:null
           if(next==null)return;e.preventDefault();fire('onChange',{value:options[next].value});const b=track.current.querySelectorAll('button')[next];b.focus();b.scrollIntoView({block:'nearest',inline:'nearest'})
-        }}>{o.label}</button>)}
+        }}>{p.variant==='icons'&&<Icon name={o.icon||'circle'}/>}<span>{o.label}</span></button>)}
     </div>
   </div>
 }

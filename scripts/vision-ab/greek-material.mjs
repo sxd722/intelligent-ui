@@ -1,0 +1,17 @@
+import fs from 'node:fs/promises';
+import {createModelClient} from '../../server/research/model-client.mjs';
+import {loadApiKey} from '../../server/env.mjs';
+import {REACT_SURFACE_PROMPT} from '../../shared/cardspec/react-surface-prompt.mjs';
+import {compileCard} from '../../shared/cardspec/compiler.mjs';
+import {build} from 'esbuild';
+const root='artifacts/greek-material-experiment',dest='dist/greek-material-experiment';await fs.mkdir(root,{recursive:true});await fs.mkdir(dest+'/runs',{recursive:true});
+const brief=`复刻附件的古典纸雕UI质感，不要普通按钮+文字+照片。宿主已经展示上方雕像hero；你只实现hero下方内容，宽280–408，高270px。必须保留：独立羊皮纸横幅标题“悲剧六要素”、细金色月桂分割线、六个均匀排列的SVG图标+中文短标签选择器、奶油纸质浮雕详情面板（左文字右原创神庙SVG插画）、底部轻装饰。使用克制的多层阴影、渐变、细金线、海军蓝选中态、serif字体，图标不是emoji。设计参考图5个位置，实际6个：情节/性格/思想/言辞/唱段/戏景。六列始终均分，一项44px高以上。SVG插画随选中项改变一个有意义的视觉强调。
+交互：每个要素更新说明和插画；面板内“看例子”切换为一个明确标注“虚构示例”的极短戏剧情景，展示该要素如何发挥作用；“小测”切换为一道2选项辨认题，回答显示依据，能“返回解读”。不要A/B保存。所有核心内容一屏，详情文字≤65字，面板高约110px；280宽可稍缩字但正文≥12px，图标≥18px。所有button aria-label明确（六项恰好为该要素名）。state初始{selected:0,mode:'read',answer:null}，setState保留其他字段，切换要素重置mode和answer。不用React hooks。所有交互无网络无再次调用模型。仅返回完整JSX模块，不要Markdown。此实验特许这一个视觉模块含选择器与小测控件，以验证整卡质感上限，非建议全站把基础UI改成sandbox。`;
+await fs.writeFile(root+'/brief.md',brief);
+const round=createModelClient({base:process.env.MODEL_BASE_URL||'https://model-gateway.example.invalid/v1',key:loadApiKey().value,model:'volcengine/deepseek-v4.1-flash'});
+const messages=[{role:'system',content:REACT_SURFACE_PROMPT},{role:'user',content:[{type:'text',text:brief},{type:'image_url',image_url:{url:'data:image/jpeg;base64,'+(await fs.readFile('dist/vision-ab/greek-design.jpg')).toString('base64')}}]}];
+const prev=JSON.parse(await fs.readFile('artifacts/deepseek-greek-spec-20261104/result.json'));let result,source,compiled;const traces=[];
+for(let i=0;i<3;i++){const t=Date.now(),res=await round(messages,{temperature:.45,maxTokens:8500,signal:AbortSignal.timeout(180000)});let jsx=res.message.content.replace(/^```(?:jsx|javascript|js)?\s*/,'').replace(/\s*```$/,'');await fs.writeFile(root+'/module-'+i+'.jsx',jsx);source='<card schemaVersion="1" theme="editorial" visualStyle="frosted-glass" backgroundQuery="warm ivory paper"><sandbox id="greekVisual" brief="古典浮雕知识探索" height={270} initial={{selected:0,mode:"read",answer:null}} source={'+JSON.stringify(jsx)+'}/></card>';compiled=compileCard(source,{final:true,context:{...prev.spec.context,renderMode:'hybrid'}});traces.push({round:i,ms:Date.now()-t,usage:res.usage,model:res.model,diagnostics:compiled.diagnostics});if(compiled.complete)break;messages.push({role:'assistant',content:jsx},{role:'user',content:'修复这些编译问题，保留全部视觉与交互：'+JSON.stringify(compiled.diagnostics)});}
+await fs.writeFile(root+'/trace.json',JSON.stringify(traces,null,2));if(!compiled.complete)throw Error(JSON.stringify(compiled.diagnostics));
+result={id:'greek-material',title:'DeepSeek · 原图直传／材质与交互实验',prompt:brief,status:'succeeded',source,spec:compiled.spec,metadata:{card_spec:compiled.spec},traces};await fs.writeFile(root+'/result.json',JSON.stringify(result,null,2));await fs.writeFile(root+'/generated.cardspec',source);await fs.writeFile(dest+'/runs/greek-material.json',JSON.stringify(result));await build({entryPoints:['scripts/complex-live-cuj/viewer.jsx'],bundle:true,jsx:'automatic',format:'esm',platform:'browser',outfile:dest+'/viewer.js',define:{'process.env.NODE_ENV':'"production"'},loader:{'.woff2':'file','.ttf':'file','.woff':'file','.png':'file'},logLevel:'error'});await fs.copyFile('dist/mock-head/viewer.html',dest+'/viewer.html');console.log(JSON.stringify(traces));
+

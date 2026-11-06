@@ -18,7 +18,7 @@ export function validateExperiencePlan(value,{slot=false}={}){
 const examples={
  relations:'选中一个流程节点，突出直接关联边；下方只解释当前关系，不再复制一遍图中内容。',
  compare:'图片候选选择后加入同一对照区；用同维度事实比较，缺失数据标为未知。',
- quantities:'一个参数联动同一组图表和关键结果；保存方案时复制完整快照，再对比当前输入。',
+ quantities:'改变参数时同步更新图形、关键结果与一句因果解释；无需额外保存按钮。',
  process:'只突出当前步骤和下一步条件，推进后结果可见；允许回看已完成步骤。',
  observe:'图片用于识别对象，选中后显示短观察任务，再按该对象记录或追问。',
  explore:'先让用户预测或选择，再揭晓依据；不同选择必须产生不同且可见的反馈。',
@@ -69,13 +69,13 @@ export function experienceDiagnostics(spec,{plan,bindings={}}={}){
    }
   }catch{ /* Unknown async values do not justify a claim of broken feedback. */ }
  }
- const repeated=texts.filter(t=>{if(t.length<24)return false;if(seen.has(t))return true;seen.add(t);return false}),long=texts.filter(t=>t.length>120),visual=[...types].filter(t=>['image','chart','mindmap','flowchart','mermaid','table','calendar','map','heatmap'].includes(t))
+ const repeated=texts.filter(t=>{if(t.length<24)return false;if(seen.has(t))return true;seen.add(t);return false}),long=texts.filter(t=>t.length>120),visual=[...types].filter(t=>['task-board','image','chart','mindmap','flowchart','mermaid','table','calendar','map','heatmap'].includes(t))
  if(changed&&!resultFeedbackActions&&!effects)warn('experience_result_unchanged','操作改变了状态，但未观察到正文、结果或工具反馈变化；控件回显不等于任务完成。')
  const textCharacters=texts.join('').length,reading=plan?.pattern==='reading'
  if(!reading&&textCharacters>300)warn('experience_dense_text','初始可见说明较多；优先保留结论和当前选择的解释，将补充内容按需展开。')
  if(!reading&&long.length>=2)warn('experience_long_paragraphs','连续长段落应改为短观点、可比较事实或有结果的探索，不截断必要信息。')
  if(repeated.length)warn('experience_repetition','主体与说明存在重复文本，只保留一个信息所有者。')
- if(plan&&!['reading','utility'].includes(plan.pattern)&&!visual.length)warn('experience_missing_visual','体验骨架没有落实为内容视觉主体；背景和图标不计。')
+ if(!['reading','utility'].includes(plan?.pattern)&&!visual.length&&types.has('each'))warn('experience_missing_visual','体验骨架没有落实为内容视觉主体；背景和图标不计。')
  if(controls.length&&!changed&&!effects)warn('experience_feedback_unproven','初始事件样本未观察到状态变化或工具请求，需要检查实际操作反馈。')
  return {warnings,metrics:{textCharacters,longParagraphs:long.length,repeatedTexts:repeated.length,visualTypes:visual,controls:controls.length,changedActions:changed,resultFeedbackActions,toolEffects:effects,selectionComparisons,staticSelectionDetails},limitations:'初始状态与两个选项的有界无副作用探测，不等价于可见几何或业务正确性验收'}
 }

@@ -1,6 +1,7 @@
 // Curated, pinned upstream metadata. Run after install-opencli, never at runtime.
 import {readFile,writeFile} from 'node:fs/promises'
 import {OPENCLI_LEGACY} from '../shared/cardspec/opencli-legacy.mjs'
+import {normalizeIdentifierSchema} from '../shared/cardspec/input-contract.mjs'
 const root=new URL('../',import.meta.url)
 const manifest=JSON.parse(await readFile(new URL('.tools/opencli/1.8.6/node_modules/@jackwener/opencli/cli-manifest.json',root),'utf8'))
 const selection={wttr:['current','forecast'],'12306':['stations','trains','price','train'],douban:['search','subject','movie-hot','photos'],weread:['shelf','highlights','notes','search'],jd:['search','item','reviews','cart','add-cart'],spotify:['search','status','play','pause','next','prev','volume','queue'],yollomi:['remove-bg','restore','upscale','background'],ctrip:['search','hotel-search','hotel','flight','attraction'],dianping:['search','shop'],bilibili:['search','subtitle','summary'],mubu:['search','doc'],xiaohongshu:['search','note','drafts']}
@@ -43,7 +44,7 @@ for(const [site,names] of Object.entries(selection))for(const name of names){
   else if(properties[key].type==='string')Object.assign(properties[key],{maxLength:['image','note-id','bvid'].includes(arg.name)?2000:300,...(arg.required?{minLength:1}:{})})
   if(arg.choices?.length)properties[key].enum=arg.choices
   if(/(^id$|[-_]id$|^uid$)/.test(arg.name)&&['string','integer'].includes(properties[key].type)){
-   idTypes[key]=properties[key].type;properties[key].type=['string','integer'];properties[key].minLength=1;properties[key].maxLength=128
+   idTypes[key]=properties[key].type;properties[key]=normalizeIdentifierSchema(properties[key])
   }
   if(arg.required)required.push(key)
   mapping[key]=arg.name

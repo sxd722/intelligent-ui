@@ -24,7 +24,7 @@
 
 ## CardSpec 路线
 
-先按 [快速生成与调试](cardspec-generation.md) 查 `shared/cardspec/capability-index.mjs`，只读取命中组件/表达式的 `registry.mjs`、`contracts.mjs`。需要语义解释时再查 `docs/CARDSPEC-JAVASCRIPT-UPGRADE.md`、`docs/CARDSPEC.md` 的相关章节；工具绑定查 `docs/tool-bindings.md`，复杂 Web 查 `docs/CARDSPEC-REACT-SANDBOX.md`。不要把所有 prompt 拼成超长上下文。
+先按 [快速生成与调试](cardspec-generation.md) 查 `shared/cardspec/capability-index.mjs`，只读取命中组件/表达式的 `registry.mjs`、`contracts.mjs`。需要语义时再查 `docs/CARDSPEC-JAVASCRIPT-UPGRADE.md`、`docs/CARDSPEC.md`；工具绑定查 `docs/tool-bindings.md`，复杂 Web 读 [内联沙箱](sandbox-authoring.md) 及其源码入口。旧 `docs/CARDSPEC-REACT-SANDBOX.md` 是异步第一版历史记录，不用于当前 authoring。不要拼接全部 prompt。
 
 五例功能对照：`shared/cardspec/baselines/cards.mjs`、`docs/CARDSPEC-HANDCRAFTED-BASELINES.md`。这些是参考实现，不代表所有最新生成结果均通过 H5 等价验收。
 
@@ -44,3 +44,5 @@ HTML 轨道把最后参数替换为 `trae-html`。案例目录必须含 `tests.j
 新 ID 不会被现有 `agentCase()` 自动接受。新联网场景优先在主项目按 H5 路线接入；若要进入队列，需单独修改 `shared/rsi-agent.mjs` 的案例来源及相应 harness。技能安装不等于完成注册、派发或运行。不要为安装 skill 执行 `rsi-agent init`，它会重写任务文件。
 
 本 skill 的主副本在项目 `.trae/skills/interactive-card-baseline`。运行 `node scripts/sync-card-baseline-skill.mjs` 仅同步到旧专用 Trae 工作区；`--workspace round2` 同步到新一轮工作区，`--check` 只检查。不会修改 TASK/AGENTS、队列或业务文件，也不会让已暂停会话自动重读或续跑。历史 round1 副本保留以便复现实验。
+
+2026-10-26 八例包见 [任务索引](eight-baselines.md) 与 assets/EIGHT-CASES-TASK.md。同步只更新 skill；若现有 TASK/宿主只允许 H5，不因新增 CardSpec 指导而更换轨道。新工作区使用同一 skill 目录及明确的 AUTHOR-API，不执行 init 来覆盖旧批次。

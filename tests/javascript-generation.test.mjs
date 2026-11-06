@@ -98,7 +98,7 @@ test('JS generation replaces the old grammar, rather than appending contradictor
  assert.match(js,/纯JavaScript/);assert.doesNotMatch(js,/不能调用JS方法或箭头函数|无展开语法|不能调用.includes/)
  assert.match(legacy,/不能调用JS方法或箭头函数/)
  assert.ok(js.length<legacy.length*1.15,`${js.length}/${legacy.length}`)
- assert.deepEqual(generationSettings({expressionDialect:'evil',modelProfile:'arbitrary'}),{expressionDialect:'legacy',modelProfile:'default'})
+ assert.deepEqual(generationSettings({expressionDialect:'evil',modelProfile:'arbitrary'}),{expressionDialect:'legacy',modelProfile:'default',buildMode:'quick',designMode:'host'})
 })
 test('initial/slot generation keeps dialect and model settings, with one model call on valid output',async()=>{
  for(const target of ['page','slot:detail']){

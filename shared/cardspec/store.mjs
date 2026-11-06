@@ -4,6 +4,7 @@ import { validateToolInput } from './tools.mjs'
 import {validateBusinessIds} from './dataflow.mjs'
 import {liveDatasetContext} from './prefetch.mjs'
 import {logicJson} from './logic-contract.mjs'
+import {compositionKey} from './task-composition.mjs'
 
 const scopeCaches=new WeakMap()
 
@@ -21,10 +22,23 @@ export function makeScope(spec, store, extra = {}) {
   }
   scopeCaches.set(scope,cache)
   for(const [id,binding] of Object.entries(spec.bindings||{}))Object.defineProperty(scope.bindings,id,{enumerable:true,get(){
-    if(extra.bindings?.[id])return extra.bindings[id]
+    if(extra.bindings?.[id]){
+      const record=extra.bindings[id]
+      return {...record,tool:binding.tool,bindingId:id,
+        get input(){try{return record.valueInputKey?JSON.parse(record.valueInputKey):evaluate(binding.input,scope,budget)}catch{return null}},
+        get current(){try{
+          if(!record.valueInputKey)return true
+          const declared=compositionKey(evaluate(binding.input,scope,budget))
+          // A user invocation may legitimately override declared defaults. Track
+          // the declaration at commit and the newest request separately; comparing
+          // its result to defaults rejects valid detail/search results forever.
+          if(record.definitionKey)return compositionKey(JSON.parse(record.definitionKey))===declared&&(!record.inputKey||compositionKey(JSON.parse(record.inputKey))===record.valueInputKey)
+          return record.valueInputKey===declared
+        }catch{return false}}}
+    }
     const key=`bindings.${id}`;if(evaluating.has(key))throw new Error(`cyclic binding ${key}`)
     evaluating.add(key)
-    try{return computed(key,()=>({value:evaluate(binding.initial,scope,budget),status:'idle',error:'',updatedAt:null}))}finally{evaluating.delete(key)}
+    try{return computed(key,()=>({value:evaluate(binding.initial,scope,budget),status:'idle',error:'',updatedAt:null,tool:binding.tool,bindingId:id,input:null,current:true}))}finally{evaluating.delete(key)}
   }})
   for (const [name, ast] of Object.entries(spec.data || {})) {
     Object.defineProperty(scope.data, name, { enumerable: true, get() {

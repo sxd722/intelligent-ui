@@ -4,7 +4,21 @@ import {EventEmitter} from 'node:events'
 import {TOOLS,selectToolIds,toolReference} from '../shared/cardspec/tools.mjs'
 import {toolDiscoveryReference,expandedToolIds,requestedToolContracts} from '../shared/cardspec/tool-discovery.mjs'
 import {handleCardSpec} from '../server/cardspec/handler.mjs'
+import {createGenerationTools} from '../server/cardspec/generation-tools.mjs'
 const catalog=Object.values(TOOLS).map(t=>({...t,available:!t.unsupportedReason}))
+test('compact discovery and metadata retain connection blockers without granting execution',async()=>{
+ const reason='请打开并选中连接测试页，然后重新绑定'
+ const c=catalog.map(t=>({...t,...(t.site==='dongchedi'?{available:false,reason,connection:'browser-required'}:{})}))
+ const text=toolDiscoveryReference(c,'懂车帝',{compact:true})
+ assert.ok(text.includes('原因:'+reason));assert.ok(text.includes('不推断网站离线'))
+ let calls=0;const ext=createGenerationTools({catalog:c,invoke:async()=>calls++})
+ const found=await ext.execute('cli_discover',{query:'懂车帝'})
+ assert.ok(found.tools.some(t=>t.id==='opencli.dongchedi.search'&&!t.available&&t.reason===reason))
+ const detail=await ext.execute('cli_describe',{id:'opencli.dongchedi.search'})
+ assert.equal(detail.available,false);assert.equal(detail.reason,reason)
+ await assert.rejects(ext.execute('cli_read',{id:detail.id,input:{keyword:'尊界'}}),/重新绑定/)
+ assert.equal(calls,0)
+})
 
 test('every supported command is discoverable, unavailable tools are distinguished, schemas stay bounded',()=>{
  const c=catalog.map(t=>({...t,...(t.site==='spotify'?{available:false,reason:'需要 OAuth 授权'}:{})}))

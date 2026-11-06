@@ -1,3 +1,4 @@
+import {createDecisionSession} from './decision-session.mjs'
 import {followupEntries} from '../../shared/cardspec/followups.mjs'
 import {canonicalInput,prefetchedInvocation} from '../../shared/cardspec/prefetch.mjs'
 import { normalizeCardSize } from '../../shared/cardspec/generation-layout.mjs'
@@ -8,7 +9,9 @@ import { TOOLS,validateToolInput,validateJson } from '../../shared/cardspec/tool
 import { toolErrorInfo } from '../../shared/cardspec/tool-errors.mjs'
 import { entityKey, resultContext, detailRequests } from '../../shared/cardspec/result-view.mjs'
 import {bindingDependencies,validateBusinessIds} from '../../shared/cardspec/dataflow.mjs'
+import {prioritizedBindings,activeBindings} from '../../shared/cardspec/binding-schedule.mjs'
 import {evidenceRequests,boundedEvidence} from '../../shared/cardspec/tool-evidence.mjs'
+import {auditDetailEvidence} from '../../shared/cardspec/task-gates.mjs'
 export async function toolTransport(payload,signal,onProgress){
   const cloud=typeof import.meta.env!=='undefined'&&(import.meta.env.VITE_CLOUD_NO_TOOLS==='1'||import.meta.env.VITE_CLOUD_DEMO_TOOLS==='1')
   const endpoint=cloud&&payload.tool==='glm.generate'&&payload.target?.startsWith('sandbox:')?'/api/sandbox/generate':'/api/tools/invoke'
@@ -65,6 +68,7 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
   const storageEpoch=conversationEpoch(storage)
   let pages=[newPage(spec)],index=0,version=0,epoch=0,enabled=true,visible=false,complete=false,disposed=false,glm=null,persistTimer
   const listeners=new Set(),running=new Map()
+  const regionActivity=new WeakMap()
   let notice='',storageError='',favorites={},media={}
   if(storage&&persistenceKey)try{
     const saved=JSON.parse(storage.getItem(persistenceKey)||'null')
@@ -148,7 +152,7 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
     const controller=new AbortController(),requestId=id(),activation=epoch
     const task={controller,signature,dependencyKey:key(dependencies),target,promise:null,cause,binding:effect.binding,write};running.set(requestKey,task)
     if(['glm.generate','dataset.analyze'].includes(tool))glm=requestKey
-    const b=record(page,effect.binding);Object.assign(b,{errorCount:cause==='user'||b.inputKey!==signature?0:b.errorCount||0,status:'loading',progress:'',error:'',errorInfo:null,inputKey:signature,target,paused:false,writeSubmitted:false,blockedRetry:false});page.error='';emit()
+    const b=record(page,effect.binding),revalidate=!!b.updatedAt||b.status==='error';Object.assign(b,{errorCount:cause==='user'||b.inputKey!==signature?0:b.errorCount||0,status:'loading',progress:'',error:'',errorInfo:null,inputKey:signature,target,paused:false,writeSubmitted:false,blockedRetry:false});page.error='';emit()
     const retryExtra=Object.fromEntries(Object.entries(extra).filter(([k])=>!['state','next','data','derived','context','bindings','effects'].includes(k)))
     b.retry={binding:effect.binding,target,input:clone(input),inputExpression:effect.inputExpression,onSuccess:effect.onSuccess,onError:effect.onError,extra:clone(retryExtra)}
     const definitionKey=key(inputFor(page,effect.binding,extra))
@@ -162,10 +166,13 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
     const release=()=>{if(running.get(requestKey)===task){running.delete(requestKey);if(glm===requestKey)glm=null}}
     task.promise=(async()=>{
       try{
-        const payload={tool,input,target,requestId,pageId:page.id,sessionId:spec.cardId,cause,view:{designPreference:page.spec.context?.designPreference,debugGeneration:page.spec.context?.debugGeneration,expressionDialect:page.spec.context?.expressionDialect,modelProfile:page.spec.context?.modelProfile,generationProfile:page.spec.context?.generationProfile,renderMode:getRenderMode(),generationMode:page.spec.context?.generationMode,cardSize:normalizeCardSize(getCardSize()),goal:spec.context?.userGoal||'',summary:(page.spec.intro||page.spec.children.filter(n=>n.type==='title').flatMap(n=>n.children.filter(c=>c.type==='run'&&c.value.type==='literal').map(c=>c.value.value)).join(' ')).slice(0,1000),width:page.viewState.width||432,height:page.viewState.height||432}}
+        const payload={tool,input,target,requestId,pageId:page.id,sessionId:spec.cardId,cause,view:{designPreference:page.spec.context?.designPreference,buildMode:page.spec.context?.buildMode,extendedGeneration:page.spec.context?.extendedGeneration,debugGeneration:page.spec.context?.debugGeneration,expressionDialect:page.spec.context?.expressionDialect,modelProfile:page.spec.context?.modelProfile,generationProfile:page.spec.context?.generationProfile,renderMode:getRenderMode(),generationMode:page.spec.context?.generationMode,cardSize:normalizeCardSize(getCardSize()),goal:spec.context?.userGoal||'',summary:(page.spec.intro||page.spec.children.filter(n=>n.type==='title').flatMap(n=>n.children.filter(c=>c.type==='run'&&c.value.type==='literal').map(c=>c.value.value)).join(' ')).slice(0,1000),width:page.viewState.width||432,height:page.viewState.height||432}}
         // A generated page/slot is the answer to this explicit user action,
         // not a new entry screen asking the user to request the answer again.
         if(tool==='glm.generate'&&(target==='page'||target.startsWith('slot:')))payload.view.taskPhase='result'
+        // Initial loads/details can reuse a fresh host result. Polls and explicit
+        // refresh/retry fetch anew without discarding the last successful value.
+        if(!write&&tool!=='glm.generate'&&revalidate)payload.cache='reload'
         if(write){
           payload.confirmationToken=await authorizeWrite(payload,controller.signal)
           if(!valid())return
@@ -199,7 +206,7 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
         const previous=clone(b),responseEffects=[],responseEvent={result:result.kind==='json'?result.value:result.spec,input,error:''}
         if(result.kind==='json')validateJson(result.value,tool==='glm.generate'?input.schema:TOOLS[tool].outputSchema)
         else if(!(result.kind==='slot'&&target.startsWith('slot:')||result.kind==='page'&&target==='page'))throw new Error('工具结果与目标不匹配')
-        Object.assign(b,{...(result.kind==='json'?{value:clone(result.value),valueInputKey:canonicalInput(input)}:{}),status:'success',error:'',errorCount:0,updatedAt:new Date(now()).toISOString(),definitionKey,dependencyKey:key(dependencies),version:(b.version||0)+1})
+        Object.assign(b,{...(result.kind==='json'?{value:clone(result.value),valueInputKey:canonicalInput(input)}:{}),status:'success',error:'',errorCount:0,cache:result.cache,updatedAt:result.cache?.fetchedAt||new Date(now()).toISOString(),definitionKey,dependencyKey:key(dependencies),version:(b.version||0)+1})
         try{if(effect.onSuccess)executeAction(page.spec,page.store,effect.onSuccess,{bindings:page.bindings,event:responseEvent,effects:responseEffects})}
         catch(e){Object.assign(b,previous,{valueInputKey:previous.valueInputKey});throw e}
         if(result.kind==='json'){
@@ -222,17 +229,23 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
         emit()
       }finally{
         if(running.get(requestKey)===task){running.delete(requestKey);if(glm===requestKey)glm=null;if(b.status==='loading'){b.status='cancelled';b.error='输入或页面已改变，结果未应用'}emit()}
+        if(cause==='auto'&&activation===epoch&&current()===page)queueMicrotask(tick)
       }
     })()
     return task.promise
   }
   function tick(){
     if(!enabled||!visible||!complete||disposed||glm)return
-    const page=current()
-    for(const [binding,def] of Object.entries(page.spec.bindings||{})){
+    const page=current(),active=activeBindings(page.spec,scope(page),regionActivity.get(page))
+    for(const [binding,def] of prioritizedBindings(page.spec)){
       if(['glm.generate','dataset.analyze'].includes(def.tool)||TOOLS[def.tool]?.readOnly===false||def.load!=='visible')continue
-      let signature,dependencyKey
-      try{signature=key(inputFor(page,binding));dependencyKey=key(dependencySnapshot(page,binding))}catch{continue}
+      let signature,dependencyKey,ready=active.has(binding)
+      try{const input=inputFor(page,binding);validateToolInput(def.tool,input);signature=key(input);dependencyKey=key(dependencySnapshot(page,binding))}catch{ready=false}
+      if(!ready){
+        const requestKey=`${page.id}:${binding}`,pending=running.get(requestKey)
+        if(pending?.cause==='auto'){pending.controller.abort();running.delete(requestKey);const previous=record(page,binding);previous.status=previous.updatedAt?'success':'idle';previous.error='';emit()}
+        continue
+      }
       const b=record(page,binding),r=running.get(`${page.id}:${binding}`)
       if(r){if(r.signature!==signature||r.dependencyKey!==dependencyKey)void invoke({binding},{cause:'auto'});continue}
       const changed=b.inputKey!==signature||(b.status==='success'&&b.dependencyKey!==dependencyKey),age=b.updatedAt?now()-Date.parse(b.updatedAt):Infinity
@@ -240,22 +253,47 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
       if(b.paused&&!changed)continue
       // Errors retry on an explicit click or on the declared polling cadence.
       if(changed||b.status==='idle'||b.status==='cancelled'||(def.refresh&&age>=def.refresh*1000&&now()-(b.attemptAt||0)>=def.refresh*1000)){
+        if([...running.values()].filter(r=>r.cause==='auto').length>=2)continue
         b.attemptAt=now();void invoke({binding},{cause:'auto'})
       }
     }
   }
   function push(page){cancelAll();pages=pages.slice(0,index+1);pages.push(page);index=pages.length-1;if(pages.length>20){pages.shift();index--;notice='已保留最近 20 页'}emit()}
+  async function readTaskDetails(binding,row){
+    const page=current(),b=page.bindings[binding],tool=page.spec.bindings[binding]?.tool
+    if(disposed||!enabled||!visible||!complete||b?.status!=='success'||b.definitionKey!==key(inputFor(page,binding)))throw Error('TASK_SOURCE_NOT_READY')
+    // Only rows still belonging to this exact binding result may drive details.
+    const actual=b.value?.items?.find(r=>key(r)===key(row));if(!actual)throw Error('TASK_STALE_ENTITY')
+    const request=detailRequests(tool,actual,inputFor(page,binding)).find(r=>r.kind==='facts')
+    if(!request||TOOLS[request.tool]?.readOnly!==true)throw Error('TASK_DETAIL_UNAVAILABLE')
+    validateToolInput(request.tool,request.input)
+    const requestKey='task-detail:'+binding,signature=key(request),old=running.get(requestKey)
+    if(old?.signature===signature)return old.promise
+    old?.controller.abort()
+    const controller=new AbortController(),activation=epoch,version=b.version,definition=b.definitionKey
+    const task={controller,signature,cause:'user',binding,promise:null};running.set(requestKey,task)
+    task.promise=(async()=>{
+      try{
+        const result=await transport({...request,target:'binding',requestId:id(),pageId:page.id,sessionId:spec.cardId,cause:'user'},controller.signal)
+        if(disposed||controller.signal.aborted||epoch!==activation||current()!==page||running.get(requestKey)!==task||page.bindings[binding]?.version!==version||key(inputFor(page,binding))!==definition)throw Error('TASK_STALE_DETAIL')
+        if(result.kind!=='json')throw Error('TASK_DETAIL_SHAPE')
+        validateJson(result.value,TOOLS[request.tool].outputSchema)
+        return {value:result.value,request,audit:auditDetailEvidence({row:actual,request,expected:request,details:result.value}),sourceVersion:version}
+      }finally{if(running.get(requestKey)===task)running.delete(requestKey)}
+    })()
+    return task.promise
+  }
   function openResults(binding){
     const page=current(),b=page.bindings[binding],tool=page.spec.bindings[binding]?.tool
     if(!tool||!b?.updatedAt||!Array.isArray(b.value?.items))return
     const result=newPage({...page.spec,cardId:id(),bindings:{},actions:{},state:{},derived:{},data:{},children:[]},page.resources)
-    result.resultView={tool,value:clone(b.value)};push(result)
+    result.resultView={tool,input:clone(inputFor(page,binding)),value:clone(b.value)};push(result)
   }
   function openDetail(row){const page=current();if(!page.resultView)return;const next=newPage({...page.spec,cardId:id()},page.resources);next.resultView={...clone(page.resultView),row:clone(row)};push(next);void loadDetails()}
   async function loadDetails(){
     const page=current(),view=page.resultView
     if(!enabled||!visible||!complete||!view?.row||view.loading||glm)return
-    const requests=detailRequests(view.tool,view.row);if(!requests.length)return
+    const requests=detailRequests(view.tool,view.row,view.input);if(!requests.length)return
     const controller=new AbortController(),activation=epoch,requestKey='host-detail'
     running.set(requestKey,{controller,cause:'user'});view.loading=true;view.error='';emit()
     try{
@@ -279,7 +317,7 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
     glm=requestKey;running.set(requestKey,{controller,cause:'user'});page.error='';emit()
     try{
       const input={prompt:`根据实际工具结果重新组织内容，呈现方式：${['list','gallery','table','editorial'].includes(layout)?layout:'list'}。仅使用给定样本事实，注明样本覆盖范围，不编造缺失数据，不重复查询失败来源。直接展示结果。`,context:resultContext(tool,b.value)}
-      const result=await transport({tool:'glm.generate',input,target:'page',requestId:id(),pageId:page.id,sessionId:spec.cardId,cause:'user',view:{designPreference:page.spec.context?.designPreference,debugGeneration:page.spec.context?.debugGeneration,expressionDialect:page.spec.context?.expressionDialect,modelProfile:page.spec.context?.modelProfile,generationProfile:page.spec.context?.generationProfile,renderMode:getRenderMode(),generationMode:page.spec.context?.generationMode,cardSize:normalizeCardSize(getCardSize()),goal:spec.context?.userGoal||page.spec.intro||'',width:page.viewState.width||432,height:page.viewState.height||432}},controller.signal)
+      const result=await transport({tool:'glm.generate',input,target:'page',requestId:id(),pageId:page.id,sessionId:spec.cardId,cause:'user',view:{designPreference:page.spec.context?.designPreference,buildMode:page.spec.context?.buildMode,extendedGeneration:page.spec.context?.extendedGeneration,debugGeneration:page.spec.context?.debugGeneration,expressionDialect:page.spec.context?.expressionDialect,modelProfile:page.spec.context?.modelProfile,generationProfile:page.spec.context?.generationProfile,renderMode:getRenderMode(),generationMode:page.spec.context?.generationMode,cardSize:normalizeCardSize(getCardSize()),goal:spec.context?.userGoal||page.spec.intro||'',width:page.viewState.width||432,height:page.viewState.height||432}},controller.signal)
       if(disposed||controller.signal.aborted||epoch!==activation||current()!==page||stamp!==key({input:b.inputKey,value:b.value}))return
       if(result.kind!=='page')throw new Error('生成结果不是页面')
       push(newPage(result.spec,result.resources))
@@ -296,7 +334,7 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
     if(JSON.stringify(context).length>14000){page.error='当前选择过多，请缩小范围后再生成';emit();return}
     glm=requestKey;running.set(requestKey,{controller,cause:'user'});page.error='';emit()
     try{
-      const result=await transport({tool:'glm.generate',input:{prompt:intent,context},target:'page',requestId:id(),pageId:page.id,sessionId:spec.cardId,cause:'user',view:{designPreference:page.spec.context?.designPreference,debugGeneration:page.spec.context?.debugGeneration,expressionDialect:page.spec.context?.expressionDialect,modelProfile:page.spec.context?.modelProfile,generationProfile:page.spec.context?.generationProfile,renderMode:getRenderMode(),goal:spec.context?.userGoal,summary:String(page.spec.intro||'').slice(0,1000),taskPhase:'result',cardSize:normalizeCardSize(getCardSize()),generationMode:'direct'}},controller.signal)
+      const result=await transport({tool:'glm.generate',input:{prompt:intent,context},target:'page',requestId:id(),pageId:page.id,sessionId:spec.cardId,cause:'user',view:{designPreference:page.spec.context?.designPreference,buildMode:page.spec.context?.buildMode,extendedGeneration:page.spec.context?.extendedGeneration,debugGeneration:page.spec.context?.debugGeneration,expressionDialect:page.spec.context?.expressionDialect,modelProfile:page.spec.context?.modelProfile,generationProfile:page.spec.context?.generationProfile,renderMode:getRenderMode(),goal:spec.context?.userGoal,summary:String(page.spec.intro||'').slice(0,1000),taskPhase:'result',cardSize:normalizeCardSize(getCardSize()),generationMode:'direct'}},controller.signal)
       if(disposed||controller.signal.aborted||epoch!==activation||current()!==page)return
       if(stamp!==key(inputs())){page.error='输入已改变，请按当前选择重新生成';emit();return}
       if(result.kind!=='page')throw Error('生成结果不是页面')
@@ -304,16 +342,19 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
     }catch(e){if(!controller.signal.aborted){page.error=e.message;emit()}}
     finally{if(running.get(requestKey)?.controller===controller){running.delete(requestKey);glm=null;emit()}}
   }
+  const decision=createDecisionSession({current,inputFor,ready:()=>enabled&&visible&&complete&&!disposed,transport,running,id,emit});
   return {
-    sourceLeases,assertSourcesCurrent,
-    followup,openResults,openDetail,adaptResults,loadDetails,
+    ...decision,sourceLeases,assertSourcesCurrent,
+    followup,openResults,openDetail,adaptResults,loadDetails,readTaskDetails,
     resultMedia(tool,row){const image=media[entityKey(tool,row)];return image?{...row,...image,title:row.title||row.name||image.title}:row},
     setResultView(patch){current().viewState={...current().viewState,...patch};emit()},
     isFavorite(tool,row){return !!favorites[entityKey(tool,row)]},
     toggleFavorite(tool,row){const k=entityKey(tool,row);if(favorites[k])delete favorites[k];else if(Object.keys(favorites).length<100)favorites[k]={title:String(row.title||row.name||row.id||'条目')};else notice='最多保存 100 个收藏';emit()},
     current,scope,fire,invoke,tick,get complete(){return complete},subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn)},snapshot:()=>version,
     get pages(){return pages},get index(){return index},get busy(){return !!glm},get notice(){return storageError||notice},
-    setActivity(options){const nextVisible=options.visible??visible,nextEnabled=options.enabled??enabled,wasComplete=complete;complete=options.complete??complete;if((visible&&!nextVisible)||(enabled&&!nextEnabled))cancelAll();visible=nextVisible;enabled=nextEnabled;if(wasComplete!==complete)emit();tick()},
+    setActivity(options){const nextVisible=options.visible??visible,nextEnabled=options.enabled??enabled,wasComplete=complete,activityChanged=nextVisible!==visible||nextEnabled!==enabled;complete=options.complete??complete;if((visible&&!nextVisible)||(enabled&&!nextEnabled))cancelAll();visible=nextVisible;enabled=nextEnabled;if(wasComplete!==complete||activityChanged)emit();tick()},
+    get active(){return enabled&&visible&&complete&&!disposed},
+    setRegionVisibility(id,open,page=current()){const values=regionActivity.get(page)||{};if(values[id]===open)return;values[id]=open;regionActivity.set(page,values);if(page===current())tick()},
     updateRoot(next,resources){if(next.cardId!==spec.cardId)return;const p=pages.find(p=>p.id===next.cardId);if(p){p.spec=next;p.resources=resources||p.resources;makeScope(p.spec,p.store,{bindings:p.bindings});seedPrefetched(p);emit()}},
     navigate(offset){const next=index+offset;if(next<0||next>=pages.length)return;cancelAll();index=next;emit();tick()},
     cancel(){cancelAll();for(const b of Object.values(current().bindings))if(b.status==='cancelled')b.paused=true;emit()},saveView(view){current().viewState={...current().viewState,...view};persist()},save:persist,

@@ -1,0 +1,51 @@
+/* Folio: planar editorial surfaces; behavior is shared with native controls. */
+.cs-stage[data-design=folio]{--folio-gold:#b69a64;--folio-sage:#688779;--folio-terracotta:#b8755f;--cs-motion-duration:240ms;--cs-field-mask:#e9e3d780;--cs-border:transparent}
+.cs-stage[data-design=folio] .cs-card{background:#f6f2e9!important;box-shadow:0 8px 28px #24364b12!important;border:0!important}
+.cs-stage[data-design=folio] .cs-card:before,.cs-stage[data-design=folio] .cs-card:after{opacity:0;pointer-events:none}
+.cs-stage[data-design=folio] :is(.cs-title,.cs-caption,.cs-text){text-shadow:none!important}
+.cs-stage[data-design=folio] :is(.cs-composition-heading,.cs-folio-banner){padding:4px 2px 8px;border-bottom:1px solid #b69a6440;background:transparent;color:#24364b}
+.cs-stage[data-design=folio] .cs-title{font-family:var(--font-title);font-weight:500;letter-spacing:.015em}
+.cs-stage[data-design=folio] .cs-caption{color:#596676;font-size:12px}
+.cs-stage[data-design=folio] :is(.cs-button,.cs-chip){min-height:44px;box-shadow:none!important;border:0!important;transition:background-color 180ms,color 180ms,transform 180ms}
+.cs-stage[data-design=folio] :is(button,input,select,textarea):focus-visible{outline:2px solid #688779;outline-offset:3px}
+.cs-stage[data-design=folio] :is(button,[role=button]):active{transform:translateY(1px)}
+.cs-stage[data-design=folio] .cs-button[data-variant=primary]{background:#24364b;color:#fffaf1}
+.cs-stage[data-design=folio] .cs-button[data-variant=secondary]{background:#e8e3d8;color:#24364b}
+.cs-stage[data-design=folio] :is(.cs-box,.cs-stack,.cs-row,.cs-region,.cs-list-item){box-shadow:none;background-color:transparent;border-color:transparent}
+.cs-stage[data-design=folio] .cs-divider{border-color:#b69a6440;background:#b69a6440}
+.cs-stage[data-design=folio] :is(.cs-input,.cs-select,.cs-textarea){background:#ebe5d980;box-shadow:none;border:0}
+.cs-stage[data-design=folio] .cs-list-item{padding:8px!important;border-bottom:1px solid #b69a6425!important}
+.cs-stage[data-design=folio] :is(.cs-chart,.cs-slider,.cs-stats){background:transparent!important;box-shadow:none!important}
+/* Icon selector: no overflow track, no duplicate thumb; exact same event contract. */
+[data-choice-variant=icons] .cs-segmented{display:grid!important;grid-template-columns:repeat(var(--choice-columns),minmax(0,1fr));gap:4px;padding:2px;background:transparent;overflow:visible;border:0;box-shadow:none}
+[data-choice-variant=icons] .cs-segmented>button{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;min-width:0!important;min-height:52px;white-space:normal;overflow-wrap:anywhere;padding:5px 2px!important;border:0;border-radius:10px;background:transparent;color:var(--cs-ink);font-size:12px;line-height:1.15;box-shadow:none;transition:background-color 180ms,color 180ms,transform 180ms}
+[data-choice-variant=icons] .cs-segmented>button svg{width:21px;height:21px;background:transparent!important;flex:none}
+[data-choice-variant=icons] .cs-segmented>button[aria-checked=true]{background:var(--cs-accent);color:var(--cs-selected-ink,#fff)}
+[data-choice-variant=icons] .cs-segmented>button:disabled{opacity:.45;cursor:not-allowed}
+[data-choice-variant=icons] .cs-segmented>button:focus-visible{outline:2px solid var(--cs-accent);outline-offset:2px}
+@media(hover:hover){[data-choice-variant=icons] .cs-segmented>button:not([aria-checked=true]):not(:disabled):hover{background:var(--cs-field-mask,#24364b0c)}}
+.cs-detail-stage{min-width:0;padding:12px;border-radius:12px;background:var(--cs-surface);color:var(--cs-ink)}
+.cs-detail-heading{display:flex;align-items:center;gap:12px;min-width:0}.cs-detail-heading>div:first-child{flex:1;min-width:0}
+.cs-detail-heading small{font-size:11px;letter-spacing:.08em;color:var(--cs-muted)}
+.cs-detail-heading h3{font:500 19px/1.25 var(--font-title);margin:2px 0 5px}.cs-detail-heading p{font-size:13px;line-height:1.5;margin:0;overflow-wrap:anywhere}
+.cs-detail-emblem{width:64px;height:64px;flex:none;display:grid;place-items:center;border-radius:50%;background:#b69a6418;color:var(--cs-accent)}
+.cs-detail-emblem svg{width:34px;height:34px;background:transparent!important}
+.cs-detail-content{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.cs-stage[data-design=folio] .cs-detail-stage{background:#ebe5d966;box-shadow:none;border:0}
+.cs-stage[data-design=folio] .cs-composition-actions{background:transparent;border-top:1px solid #b69a6433;padding-top:6px}
+.cs-stage[data-design=folio] .cs-mock-composition{--mock-bg:#f6f2e9;--mock-ink:#24364b;gap:6px}
+.cs-mock-composition[data-recipe=folio]>.cs-mock-head{min-height:0;height:clamp(52px,20cqw,90px);flex:none;padding:0;opacity:1}
+.cs-mock-composition[data-recipe=folio] .cs-mock-head-shade{background:linear-gradient(0deg,#f6f2e920,transparent)}
+.cs-mock-composition[data-recipe=folio] .cs-folio-banner{flex:none;text-align:center;padding:2px 0 6px}
+.cs-mock-composition[data-recipe=folio] .cs-folio-banner .cs-title{font-size:clamp(18px,5cqw,22px);margin:0}
+.cs-mock-composition[data-recipe=folio] .cs-mock-body{display:flex;flex-direction:column;gap:6px}
+@container(max-width:330px){.cs-detail-stage{padding:9px}.cs-detail-heading{gap:7px}.cs-detail-emblem{width:44px;height:44px}.cs-detail-emblem svg{width:26px;height:26px}[data-choice-variant=icons] .cs-segmented>button{min-height:46px;font-size:11px;gap:2px}}
+@media(prefers-reduced-motion:reduce){.cs-stage[data-design=folio] *,[data-choice-variant=icons] *{animation:none!important;transition:none!important}}
+.cs-stage[data-motion-level=off] [data-choice-variant=icons] *{animation:none!important;transition:none!important}
+/* The accessible group name stays available without duplicating a visible heading. */
+[data-choice-variant=icons]>.cs-control-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.cs-stage[data-design=folio] [data-choice-variant=icons] .cs-segmented{background:transparent!important;padding:0!important}
+.cs-stage[data-design=folio] .cs-detail-content{margin-top:5px;gap:4px}
+.cs-stage[data-design=folio] .cs-detail-stage .cs-button{padding:4px 9px!important;min-height:44px!important;font-size:13px}
+@container(max-width:330px){.cs-mock-composition[data-recipe=folio]>.cs-mock-head{height:40px}.cs-stage[data-design=folio] .cs-detail-heading p{font-size:12px;line-height:1.35}.cs-stage[data-design=folio] .cs-detail-heading h3{font-size:17px}.cs-stage[data-design=folio] .cs-detail-heading small{font-size:10px}}
+.cs-stage[data-design=folio] [data-choice-variant=icons] .cs-segmented>button{min-height:48px!important}

@@ -1,0 +1,1 @@
+import {chromium} from '@playwright/test';const b=await chromium.launch({channel:'chrome',headless:true});const p=await b.newPage();p.on('console',m=>{if(m.type()==='error')console.log(m.text())});await p.goto('http://127.0.0.1:8787/list-columns/viewer.html?id=current',{waitUntil:'domcontentloaded'});await p.waitForTimeout(1000);await b.close();

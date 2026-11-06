@@ -7,8 +7,14 @@ const layout = { space: 'tight|normal|loose', align: 'start|center|end|stretch|b
 const control = { disabled: 'boolean', label: 'string', onPress: 'action', args: 'json' }
 const reg = (props = {}, children = 'flow') => ({ props: { ...common, ...props }, children })
 export const REGISTRY = {
+  "detail-stage":reg({title:"string",description:"string",eyebrow:"string",icon:"string"}),
+  'task-board':reg({items:'array',view:'object',label:'string',layout:'auto|map|decision|detail|evidence|compare|plan',skin:'auto|signal|editorial|studio|poster',selectedId:'scalar',onSelect:'action',onRefresh:'action',onDateChange:'action',onApply:'action',applyLabel:'string',args:'json'},'none'),
+  'tool-view':reg({binding:'id',bindings:'object',tool:'string',input:'object',task:'object',style:'auto|default|pearl|atlas|field|persona|rebel|parchment|business|academy',format:'2x2|2x4|4x4|miniapp',label:'string',onSelect:'action',onApply:'action',args:'json'},'none'),
   experience:reg({preset:'explore|compare|planner|simulator',label:'string',items:'array',fields:'array',facets:'array',groupBy:'string',titleKey:'string',visual:'list|map',multiple:'boolean',selectedIds:'array',maxSelected:'number',partial:'boolean',onSelect:'action',onApply:'action',applyLabel:'string',args:'json'}),
-  map:reg({label:'string',items:'array',selectedId:'scalar',onSelect:'action',args:'json'},'none'),
+  map:reg({label:'string',items:'array',selectedId:'scalar',selectedIds:'array',onSelect:'action',args:'json'},'none'),
+  settings:reg({label:'string'}),
+  'choice-grid':reg({label:'string'}),
+  'choice-item':reg({...control,selected:'boolean',variant:'primary|secondary|quiet'}),
   sandbox:reg({brief:'string',source:'string',input:'object',initial:'object',actions:'object',height:'number',label:'string'}),
   collection:reg({items:"array",label:"string",titleKey:"string",presentation:"compact|gallery|timeline|poster|folio|spread",revealed:"boolean",timeKey:"string",subtitleKey:"string",fields:"array",groupBy:"string",partial:"boolean",selectedId:"scalar",detailMode:"inline|external",onSelect:"action",args:"json"},"none"),
   logic: reg({initial:'object',input:'object',source:'string',label:'string',tickMs:'number',reactive:'boolean',actions:'object'}),
@@ -17,7 +23,7 @@ export const REGISTRY = {
   heatmap: reg({label:'string',rows:'array',columns:'array',values:'array',selectedRow:'scalar',selectedColumn:'scalar',onSelect:'action',args:'json'},'none'),
   clock: reg({timeZone:'string',label:'string',format:'HH:mm|HH:mm:ss',showDate:'boolean'},'none'),
   slot: reg({label:'string'}),
-  region: reg({ ...layout, role: 'summary|content|actions', overflow: 'scroll|paginate|details', label: 'string', resetKey: 'scalar', navigation: 'auto|external', presentation: 'plain|magazine' }),
+  region: reg({ ...layout, role: 'summary|content|actions|details', overflow: 'scroll|paginate|details', label: 'string', resetKey: 'scalar', navigation: 'auto|external', presentation: 'plain|magazine' }),
   stack: reg(layout), box: reg(layout), row: reg(layout),
   grid: reg({ ...layout, columns: 'columns' }), 'grid-item': reg({ ...layout, span: 'columns', rowSpan: 'columns' }),
   title: reg({ align:'start|center|end' }, 'inline'), text: reg({ clamp: 'lines', align:'start|center|end' }, 'inline'), caption: reg({ align:'start|center|end' }, 'inline'),
@@ -34,7 +40,7 @@ export const REGISTRY = {
   toggle: reg({ checked: 'boolean', label: 'string', onChange: 'action', args: 'json', disabled: 'boolean' }, 'none'),
   chips: reg({ ...layout, label: 'string' }),
   chip: reg({ ...control, selected: 'boolean' }, 'inline'),
-  segmented: reg({ value: 'scalar', options: 'array', label: 'string', onChange: 'action', args: 'json' }, 'none'),
+  segmented: reg({ variant:'plain|icons', value: 'scalar', options: 'array', label: 'string', onChange: 'action', args: 'json' }, 'none'),
   select: reg({ value:'string', options:'array', label:'string', onChange:'action', args:'json', disabled:'boolean' }, 'none'),
   'radio-group': reg({ value:'string', options:'array', label:'string', onChange:'action', args:'json', disabled:'boolean' }, 'none'),
   table: reg({ label:'string', columns:'array', rows:'array', selectedId:'scalar', onSelect:'action', args:'json' }, 'none'),
@@ -44,7 +50,7 @@ export const REGISTRY = {
   mermaid: reg({ label:'string', source:'string', selectedId:'scalar', detailMode:'inline|external', onSelect:'action', args:'json' }, 'none'),
   progress: reg({ value: 'number', label: 'string' }, 'none'),
   stats: reg({ columns: 'columns' }), stat: reg({ value: 'scalar', label: 'string' }, 'none'),
-  list: reg({ space: 'tight|normal|loose', label:'string' }), 'list-item': reg({...layout,...control}),
+  list: reg({ space: 'tight|normal|loose', label:'string',columns:'listColumns',presentation:'plain|timeline|tiles' }), 'list-group': reg({label:'string'}), 'list-item': reg({...layout,...control,mockTile:'number',imageQuery:'string'}),
   carousel: reg({ label: 'string', index: 'number', onIndexChange: 'action', args: 'json', navigation: 'auto|external' }), 'carousel-item': reg(layout),
   navigation: reg({ target:'id', label:'string' }, 'none'),
   slider: reg({ label: 'string', value: 'number', min: 'number', max: 'number', step: 'number', unit: 'string', disabled: 'boolean', onChange: 'action', args: 'json' }, 'none'),
@@ -71,13 +77,14 @@ export function checkValue(type, value) {
   if (type === 'number') return typeof value === 'number' && Number.isFinite(value)
   if (type === 'object' || type === 'record') return value !== null && typeof value === 'object' && !Array.isArray(value)
   if (type === 'array') return Array.isArray(value) && value.length <= 1000
+  if (type === 'listColumns') return Number.isInteger(value) && value >= 1 && value <= 3
   if (type === 'columns') return Number.isInteger(value) && value >= 1 && value <= 12
   if (type === 'lines') return Number.isInteger(value) && value >= 1 && value <= 6
   if (type.includes('|')) return type.split('|').includes(value)
   return typeof value === type
 }
 export function registryReference({compact=false,names}={}) {
-  const describe = (props) => Object.entries(props).map(([k, t]) => `${k}:${({lines:"integer(1–6)",columns:"integer(1–12)"})[t]||t}`).join(' ')
+  const describe = (props) => Object.entries(props).map(([k, t]) => `${k}:${({lines:"integer(1–6)",columns:"integer(1–12)",listColumns:"integer(1–3)"})[t]||t}`).join(' ')
   return `所有组件共有：${describe(common)}\n布局属性组：${describe(layout)}\n` + Object.entries(REGISTRY).filter(([name])=>!names||names.includes(name)).map(([name, def]) => {
     const isLayout = Object.keys(layout).every((key) => key in def.props)
     const own = Object.fromEntries(Object.entries(def.props).filter(([key]) => !(key in common) && !(isLayout && key in layout)))
@@ -86,8 +93,8 @@ export function registryReference({compact=false,names}={}) {
       (!compact && def.purpose ? `; ${def.purpose}` : '') +
       (def.shape ? `; 数据=${def.shape}` : '') +
       (def.events ? `; 事件=${JSON.stringify(def.events)}` : '') +
-      (def.behavior && (!compact || ['experience','logic','mermaid','math','swipe-stack','confetti','countdown','copy','heatmap','collection'].includes(name)) ? `; ${def.behavior}` : '') +
-      (compact && name==='icon' ? `; ${def.purpose}` : '') +
+      (def.behavior && (!compact || ['navigation','experience','logic','mermaid','math','swipe-stack','confetti','countdown','copy','heatmap','collection'].includes(name)) ? `; ${def.behavior}` : '') +
+      (compact && ['icon','image'].includes(name) ? `; ${def.purpose}` : '') +
       ((!compact || name==='logic') && def.example ? `\n例：${def.example}` : '')
   }).join('\n')
 }

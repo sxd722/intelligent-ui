@@ -1,0 +1,13 @@
+import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+const b=await chromium.launch({channel:'chrome',headless:true}),p=await b.newPage({viewport:{width:1100,height:850}});
+await p.goto('http://127.0.0.1:8787/');
+if(await p.getByRole('button',{name:'展开配置',exact:true}).isVisible())await p.getByRole('button',{name:'展开配置',exact:true}).click();
+await p.getByLabel('设计流程',{exact:true}).selectOption('image-first');
+await p.getByLabel('GLM 直传设计图',{exact:true}).check();
+await p.reload();assert(await p.getByLabel('GLM 直传设计图',{exact:true}).isChecked());
+await p.screenshot({path:'artifacts/mock-head-20261103/vision-setting.png'});
+await p.getByLabel('生成模型',{exact:true}).selectOption('deepseek-flash');assert.equal(await p.getByLabel('GLM 直传设计图',{exact:true}).count(),0);
+await p.getByLabel('生成模型',{exact:true}).selectOption('default');assert(await p.getByLabel('GLM 直传设计图',{exact:true}).isChecked());
+await p.getByLabel('设计流程',{exact:true}).selectOption('host');assert(await p.getByLabel('GLM 直传设计图',{exact:true}).isDisabled());
+await b.close();console.log('PASS option persistence, model gating, design-mode gating');

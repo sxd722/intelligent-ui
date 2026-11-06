@@ -1,0 +1,26 @@
+.cs-mock-composition{container-type:inline-size;display:flex;flex-direction:column;gap:8px;height:calc(100cqw - 24px);min-height:230px;min-width:0;background:var(--mock-bg);color:var(--mock-ink);padding:10px;border-radius:16px;overflow:hidden;box-sizing:border-box}
+.cs-mock-composition[data-size=auto]{height:600px;max-height:calc(100svh - 130px)}.cs-mock-composition[data-size=full]{height:auto;min-height:600px;overflow:visible}
+.cs-mock-composition>header{flex:none}.cs-mock-composition>header .cs-title{font-size:22px;line-height:1.15;margin:0}.cs-mock-composition>header .cs-caption{font-size:11px;margin:2px 0}
+.cs-mock-art{position:absolute;inset:0;overflow:hidden;background:linear-gradient(125deg,var(--mock-accent),var(--mock-bg))}.cs-mock-art svg{width:100%;height:100%;display:block;background:transparent!important}.cs-mock-art span{font-size:11px;padding:12px;display:block}
+.cs-mock-body{min-height:0;flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;scrollbar-width:none}.cs-mock-body>.cs-composition-item{min-height:0;flex-shrink:0}.cs-mock-composition>footer{display:flex;gap:8px;flex:none}
+.cs-mock-composition[data-layout=editorial]>header{font-family:Georgia,serif}
+.cs-mock-composition .cs-task-board{--board-background:var(--mock-bg)!important;--board-ink:var(--mock-ink)!important;--board-accent:var(--mock-accent)!important;--board-onAccent:var(--mock-on-accent)!important;--board-panel:color-mix(in srgb,var(--mock-ink) 8%,var(--mock-bg))!important;--board-muted:color-mix(in srgb,var(--mock-ink) 70%,var(--mock-bg))!important;min-height:0!important;padding:0!important;background:transparent!important;box-shadow:none!important;border-radius:0!important}
+.cs-mock-composition .cs-task-board>header,.cs-mock-composition .cs-task-board:before{display:none!important}.cs-mock-composition .cs-task-board .tb-cover{background:transparent}.cs-mock-composition .cs-task-board .tb-copy{padding-left:10px!important}
+@container(max-width:330px){.cs-mock-composition>header .cs-title{font-size:18px}}
+
+.cs-mock-composition[data-layout=split]{display:grid;grid-template-columns:38% minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;column-gap:12px}.cs-mock-composition[data-layout=split]>.cs-mock-head{grid-column:1;grid-row:1/-1;height:auto;min-height:0;margin:-10px 0 -10px -10px;border-radius:16px 0 0 16px;padding:12px 10px}.cs-mock-composition[data-layout=split]>.cs-mock-body{grid-column:2;grid-row:1}.cs-mock-composition[data-layout=split]>footer{grid-column:2;grid-row:2}
+.cs-stage .cs-card .cs-mock-composition :is(.cs-title,.cs-text,.cs-caption,.cs-label){color:var(--mock-ink)!important;text-shadow:none!important}
+@container(max-width:350px){.cs-mock-composition[data-layout=split]{display:flex}.cs-mock-composition[data-layout=split]>.cs-mock-head{margin:-10px -10px 0;border-radius:16px 16px 0 0;min-height:100px;padding:12px 14px}}
+
+.cs-mock-body>.cs-composition-item:has(.cs-task-board){flex:1;min-height:0}
+
+.cs-mock-composition .cs-task-board:not([data-narrow=true]) .tb-row .tb-artwork{height:60px!important}
+
+/* One head surface: imagery, contrast scrim and real interactive text share bounds. */
+.cs-mock-composition>.cs-mock-head{position:relative;isolation:isolate;display:flex;align-items:flex-end;flex:0 0 auto;min-height:clamp(100px,32cqw,160px);box-sizing:border-box;margin:-10px -10px 0;padding:14px 14px 12px;border-radius:16px 16px 0 0;overflow:hidden}
+.cs-mock-head-shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(0deg,rgba(7,16,24,.90),rgba(7,16,24,.70) 44%,rgba(7,16,24,.10) 100%)}
+.cs-mock-heading{position:relative;z-index:1;min-width:0;width:100%;overflow-wrap:anywhere}
+.cs-stage .cs-card .cs-mock-composition .cs-mock-heading :is(.cs-title,.cs-text,.cs-caption,.cs-label){color:#fff!important;text-shadow:0 1px 3px #0006!important}
+.cs-mock-composition .cs-mock-heading .cs-title{font-size:clamp(18px,5.3cqw,24px);line-height:1.15}
+.cs-mock-composition .cs-mock-heading .cs-caption{font-size:11px;line-height:1.35;margin-top:4px}
+.cs-mock-head .cs-settings-trigger{color:#fff;background:#1118}

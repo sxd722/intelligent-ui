@@ -1,0 +1,34 @@
+/* Compact arc deck. Navigation occupies the side gutters, never a footer row. */
+.cs-carousel.cs-carousel-dial{position:relative;display:block;margin-block:2px 4px;isolation:isolate;container-type:inline-size;--dial-ink:var(--cs-ink,currentColor);--dial-surface:color-mix(in srgb,var(--cs-surface,#fff) 72%,transparent)}
+.cs-stage .cs-card .cs-carousel-dial{background:transparent!important;box-shadow:none!important;border:0!important;padding:0!important}
+.cs-stage[data-material-version='2'][data-visual-style] .cs-card .cs-dial-content :is(.cs-title,.cs-text,.cs-caption){background:transparent;padding:0}
+.cs-dial-track{position:relative;width:100%;min-width:0;overflow:hidden;touch-action:pan-y;border-radius:14px;outline-offset:-2px}
+.cs-dial-slide{position:absolute;top:0;left:44px;width:calc(100% - 88px);transform-origin:50% 100%;transform:translateX(calc(var(--dial-offset)*96%)) translateY(calc(var(--dial-depth)*18px)) rotate(calc(var(--dial-offset)*9deg));transition:transform .38s cubic-bezier(.2,.75,.25,1),opacity .25s;will-change:transform}
+.cs-dial-content{display:flow-root;min-width:0;padding:10px 10px 12px;border-radius:18px;background:var(--dial-surface);box-shadow:0 8px 20px #00000012;overflow-wrap:anywhere}
+.cs-dial-slide[data-active=false] .cs-dial-content{filter:saturate(.7);opacity:.65}
+/* Live content may grow after height locks. Preserve access without shifting
+   surrounding controls; ordinary measured items need no vertical scrolling. */
+.cs-dial-slide{max-height:calc(100% - 24px);overflow-y:auto;scrollbar-width:none;border-radius:18px}
+.cs-dial-slide::-webkit-scrollbar{display:none}
+.cs-dial-content>[data-cs-component=carousel-item]{gap:7px;min-width:0}
+.cs-dial-content .cs-photo{order:-1;width:100%;flex-shrink:0}
+.cs-carousel-dial .cs-dial-content .cs-image{width:100%;height:clamp(64px,23cqw,100px);min-height:56px;object-fit:cover}
+.cs-dial-content .cs-row:has(>.cs-photo){flex-direction:column;align-items:stretch}
+.cs-dial-content .cs-title{font-size:clamp(15px,4.3cqw,18px);line-height:1.2}
+.cs-dial-content .cs-text{font-size:13px;line-height:1.5}
+.cs-dial-content .cs-caption{font-size:10px;line-height:1.4}
+.cs-dial-content .cs-field textarea{min-height:56px;height:56px}
+.cs-carousel-dial .cs-dial-step{position:absolute;z-index:4;top:calc(50% - 22px);width:44px;min-width:44px;height:44px;min-height:44px;padding:0!important;border:0!important;border-radius:50%!important;color:var(--dial-ink)!important;background:color-mix(in srgb,var(--cs-surface,#fff) 60%,transparent)!important;box-shadow:none!important;backdrop-filter:blur(12px);font:24px/1 Georgia,serif;cursor:pointer}
+.cs-dial-step:disabled{opacity:.18;cursor:default}.cs-dial-previous{left:0}.cs-dial-next{right:0}
+.cs-dial-step:focus-visible,.cs-dial-track:focus-visible{outline:2px solid currentColor}
+.cs-dial-position{position:absolute;bottom:0;left:0;right:0;text-align:center;font:10px/16px ui-monospace,monospace;letter-spacing:.08em;pointer-events:none;opacity:.7}.cs-dial-total{opacity:.55}
+.cs-carousel-dial[data-single=true] .cs-dial-slide{left:0;width:100%}.cs-dial-empty{display:block;text-align:center;padding:20px;opacity:.6}
+.cs-composition[data-family=academy] .cs-carousel-dial{--dial-surface:#152b48;--dial-ink:#e6d3a2}
+.cs-composition[data-family=pearl] .cs-dial-content{border-radius:24px;background:linear-gradient(145deg,#c5eee91f,#16353ee8);box-shadow:inset 0 1px #e8fff846,0 10px 24px #0002}
+.cs-composition[data-family=academy] .cs-dial-content{border-radius:38% 38% 10px 10px/18px 18px 10px 10px;background:linear-gradient(155deg,#203d5d,#101f35);box-shadow:inset 0 1px #e9d4a540,0 10px 22px #02071330}
+.cs-composition[data-family=rebel] .cs-dial-content{border-radius:3px;background:var(--dial-surface);box-shadow:3px 4px 0 #00000022}
+.cs-composition[data-family=atlas] .cs-dial-content{border-radius:5px;background:linear-gradient(#97b3c510 1px,transparent 1px),var(--dial-surface);background-size:100% 20px}
+.cs-composition[data-family=parchment] .cs-dial-content{border-radius:3px 12px 12px 3px;background:linear-gradient(95deg,#a98c5718,transparent 12%),var(--dial-surface)}
+.cs-composition[data-family=business] .cs-dial-content{border-radius:8px;box-shadow:0 6px 18px #16252f0c}
+@media(prefers-reduced-motion:reduce){.cs-dial-slide{transition:none}}
+[data-motion-level=off] .cs-dial-slide{transition:none}

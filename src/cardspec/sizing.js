@@ -2,12 +2,15 @@ import { useLayoutEffect, useRef, useState } from 'react'
 
 // Measure all mounted content, including off-screen carousel pages. Freeze on
 // generation completion; only a viewport-width change establishes a new budget.
-export function useIntrinsicHeight(ref, streaming, measure) {
+export function useIntrinsicHeight(ref, streaming, measure, contentKey) {
   const [size,setSize]=useState({width:0,height:null})
-  const memory=useRef({width:0,locked:false}),read=useRef(measure)
+  const memory=useRef({width:0,locked:false}),revision=useRef(contentKey),read=useRef(measure)
   read.current=measure
   useLayoutEffect(()=>{
     const el=ref.current;if(!el)return
+    // New result sets establish a new height, while changing the selected item
+    // within a set must not cause layout drift.
+    if(revision.current!==contentKey){revision.current=contentKey;memory.current.locked=false}
     let frame=0,disposed=false
     const update=()=>{
       frame=0;const width=el.clientWidth
@@ -25,6 +28,6 @@ export function useIntrinsicHeight(ref, streaming, measure) {
     const mutation=new MutationObserver(schedule);mutation.observe(el,{subtree:true,childList:true,characterData:true})
     schedule();document.fonts?.ready.then(schedule)
     return()=>{disposed=true;cancelAnimationFrame(frame);resize.disconnect();mutation.disconnect()}
-  },[ref,streaming])
+  },[ref,streaming,contentKey])
   return size
 }

@@ -7,6 +7,7 @@ import {OPENCLI_PACKAGE,OPENCLI_VERSION,openCliInput} from './opencli.mjs'
 import {queryTrains} from './12306-query.mjs'
 import {guardPublicFetch} from './public-fetch-guard.mjs'
 import {browserDocumentCommand} from './browser-document.mjs'
+import {registerYahooAdapters} from './adapters/yahoo-finance.mjs'
 const load=p=>import(pathToFileURL(path.join(OPENCLI_PACKAGE,p)).href)
 try{
  let source='';for await(const b of process.stdin){source+=b;if(source.length>30000)throw new Error('input too large')}
@@ -25,8 +26,9 @@ try{
  // last explicit access gate in this single-invocation worker for that case.
  let accessFailure
  if(!t.browser){const guarded=guardPublicFetch(globalThis.fetch);globalThis.fetch=async(...args)=>{try{return await guarded(...args)}catch(e){if(['AUTH_REQUIRED','ACCESS_RESTRICTED','RATE_LIMITED'].includes(e.code))accessFailure=e;throw e}}}
- const {getRegistry}=await load('dist/src/registry.js')
- await load('clis/'+t.module)
+ const registry=await load('dist/src/registry.js'),{getRegistry}=registry
+ if(['opencli.yahoo-finance.chart','opencli.yahoo-finance.news'].includes(t.id))registerYahooAdapters(registry)
+ else await load('clis/'+t.module)
  const native=getRegistry().get(`${t.site}/${t.command}`)
  const cmd=native&&browserDocumentCommand(native,t)
  if(!cmd||cmd.browser!==t.browser)throw new Error('Pinned adapter contract mismatch')

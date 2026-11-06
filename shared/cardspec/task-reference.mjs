@@ -1,0 +1,5 @@
+import {DECISION_REFERENCE,decisionProfile} from './decision-profile.mjs'
+import {slotContract} from './tool-slots.mjs'
+import {TASK_DETAIL_RELATIONS} from './task-relations.mjs'
+export const TASK_REFERENCE=DECISION_REFERENCE+'\n'+'有筛选/多选/固定/比较任务时优先<tool-view tool="精确ID" input={真实参数} task={任务对象}/>，或binding="已有ID"。task可含where:[{field,op:"lte|gte|eq|in",value,unit?}]、selection:"single|multiple"、max:2、pin:"角色名"、compare:true、groupBy:"字段"、aggregate:{op:"count|sum|min|max",field?}。字段必须来自已披露的可计算槽位；pin只用于用户明确要求固定一项，不能与compare/multiple同时用；compare默认多选。对象写两层大括号，例如input={{query:"关键词"}} task={{selection:"multiple",max:2,compare:true}}，不是字符串，也不是模板插值。宿主执行条件、保存已选、比较与详情，不另写chosen/action/详情按钮或第二个详情tool-view；未知值不算满足条件。未配置详情就不承诺新增详情。统计只覆盖已取得样本；没有分类证据不做情绪比例。只有复杂新逻辑才用logic/React。'
+export function taskToolFields(tool){const c=slotContract(tool);return c?{...(decisionProfile(tool)?{nativeDecision:decisionProfile(tool)}:{}),fields:c.fields.map(({key,label,type,unit})=>({key,label,type,unit:unit||''})),entityField:c.entity||null,...(TASK_DETAIL_RELATIONS[tool]?{details:{managedBy:'host',requiresEntity:true,context:TASK_DETAIL_RELATIONS[tool].context||[]}}:{})}:null}

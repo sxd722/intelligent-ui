@@ -10,6 +10,7 @@ import {parse} from 'acorn'
 import {validateAuthorCSS} from './sandbox-css.mjs'
 import {probeSandbox} from '../../shared/cardspec/sandbox-probes.mjs'
 export const sandboxEnabled=()=>process.env.CARDSPEC_SANDBOX_ENABLED!=='0'
+import {GRAPHIC_PROMPT} from '../../shared/cardspec/graphic-prompt.mjs'
 import {REACT_SURFACE_PROMPT} from '../../shared/cardspec/react-surface-prompt.mjs'
 export {REACT_SURFACE_PROMPT}
 export async function compileSandbox(source,{input={},initial={},capabilities=[],probe=false}={}){
@@ -54,7 +55,7 @@ export async function generateSandbox({input,streamUpstream,signal,budget,emit=(
  const data=input.context?.data||{},initial=input.context?.initial||{},capabilities=input.context?.actions||[]
  if(!Array.isArray(capabilities)||capabilities.length>8||capabilities.some(n=>typeof n!=='string'||!/^[A-Za-z][\w-]{0,63}$/.test(n)))throw Error('Invalid sandbox actions')
  logicJson(data);validateSandboxState(initial)
- const messages=[{role:'system',content:REACT_SURFACE_PROMPT},{role:'user',content:JSON.stringify({brief:input.prompt,data,initial,actions:capabilities,size:{width:view.width||432,height:view.height||320}})}]
+ const messages=[{role:'system',content:GRAPHIC_PROMPT+'\n'+REACT_SURFACE_PROMPT},{role:'user',content:JSON.stringify({brief:input.prompt,data,initial,actions:capabilities,size:{width:view.width||432,height:view.height||320}})}]
  let source=''
  for(let attempt=0;attempt<2;attempt++){
   source='';signal?.throwIfAborted()

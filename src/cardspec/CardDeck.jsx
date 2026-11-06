@@ -1,11 +1,13 @@
 import {PageDots,usePageSwipe} from './PageDots.jsx'
 import {usePageTransition} from './page-transition.jsx'
+import {CardPile} from './CardPile.jsx'
 import React,{useState,useRef,useEffect,useLayoutEffect} from 'react'
 import {CardRenderer} from './Renderer.jsx'
 import {toolTransport} from './tool-session.mjs'
 import {useCardSize} from '../CardSize.jsx'
 import {Thinking} from '../Thinking.jsx'
 import {generationSettings} from '../../shared/cardspec/generation-settings.mjs'
+import {deckItemState} from './deck-status.mjs'
 export function CardDeck({deck,spec,resources,streaming,transport=toolTransport,storageNamespace='cardspec',...props}){
  const root=useRef(null)
  const key=storageNamespace+':pages:deck:'+spec?.cardId,size=useCardSize(),requests=useRef(new Map())
@@ -28,11 +30,11 @@ export function CardDeck({deck,spec,resources,streaming,transport=toolTransport,
   finally{requests.current.delete(item.id)}
  }
 
- const swipe=usePageSwipe(items.length,current,move)
- const item=items[current],ready=item.status==='ready'
+ const swipe=usePageSwipe(items.length,current,move,root)
+ const item=items[current],{ready,busy,incomplete}=deckItemState(item,{streaming,retrying:requests.current.has(item.id)})
  const navigation=<PageDots count={items.length} index={current} onChange={move} label="切换相关卡片" className="cs-deck-nav"/>
  return <div className="cs-deck" {...swipe}><div className="cs-page-viewport"><div ref={root}>
 
-  {item.spec?<CardRenderer key={item.id} {...props} hostNotice={notice} transport={transport} spec={item.spec} resources={item.resources} persistenceKey={storageNamespace+':pages:'+item.spec.cardId} streaming={!ready&&streaming} toolsReady={ready||props.toolsReady}/>:item.status==='error'||!streaming&&item.status!=='ready'&&!requests.current.has(item.id)?<section role="alert" className="cs-deck-empty" data-card-size={size}><p>{item.error||'此卡尚未完成，已有卡片仍可使用。'}</p><button onClick={()=>retry(item)}>重试此卡</button>{notice&&<small role="status">{notice}</small>}</section>:<section className="cs-deck-empty" data-card-size={size}><Thinking/><p>{item.title||'正在生成卡片'}</p>{notice&&<small role="status">{notice}</small>}</section>}
- </div></div>{navigation}</div>
+  {item.spec?<><CardRenderer key={item.id} {...props} hostNotice={notice} deckNavigation={items.length>1?{count:items.length,index:current,move,cards:items.map(c=>({id:c.id,title:c.title}))}:null} transport={transport} spec={item.spec} resources={item.resources} persistenceKey={storageNamespace+':pages:'+item.spec.cardId} streaming={!ready} toolsReady={ready&&props.toolsReady!==false}/>{!ready&&<div role={incomplete?'alert':'status'} className="cs-deck-draft"><span>{incomplete?(item.error||'此卡未完成，保留最后调试稿；其他卡片仍可使用。'):'调试预览 · 验证完成后启用工具'}</span>{incomplete&&<button onClick={()=>retry(item)}>重试此卡</button>}</div>}</>:incomplete?<CardPile cards={items} index={current}><section role="alert" className="cs-deck-empty" data-card-size={size}><p>{item.error||'此卡尚未完成，已有卡片仍可使用。'}</p><button onClick={()=>retry(item)}>重试此卡</button>{notice&&<small role="status">{notice}</small>}</section></CardPile>:<CardPile cards={items} index={current}><section className="cs-deck-empty" data-card-size={size}><Thinking/><p>{item.title||'正在生成卡片'}</p>{notice&&<small role="status">{notice}</small>}</section></CardPile>}
+ </div></div>{!item.spec&&navigation}</div>
 }

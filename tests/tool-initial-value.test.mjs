@@ -1,4 +1,3 @@
-import {existsSync} from 'node:fs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
@@ -44,7 +43,7 @@ test('JS disclosure has one binding convention and no hidden legacy array matchi
  const legacy=toolReference(true,['opencli.douban.movie-hot'])
  assert.match(legacy,/initial 必须完整/);assert.match(legacy,/append保存/)
 })
-test('immutable family R12 first response no longer fails for missing envelope boilerplate',{skip: ["artifacts/javascript-upgrade/flash-baselines-r12/family.json"].every(existsSync) ? false : "Private historical replay artifacts excluded from source export"}, ()=>{
+test('immutable family R12 first response no longer fails for missing envelope boilerplate',()=>{
  const r=JSON.parse(readFileSync('artifacts/javascript-upgrade/flash-baselines-r12/family.json','utf8'))
  const raw=r.trace.filter(e=>e.type==='diagnostics')[0].source
  const result=compileCard(raw,{final:true,context})

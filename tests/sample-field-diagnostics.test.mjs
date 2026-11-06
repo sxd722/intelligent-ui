@@ -1,4 +1,3 @@
-import {existsSync} from 'node:fs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
@@ -30,7 +29,7 @@ test('sample diagnostics disclose keys, not source values, and are bounded',()=>
  const r=compile('<data id="rows" value={[{name:"PRIVATE_CONTENT"}]}/>'+derives)
  assert.equal(warnings(r).length,8);assert.ok(warnings(r).every(d=>!d.message.includes('PRIVATE_CONTENT')))
 })
-test('real family R10 source flags fabricated tag without changing immutable source',{skip: ["artifacts/javascript-upgrade/flash-baselines-r10/family.json"].every(existsSync) ? false : "Private historical replay artifacts excluded from source export"}, ()=>{
+test('real family R10 source flags fabricated tag without changing immutable source',()=>{
  const r=JSON.parse(readFileSync('artifacts/javascript-upgrade/flash-baselines-r10/family.json','utf8'))
  const source=r.trace.filter(e=>e.type==='diagnostics').at(-1).source
  const result=compileCard(source,{final:true,context:{expressionDialect:'js-v1',datasets:Object.fromEntries(r.records.map(d=>[d.id,d.value]))}})

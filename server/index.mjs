@@ -1,6 +1,12 @@
+import {createDesignMockService} from './design-mock-service.mjs'
+import {handleRefineRequest} from './cardspec/refine-prompt.mjs'
+import {createSameKindService} from './cardspec/same-kind.mjs'
 import {generationModelOptions} from '../shared/cardspec/generation-settings.mjs'
 import {createDatasetAnalyzer} from './cardspec/model-analysis.mjs'
 import {createGenerationTools} from './cardspec/generation-tools.mjs'
+import {createDiscoveryLab} from './tools/discovery-lab.mjs'
+import {toolDiscovery} from './tools/semantic-discovery.mjs'
+import {TOOLS} from '../shared/cardspec/tools.mjs'
 import {sandboxEnabled} from './cardspec/sandbox.mjs'
 // generative card engine — server
 //
@@ -22,7 +28,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 
-import { loadApiKey, loadPexelsKey } from './env.mjs'
+import { loadApiKey, loadPexelsKey, loadOpenAIImageKey } from './env.mjs'
+import {createImageService} from './image-service.mjs'
+import {diskImageStorage} from './image-storage.mjs'
 import { legacyPrompts } from './prompt.mjs'
 import { parse, stripCodeFences, splitCardText } from './compiler/parse.mjs'
 import { compile } from './compiler/codegen.mjs'
@@ -72,13 +80,20 @@ if (pexelsInfo.ok) {
 }
 
 const photoService = createPexelsService({ key: pexelsInfo.value, cacheDir: path.join(__dirname, '..', '.cache', 'pexels') })
-const pexelsPhoto = photoService.photo
-const modelRound=createModelClient({base:MODEL_BASE,key:keyInfo.value,model:MODEL_NAME})
+const openAIImages=loadOpenAIImageKey()
+const imageService=createImageService({key:openAIImages.value,model:process.env.OPENAI_IMAGE_MODEL,storage:diskImageStorage(path.join(__dirname,'..','.cache','images')),pexels:photoService.photo})
+const pexelsPhoto = imageService.photo
+pexelsPhoto.designMock=createDesignMockService({key:openAIImages.value,model:process.env.OPENAI_IMAGE_MODEL,storage:diskImageStorage(path.join(__dirname,'..','.cache','images'))})
+const modelRound=createModelClient({base:MODEL_BASE,key:keyInfo.value,model:MODEL_NAME,openaiKey:openAIImages.value})
 const researchProviders=createResearchProviders({base:MODEL_BASE,key:keyInfo.value,model:MODEL_NAME})
-const researchSession=(onEvent,options={})=>createResearchSession({providers:process.env.RESEARCH_DISABLED==='1'||options.enabled===false?null:researchProviders,onEvent,maxRounds:options.budget?5:3,maxCalls:options.budget?.policy.reads||10,maxContextChars:18000,timeoutMs:options.budget?.remaining()||options.timeoutMs||240000,budget:options.budget,extensions:createGenerationTools({...options,
+const researchSession=(onEvent,options={})=>createResearchSession({providers:process.env.RESEARCH_DISABLED==='1'||options.enabled===false?null:researchProviders,onEvent,maxRounds:options.budget?.policy.extendedGeneration?Infinity:options.budget?5:3,maxSearches:options.budget?.policy.extendedGeneration?Infinity:2,maxCalls:options.budget?.policy.reads||10,maxContextChars:options.budget?.policy.extendedGeneration?64000:18000,timeoutMs:options.budget?.remaining()||options.timeoutMs||240000,budget:options.budget,extensions:createGenerationTools({...options,
  analyze:createDatasetAnalyzer((messages,params)=>modelRound(messages,{...params,...generationModelOptions(options.modelProfile)}),options.budget),invoke:options.invoke||((...args)=>toolService.invoke(...args))})})
 const toolService=createToolService({streamUpstream,researchSession,keyLoaded:keyInfo.ok,photo:pexelsPhoto,recordGeneration:recordAdaptiveGeneration,opencli:createOpenCli({restoreHandoff:PORT===8787})})
+const discoveryLab=createDiscoveryLab({catalog:toolService.catalog,round:modelRound,invoke:(...args)=>toolService.invoke(...args),model:MODEL_NAME})
+// Warm only local vectors; this neither starts nor changes the browser bridge.
+if(process.env.TOOL_SEMANTIC_DISABLED!=='1')void toolDiscovery.warm(Object.values(TOOLS)).catch(e=>console.warn('[tool-discovery] keyword fallback:',e.message))
 const toolMedia=createToolMediaService()
+const sameKind=createSameKindService({streamUpstream,invoke:(...args)=>toolService.invoke(...args)})
 process.once('exit',()=>toolService.close())
 for(const event of ['SIGINT','SIGTERM'])process.once(event,()=>{toolService.close();process.exit(0)})
 
@@ -908,6 +923,8 @@ async function serveStatic(req, res) {
 }
 
 const server = http.createServer(async (req, res) => {
+  // Opaque generated frames have no direct authority over application APIs.
+  if(req.headers.origin==='null'&&req.url.startsWith('/api/')){res.writeHead(403).end('Opaque frames cannot access host APIs');return}
   if(req.url.split('?')[0].startsWith('/api/workbench/')){
     if(!localToolRequest(req,PORT)){res.writeHead(403).end('local workbench only');return}
     try{
@@ -926,6 +943,16 @@ const server = http.createServer(async (req, res) => {
     if(req.headers.origin){res.setHeader('Access-Control-Allow-Origin',req.headers.origin);res.setHeader('Vary','Origin')}
     if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Methods':'GET,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type'}).end();return}
     try{
+      if(req.url.split('?')[0]==='/api/tools/discovery-lab'){
+        let value
+        if(req.method==='GET'){
+          const id=new URL(req.url,'http://localhost').searchParams.get('id');value=id?await discoveryLab.get(id):await discoveryLab.list()
+        }else if(req.method==='POST'){
+          if(!req.headers['content-type']?.startsWith('application/json')){res.writeHead(415).end();return}
+          value=await discoveryLab.start(JSON.parse(await readBody(req,8192)))
+        }else{res.writeHead(405).end();return}
+        res.writeHead(req.method==='POST'?202:200,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify(value));return
+      }
       if(req.url.startsWith('/api/tools/assets/')&&req.method==='GET'){
         const ref=decodeURIComponent(req.url.slice('/api/tools/assets/'.length)),url=toolAssets.resolve(ref)
         await toolMedia.handle({headers:req.headers,url:'/api/tools/media?url='+encodeURIComponent(url)},res);return
@@ -952,17 +979,18 @@ const server = http.createServer(async (req, res) => {
   }
   const url = new URL(req.url, 'http://localhost')
   try {
-    const methods = { '/api/health': 'GET', '/api/image': 'GET', '/api/photo': 'GET', '/api/chat': 'POST' }
+    const methods = { '/api/health': 'GET', '/api/image': 'GET', '/api/photo': 'GET', '/api/chat': 'POST', '/api/refine-prompt':'POST' }
     if (methods[url.pathname] && req.method !== methods[url.pathname]) {
       res.writeHead(405, { 'Content-Type': 'application/json', Allow: methods[url.pathname] }).end(JSON.stringify({ error: 'method not allowed' }))
       return
     }
     if (url.pathname === '/api/health') {
       res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) })
-      res.end(JSON.stringify({ ok: true, model: MODEL_NAME, keyLoaded: keyInfo.ok, upstream: MODEL_BASE, formats: ['dil', 'cardspec'],cardSandbox:sandboxEnabled(),generationDebug:'experimental-mock-browser-v1' }))
+      res.end(JSON.stringify({ ok: true, model: MODEL_NAME, keyLoaded: keyInfo.ok, upstream: MODEL_BASE, formats: ['dil', 'cardspec'],cardSandbox:sandboxEnabled(),cardWebSandbox:sandboxEnabled(),generationDebug:'experimental-mock-browser-v1',photosEnabled:pexelsInfo.ok||openAIImages.ok,imageGenerationEnabled:openAIImages.ok,imageModel:process.env.OPENAI_IMAGE_MODEL||'gpt-image-2.5-flare',imageCache:'disk' }))
       return
     }
     if (url.pathname === '/api/photo') {
+      if(req.headers['sec-fetch-site']==='cross-site'||req.headers.origin&&req.headers.origin!==`${req.headers['x-forwarded-proto']||'http'}://${req.headers.host}`){res.writeHead(403).end();return}
       const query = url.searchParams.get('query') || '', role = url.searchParams.get('role') || 'hero'
       if (!query.trim() || query.length > 100 || !['hero','thumbnail','gallery','background'].includes(role)) { res.writeHead(400).end(); return }
       const controller = new AbortController()
@@ -974,7 +1002,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/media/')) {
       if (!['GET','HEAD'].includes(req.method)) { res.writeHead(405).end(); return }
-      const media = await photoService.media(url.pathname.slice('/api/media/'.length))
+      const filename=url.pathname.slice('/api/media/'.length)
+      const media = await photoService.media(filename) || await imageService.media(filename)
       if (!media) { res.writeHead(404).end(); return }
       res.writeHead(200, { 'Content-Type':media.contentType, 'Cache-Control':'public, max-age=86400' }); res.end(req.method === 'HEAD' ? undefined : media.bytes); return
     }
@@ -990,6 +1019,21 @@ const server = http.createServer(async (req, res) => {
         ...corsHeaders(req)
       })
       res.end(svg)
+      return
+    }
+    if(url.pathname==='/api/refine-prompt'){
+      if(req.headers.origin && req.headers.origin !== `${req.headers['x-forwarded-proto']||'http'}://${req.headers.host}`){res.writeHead(403).end();return}
+      await handleRefineRequest(req,res,{readBody,streamUpstream});return
+    }
+    if(['/api/cards/same-kind/prepare','/api/cards/same-kind/generate'].includes(url.pathname)){
+      if(req.method!=='POST'){res.writeHead(405).end();return}
+      if(!localToolRequest(req,PORT)){res.writeHead(403).end();return}
+      const controller=new AbortController();res.once('close',()=>{if(!res.writableEnded)controller.abort()})
+      try{
+        const payload=JSON.parse(await readBody(req)),signal=AbortSignal.any([controller.signal,AbortSignal.timeout(120000)])
+        const result=await sameKind[url.pathname.endsWith('/prepare')?'prepare':'generate'](payload,signal)
+        if(!res.destroyed)res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify(result))
+      }catch(e){if(!res.destroyed)res.writeHead(e.statusCode||502,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify({error:e.message,code:e.code||'REUSE_FAILED'}))}
       return
     }
     if (url.pathname === '/api/chat' && req.method === 'POST') {

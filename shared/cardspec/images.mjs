@@ -4,7 +4,7 @@ export const photoKey = (query, role = 'hero') => JSON.stringify([String(query |
 export function collectImages(spec) {
   const jobs = new Map(), scope = makeScope(spec, createStore())
   // Resolve the whole-card backdrop first, within the existing resource budget.
-  if (spec.visualStyle && typeof spec.backgroundQuery === 'string' && spec.backgroundQuery.trim()) {
+  if (spec.context?.designMock?.status!=='ready' && spec.visualStyle && typeof spec.backgroundQuery === 'string' && spec.backgroundQuery.trim()) {
     const query = spec.backgroundQuery.trim(), role = 'background', key = photoKey(query, role)
     jobs.set(key, { key, query, role })
   }

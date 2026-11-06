@@ -1,6 +1,7 @@
 import React from 'react'
 import Renderer from 'react-test-renderer'
 export {React}
+export {Canvas} from './canvas-surface.jsx'
 export function createApp(App,input,initial,capabilities=[]){
  let data=input,state=initial,root,handlers={},revision=0,effects=[],inGesture=false
  const allowed=new Set(capabilities)

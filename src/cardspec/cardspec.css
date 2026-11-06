@@ -8,6 +8,9 @@
 .cs-shell { width:min(432px,100%); margin-inline:auto; }
 .cs-sandbox { position:relative; min-width:0; background:transparent; color:inherit; }
 .cs-sandbox iframe { display:block; }
+/* A wrapping row must not inherit each iframe's 300px intrinsic width and
+   unexpectedly stack independent visual modules onto another content page. */
+.cs-row > .cs-sandbox { flex:1 1 0; min-width:0; }
 .cs-sandbox-options { position:absolute; right:0; top:0; z-index:2; font-size:12px; }
 .cs-sandbox-options summary { list-style:none; cursor:pointer; opacity:.3; padding:0 8px; border-radius:12px; }
 .cs-sandbox-options:hover summary,.cs-sandbox-options:focus-within summary { opacity:1; background:var(--cs-field-mask); }
@@ -15,6 +18,11 @@
 .cs-accessory { margin-top:8px; font-size:12px; line-height:1.5; color:var(--color-text-prose); }
 .cs-stage *, .cs-dialog * { box-sizing:border-box; min-width:0; }
 .cs-card { height:100%; padding:var(--cs-padding); display:flex; flex-direction:column; gap:var(--cs-space-normal); overflow:hidden; font-size:14px; line-height:1.4; }
+/* A sole full-Web application owns the square's content box. Its preferred
+   height must not force a 420px iframe into a 320px card; no scaling or clipping
+   of the application's typography is used. Mixed/native layouts are unchanged. */
+.cs-stage[data-card-size=square]>.cs-card>.cs-web-sandbox:only-child{height:100%;min-height:0;flex:1 1 0}
+.cs-stage[data-card-size=square]>.cs-card>.cs-web-sandbox:only-child>iframe{height:100%!important;min-height:0}
 .cs-card > * { flex-shrink:0; }
 .cs-card[data-emergency=true] { overflow-y:auto; }
 .cs-card button,.cs-card input,.cs-card textarea,.cs-dialog button { font:inherit; color:inherit; }
@@ -210,3 +218,19 @@
 
 /* A pagination unit owns the complete logical record, including its detail. */
 .cs-record-group{display:flex;flex-direction:column;gap:var(--cs-space-normal);min-width:0}
+/* Thumbnail credits stay accessible without becoming five-line list content. */
+.cs-thumbnail-credit{position:relative;font-size:10px;line-height:1.3;margin:0;padding-top:3px}
+.cs-background-credit .cs-credit-toggle{border:0;background:transparent;color:inherit;cursor:pointer;min-width:24px;min-height:24px;padding:2px;font:inherit}
+.cs-stage .cs-card .cs-credit-toggle{display:block;font:inherit;font-size:10px;line-height:1.3;min-height:20px;white-space:nowrap;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0;background:transparent;box-shadow:none;border:0;color:inherit;border-radius:0}
+.cs-image-credit-dialog{position:fixed;inset:0;margin:auto;box-sizing:border-box;width:min(320px,calc(100vw - 32px));max-height:80vh;padding:18px;border:0;border-radius:16px;background:var(--cs-bg,#fff);color:var(--cs-ink,#18333b);font-size:13px;box-shadow:0 10px 50px #0005;overflow:auto}
+.cs-image-credit-dialog::backdrop{background:#10252b66}
+.cs-stage .cs-image-credit-dialog button{min-height:44px;padding:8px 16px}
+.cs-thumbnail-credit a{color:inherit;text-decoration:underline}
+/* A thumbnail + text + action is a compact media row, regardless of topic. */
+.cs-stage .cs-card .cs-row:has(>[data-cs-component=image][data-media-role=thumbnail]){padding:6px 8px;gap:8px!important;align-items:center;box-shadow:none;background:color-mix(in srgb,var(--cs-accent) 4%,transparent)}
+.cs-card .cs-row:has(>[data-cs-component=image][data-media-role=thumbnail])>[data-grow]{flex:1 1 0;min-width:0}
+.cs-card .cs-row:has(>[data-cs-component=image][data-media-role=thumbnail])>.cs-button{flex:none;min-width:44px;min-height:44px;padding:6px 8px}
+.cs-card .cs-row:has(>[data-cs-component=image][data-media-role=thumbnail]) strong{font-size:13px;line-height:1.35}
+.cs-card .cs-row:has(>[data-cs-component=image][data-media-role=thumbnail]) .cs-caption{font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+.cs-card .cs-row>[data-cs-component=image][data-media-role=thumbnail]{width:56px;flex:0 0 56px}
+.cs-card .cs-row>[data-cs-component=image][data-media-role=thumbnail] .cs-image{width:56px;height:56px;min-height:56px}

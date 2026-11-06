@@ -1,4 +1,3 @@
-import {existsSync} from 'node:fs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
@@ -34,7 +33,7 @@ test('preview faults are bounded and inactive branches are not evaluated',()=>{
  const r=compileCard('<card><data id="bad" value="wrong"/><if test={""}><slider label="Value" value={data.bad}/></if><text>Ready</text></card>',{final:true,context})
  assert.equal(r.complete,true,JSON.stringify(r.diagnostics))
 })
-test('immutable first R12 train output exposes array faults in its first validation pass',{skip: ["artifacts/javascript-upgrade/flash-baselines-r12/trains.json"].every(existsSync) ? false : "Private historical replay artifacts excluded from source export"}, ()=>{
+test('immutable first R12 train output exposes array faults in its first validation pass',()=>{
  const record=JSON.parse(readFileSync('artifacts/javascript-upgrade/flash-baselines-r12/trains.json','utf8'))
  const source=record.trace.filter(e=>e.type==='diagnostics')[0].source
  const r=compileCard(source,{final:true,context:{...context,datasets:Object.fromEntries(record.records.map(r=>[r.id,r.value]))}})

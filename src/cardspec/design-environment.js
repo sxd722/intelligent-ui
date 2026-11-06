@@ -1,11 +1,21 @@
 // Resolve aliases/color-mix in the host, then forward only known design values.
-export const SANDBOX_THEME_KEYS = ['--cs-ink','--cs-muted','--cs-accent','--cs-field-mask','--cs-surface-mask','--cs-radius','--cs-space-normal','--cs-title-size','--cs-title-weight','--cs-title-tracking','--cs-stat-size','--font-title','--cs-motion-ease','--cs-motion-fast','--cs-motion-duration']
+export const SANDBOX_THEME_KEYS = ['--cs-ink','--cs-muted','--cs-accent','--cs-base','--cs-surface-solid','--cs-graphic-surface','--cs-field-mask','--cs-surface-mask','--cs-radius','--cs-space-normal','--cs-title-size','--cs-title-weight','--cs-title-tracking','--cs-stat-size','--font-title','--cs-motion-ease','--cs-motion-fast','--cs-motion-duration']
 export function readDesignEnvironment(root) {
   const style=getComputedStyle(root), theme={}, probe=root.ownerDocument.createElement('span')
   probe.style.cssText='position:absolute;visibility:hidden;pointer-events:none'
   root.append(probe)
   for (const [key,fallback] of Object.entries({'--cs-ink':'--color-text-prose','--cs-muted':'--color-text-muted','--cs-accent':'--color-primary','--cs-field-mask':'--color-surface','--cs-surface-mask':'--cs-panel-mask'})) {
     probe.style.backgroundColor=`var(${key},var(${fallback},${style.color}))`
+    theme[key]=getComputedStyle(probe).backgroundColor
+  }
+  // Forward opaque surfaces as well as foregrounds: iframe CSS variables do not
+  // inherit from the card. Never resolve a missing background to the ink color.
+  for (const [key,value] of Object.entries({
+    '--cs-base':'var(--cs-base,var(--color-surface,#f6f7fb))',
+    '--cs-surface-solid':'var(--cs-surface-solid,var(--cs-base,var(--color-surface,#f6f7fb)))',
+    '--cs-graphic-surface':'var(--cs-graphic-surface,var(--cs-base,var(--color-surface,#f6f7fb)))'
+  })) {
+    probe.style.backgroundColor=value
     theme[key]=getComputedStyle(probe).backgroundColor
   }
   probe.remove()

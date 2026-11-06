@@ -1,0 +1,21 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {createHash} from 'node:crypto';
+const root='golden-cases',id='antarctica-expedition',version='v1',directory=`cases/${id}/${version}`,dir=`${root}/${directory}`;
+const manifest=JSON.parse(await fs.readFile(root+'/manifest.json','utf8'));
+if(manifest.cases.some(c=>c.id===id&&c.version===version))throw Error('Already accepted; never overwrite frozen versions');
+try{await fs.access(dir);throw Error('Snapshot exists')}catch(e){if(e.code!=='ENOENT')throw e}
+const qa=JSON.parse(await fs.readFile('artifacts/antarctica-stitch/controlled-qa.json','utf8'));
+const live=JSON.parse(await fs.readFile('artifacts/antarctica-stitch/live-qa.json','utf8'));
+if(qa.checks.length!==24||!qa.checks.every(c=>c.pass)||live.errors.length)throw Error('Acceptance evidence incomplete');
+await fs.cp('dist/antarctica-stitch',dir,{recursive:true,filter:s=>path.basename(s)!=='connection-after.json'});
+await fs.cp('src/antarctica-stitch',dir+'/source',{recursive:true});
+await fs.mkdir(dir+'/source/scripts',{recursive:true});
+for(const f of ['antarctica-stitch.mjs','antarctica-build.mjs','antarctica-qa.mjs','antarctica-live.mjs','antarctica-report.mjs'])await fs.copyFile('scripts/vision-ab/'+f,dir+'/source/scripts/'+f);
+const digest=async f=>createHash('sha256').update(await fs.readFile(f)).digest('hex');
+const sourceHashes=Object.fromEntries(await Promise.all(['App.jsx','polar.css','data.mjs','land.json'].map(async f=>[f,await digest(dir+'/source/'+f)])));
+const record={id,version,title:'南极旅行 · Expedition Atlas',subtitle:'从探索地图到运营方、费用与交通决策',status:'golden',acceptedAt:new Date().toISOString(),acceptedBy:'user',approvalQuote:'great add it to golden case, and analyze the recent llm cards, see how can we make it more comprehensible and good for use',artifactHash:createHash('sha256').update(JSON.stringify(sourceHashes)).digest('hex'),sourceHashes,stack:'Stitch + React/H5 + host tools',category:'旅行决策',tags:['地图联动','运营方比较','费用口径','渐进详情','交通入口','状态恢复'],tools:['opencli.ctrip.flight'],directory,liveUrl:'/antarctica-stitch/',cover:'live-explore.png',coverAlt:'南极半岛地图、景点联动与旅行方案入口',description:'真实地理轮廓与地点详情联动；两个运营方方案显示起价、包含项与到达机场，接续携程查询及官方预订入口。',strengths:['地图、景点标签、详情共享同一选择状态','方案选择改变路线、包含费用和接驳机场，帮助实际决策','起价快照与所选日期票价明确区分，失败不制造库存','紧凑探索与渐进详情；恢复选择，隔离过期查询结果'],acceptanceScope:{design:'user-approved',interaction:'user-approved; controlled flight responses separated from real services',officialProducts:'verified official website snapshot, 2026-11-04',liveFlights:'blocked: AUTH_REQUIRED/CAPTCHA',booking:'external links only, no purchase submitted'},evidence:{controlledPassed:24,controlledTotal:24,widths:[320,360,432],liveChecksPassed:live.checks.filter(c=>c.pass).length,liveChecksTotal:live.checks.length,liveVerified:['真实来源图片','地图与详情联动','运营方官方入口','携程条件链接'],blocked:['携程真实航班取数需要验证码'],layoutMode:'natural-height; square exploration overview with progressive details'},evidenceLinks:[{label:'React源码',path:'source/App.jsx'},{label:'样式',path:'source/polar.css'},{label:'真实服务检查',path:'live-qa.json'},{label:'浏览器trace',path:'live-browser.zip'},{label:'受控检查',path:'controlled-qa.json'},{label:'收录记录',path:'ACCEPTANCE.md'}],limitations:['宿主联网 H5 实现，不是纯 CardSpec 或模型一次生成成功的证据','运营方起价来自 2026-11-04 官方页面快照，不是指定航次、舱型和日期的库存报价','携程航班真实调用仍被验证码阻挡；相关成功、空结果、失败与乱序由工具替身验证','购票与航次预订为外部入口，不包含下单','自然高度为主要体验；正方形采用概览和展开，不声称所有内容一屏展示','冻结界面与源码；外部图片、运营方页面和宿主服务仍可变化'],trainingApproved:false};
+await fs.writeFile(dir+'/case.json',JSON.stringify(record,null,2));
+await fs.writeFile(dir+'/ACCEPTANCE.md',`# Antarctica Golden Case v1\n\n认可时间：${record.acceptedAt}\n\n用户原话：${record.approvalQuote}\n\n收录已认可的设计与交互，受控检查 24/24；真实页面检查 4/5，航班取数 AUTH_REQUIRED/CAPTCHA 未通过。官方起价仅为页面快照。旧报告中的 candidate/待验收是历史记录，以本记录及 case.json 为准。不会自动作为训练数据。\n`);
+const hashes={};async function walk(rel=''){for(const e of await fs.readdir(path.join(dir,rel),{withFileTypes:true})){const key=[rel,e.name].filter(Boolean).join('/');if(e.isDirectory())await walk(key);else if(key!=='checksums.json')hashes[key]=await digest(path.join(dir,key))}}await walk();
+await fs.writeFile(dir+'/checksums.json',JSON.stringify(hashes,null,2));manifest.cases.push(record);await fs.writeFile(root+'/manifest.json',JSON.stringify(manifest,null,2));console.log({id,frozenFiles:Object.keys(hashes).length});
