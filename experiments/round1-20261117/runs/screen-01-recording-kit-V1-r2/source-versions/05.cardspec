@@ -1,0 +1,59 @@
+<intro>调整三项要求，筛出合格套装，挑两套对比后保存最终决定。</intro>
+<card schemaVersion="1" actionMode="snapshot" theme="soft" palette="a" design="default">
+  <data id="kits" value={[{id:"reed",name:"芦苇",weightG:380,batteryHours:8,dailyYuan:45},{id:"owl",name:"夜枭",weightG:520,batteryHours:12,dailyYuan:60},{id:"moss",name:"苔藓",weightG:290,batteryHours:null,dailyYuan:35},{id:"stone",name:"石溪",weightG:450,batteryHours:6,dailyYuan:40}]}/>
+  <state id="maxW" type="number" initial={500}/>
+  <state id="minB" type="number" initial={8}/>
+  <state id="maxD" type="number" initial={55}/>
+  <state id="picks" type="array" initial={[]}/>
+  <state id="saved" type="record" initial={{}}/>
+  <state id="reason" type="string" initial={""}/>
+  <derive id="rows" value={data.kits.map(k=>({...k,status:k.batteryHours===null?"续航未知":(k.batteryHours>=state.minB?"达标":"续航不足"),ok:k.weightG<=state.maxW&&k.dailyYuan<=state.maxD&&k.batteryHours!==null&&k.batteryHours>=state.minB}))}/>
+  <derive id="passCount" value={derived.rows.filter(r=>r.ok).length}/>
+  <derive id="unknownCount" value={derived.rows.filter(r=>r.status==="续航未知").length}/>
+  <derive id="pickRows" value={state.picks.map(id=>derived.rows.find(r=>r.id===id)).filter(r=>r!==undefined)}/>
+  <title>野外录音设备筛选</title>
+  <stats columns={3}>
+    <stat label="达标" value={derived.passCount}/>
+    <stat label="续航未知" value={derived.unknownCount}/>
+    <stat label="已选对比" value={state.picks.length}/>
+  </stats>
+  <settings label="要求">
+    <slider label="重量上限" value={state.maxW} min={200} max={700} step={10} unit="g" onChange="setW"/>
+    <slider label="最低续航" value={state.minB} min={2} max={14} step={1} unit="h" onChange="setB"/>
+    <slider label="每日预算" value={state.maxD} min={20} max={80} step={5} unit="元" onChange="setD"/>
+  </settings>
+  <each items={derived.rows} as="k" itemKey={k.id}>
+    <row justify="between" align="center">
+      <box>
+        <text><strong>{k.name}</strong> · {k.weightG}g · {k.batteryHours===null?"续航未知":k.batteryHours+"h"} · {k.dailyYuan}元/日</text>
+        <caption>{k.status}{k.ok?" · 符合要求":""}</caption>
+      </box>
+      <button label={state.picks.includes(k.id)?"取消":"对比"} variant={state.picks.includes(k.id)?"secondary":"quiet"} onPress="toggle" args={{id:k.id}}/>
+    </row>
+  </each>
+  <if test={state.picks.length===2}>
+    <region id="cmp" role="result" label="取舍对比" presentation="compare">
+      <facts items={[{label:derived.pickRows[0].name,value:derived.pickRows[0].weightG,unit:"g"},{label:"续航",value:derived.pickRows[0].batteryHours===null?"未知":derived.pickRows[0].batteryHours,unit:"h"},{label:"日费",value:derived.pickRows[0].dailyYuan,unit:"元"}]}/>
+      <facts items={[{label:derived.pickRows[1].name,value:derived.pickRows[1].weightG,unit:"g"},{label:"续航",value:derived.pickRows[1].batteryHours===null?"未知":derived.pickRows[1].batteryHours,unit:"h"},{label:"日费",value:derived.pickRows[1].dailyYuan,unit:"元"}]}/>
+    </region>
+    <input label="最终借哪套及理由" value={state.reason} placeholder="例如：借芦苇，轻且续航够" onChange="setReason"/>
+    <row>
+      <button label="保存决定" variant="primary" onPress="save" disabled={state.reason.trim()===""}/>
+      <button label="清空对比" variant="quiet" onPress="clear"/>
+    </row>
+  </if>
+  <if test={state.saved.id!==undefined}>
+    <region id="decided" role="summary" label="已保存决定">
+      <text>借 {state.saved.name}：{state.saved.reason}</text>
+      <caption>当时条件：≤{state.saved.maxW}g · ≥{state.saved.minB}h · ≤{state.saved.maxD}元/日</caption>
+    </region>
+  </if>
+  <action id="setW"><set target="maxW" value={event.value}/></action>
+  <action id="setB"><set target="minB" value={event.value}/></action>
+  <action id="setD"><set target="maxD" value={event.value}/></action>
+  <action id="toggle"><set target="picks" value={state.picks.includes(args.id)?state.picks.filter(id=>id!==args.id):(state.picks.length<2?state.picks.concat([args.id]):[state.picks[1],args.id])}/></action>
+  <action id="setReason"><set target="reason" value={event.value}/></action>
+  <action id="save"><set target="saved" value={{id:state.picks[0],name:derived.pickRows[0].name,reason:state.reason,maxW:state.maxW,minB:state.minB,maxD:state.maxD}}/></action>
+  <action id="clear"><set target="picks" value={[]}/><set target="reason" value={""}/></action>
+</card>
+<outro>续航未知的苔藓单独标注，不计入达标；保存后刷新仍保留决定。</outro>

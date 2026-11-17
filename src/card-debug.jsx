@@ -7,6 +7,7 @@ import {CardRenderer} from './cardspec/Renderer.jsx'
 import {CardDeck} from './cardspec/CardDeck.jsx'
 import {CardSizeOverride} from './CardSize.jsx'
 import {createDebugTransport} from '../shared/cardspec/debug-fixtures.mjs'
+import {experimentLiveRead} from './cardspec/experiment-live-read.mjs'
 import {debugControls} from './cardspec/debug-controls.mjs'
 import {auditLayout} from './cardspec/layout-audit.js'
 import './styles/tokens.css'
@@ -17,7 +18,7 @@ const root=createRoot(document.getElementById('root'))
 let session,calls=[],coverage=[],renderSurface
 const text=el=>String(el.innerText||el.textContent||'').trim()
 window.cardDebug={
- mount(spec,{scenario='normal',width=432,size='square',restore=false,persistenceKey='debug-only',deck,streaming=false,snapshots=[]}={}){
+ mount(spec,{scenario='normal',width=432,size='square',restore=false,persistenceKey='debug-only',deck,streaming=false,snapshots=[],replayMode,liveReadTools=[]}={}){
   session=null;calls=[];coverage=[];if(!restore)sessionStorage.clear()
   // Never inherit arbitrary production state. Explicit host snapshots must,
   // however, seed manual bindings just as at delivery (e.g. prior analysis).
@@ -26,9 +27,10 @@ window.cardDebug={
   if(scenario==='normal')spec.prefetched=structuredClone(snapshots)
   if(deck)deck=structuredClone(deck).map(c=>{delete c.spec?.prefetched;delete c.spec?.research;return {...c,status:'ready'}})
   const Surface=deck?CardDeck:CardRenderer
+  const transport=liveReadTools.length?experimentLiveRead({allowed:liveReadTools,calls,coverage}):createDebugTransport({scenario,calls,coverage,snapshots,replayMode})
   document.body.style.cssText=`margin:0;padding:0;width:${width}px;background:#eceff3`
   const instanceKey=crypto.randomUUID()
-  renderSurface=(preview=false)=>root.render(<MapEnvironment.Provider value="offline"><SandboxSettings.Provider value={spec.context?.renderMode||'native'}><CardSizeOverride.Provider value={size}><div style={{width}}><Surface deck={deck} storageNamespace="debug-deck" key={instanceKey} streaming={preview} spec={spec} persistenceKey={persistenceKey} transport={createDebugTransport({scenario,calls,coverage,snapshots})} debugAuthorizeWrite={payload=>{coverage.push({tool:payload.tool,reason:'external write not executed'});throw Error('DEBUG_UNSUPPORTED: 外部写操作未执行')}} onDebugSession={s=>{session=s}}/></div></CardSizeOverride.Provider></SandboxSettings.Provider></MapEnvironment.Provider>)
+  renderSurface=(preview=false)=>root.render(<MapEnvironment.Provider value="offline"><SandboxSettings.Provider value={spec.context?.renderMode||'native'}><CardSizeOverride.Provider value={size}><div style={{width}}><Surface deck={deck} storageNamespace="debug-deck" key={instanceKey} streaming={preview} spec={spec} persistenceKey={persistenceKey} transport={transport} debugAuthorizeWrite={payload=>{coverage.push({tool:payload.tool,reason:'external write not executed'});throw Error('DEBUG_UNSUPPORTED: 外部写操作未执行')}} onDebugSession={s=>{session=s}}/></div></CardSizeOverride.Provider></SandboxSettings.Provider></MapEnvironment.Provider>)
   renderSurface(streaming)
  },
  setStreaming:value=>renderSurface?.(!!value),

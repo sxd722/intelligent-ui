@@ -1,0 +1,26 @@
+/* H1 r1. Same viewport and DOM: no hidden content, reparenting or smaller hit targets. */
+.cs-stage[data-experiment-layout="subject-first-v1"] { --cs-space-normal: 6px; --cs-space-tight: 4px; }
+.cs-stage[data-experiment-layout="subject-first-v1"] .cs-composition { gap:4px; padding:10px; }
+.cs-stage[data-experiment-layout="subject-first-v1"] .cs-composition-heading { gap:2px; }
+.cs-stage[data-experiment-layout="subject-first-v1"] .cs-composition-heading .cs-title { font-size:clamp(18px,4.8cqw,22px); line-height:1.15; }
+.cs-stage[data-experiment-layout="subject-first-v1"] :is(.cs-composition-controls,.cs-composition-footer) { gap:4px; }
+.cs-stage[data-experiment-layout="subject-first-v1"] :is(button,input,select) { min-height:44px; }
+
+/* H1 r2, separate treatment. v1 remains untouched for reproducible replay.
+   Design tokens are inline and composition typography uses !important;
+   scoped overrides must win those real rules, not merely appear in the CSS. */
+.cs-stage[data-experiment-layout="subject-first-v2"] {
+ --cs-space-normal:6px !important;
+ --cs-space-tight:4px !important;
+}
+.cs-stage[data-composition-version="2"][data-experiment-layout="subject-first-v2"] .cs-composition {
+ gap:4px !important;
+ padding:10px !important;
+}
+.cs-stage[data-experiment-layout="subject-first-v2"] .cs-composition-heading { gap:2px; }
+.cs-stage[data-experiment-layout="subject-first-v2"] .cs-composition-heading .cs-title {
+ font-size:clamp(18px,4.8cqw,22px) !important;
+ line-height:1.15 !important;
+}
+.cs-stage[data-experiment-layout="subject-first-v2"] :is(.cs-composition-controls,.cs-composition-footer) { gap:4px; }
+.cs-stage[data-experiment-layout="subject-first-v2"] :is(button,input,select) { min-height:44px !important; }

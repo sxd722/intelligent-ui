@@ -18,7 +18,9 @@ function pathValue(path,before,after){
  return {found:true,value}
 }
 export function validateExpectation(e){
- if(!e||typeof e!=='object'||Array.isArray(e)||Object.keys(e).some(k=>!['terminal','navigation','text','state','changed','visual','changedKeys','tool','sandboxChanged','changedResults','derived','relations','controls'].includes(k)))throw Error('invalid expectation')
+ if(!e||typeof e!=='object'||Array.isArray(e))throw Error('expected an expectation object')
+ const unknown=Object.keys(e).find(k=>!['terminal','navigation','text','state','changed','visual','changedKeys','tool','sandboxChanged','changedResults','derived','relations','controls'].includes(k))
+ if(unknown)throw Error(`unsupported expect.${unknown}${unknown==='requirement'?'; put requirement on the step beside op and expect, not inside expect':''}`)
  if(!Object.keys(e).length)throw Error('empty expectation')
  if(e.terminal!==undefined){const t=e.terminal;if(!t||typeof t!=='object'||Object.keys(t).some(k=>!['outcome','owner','key','value'].includes(k))||!['win','loss'].includes(t.outcome)||typeof t.key!=='string'||!t.key||unsafe.has(t.key)||typeof t.value!=='string'||!t.value||t.value.length>100||(t.owner!==undefined&&(typeof t.owner!=='string'||!t.owner||t.owner.length>120)))throw Error('invalid terminal: outcome win/loss, persisted key/value and optional sandbox owner')}
  if(e.navigation!==undefined&&e.navigation!==true&&!(typeof e.navigation==='string'&&e.navigation.length<=2048&&/^https?:\/\//i.test(e.navigation)))throw Error('navigation must be true or an exact http(s) URL')

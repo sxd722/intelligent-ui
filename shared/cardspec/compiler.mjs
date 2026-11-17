@@ -1,4 +1,5 @@
 import {contentRelationDiagnostics} from './content-skeleton.mjs'
+import {expandExperimentalBehaviors,mapExpansionOffset} from './experimental-behaviors.mjs'
 import {decisionProfile} from './decision-profile.mjs'
 import {decisionDiagnostics} from './decision-diagnostics.mjs'
 import {COMPOSITIONS} from './compositions.mjs'
@@ -25,6 +26,7 @@ import {validateMaterial} from './gpu-material.mjs'
 import {COMPONENT_ALIASES,ignoredPresentationAttribute} from './presentation-compat.mjs'
 import {validateTaskFields} from './task-operations.mjs'
 import {slotContract} from './tool-slots.mjs'
+import {logicSnapshotsEnabled} from './logic-snapshot.mjs'
 
 const lit = (value) => ({ type: 'literal', value })
 const declarations = new Set(['data', 'state', 'derive', 'action','binding'])
@@ -39,6 +41,16 @@ function unescapeText(text) {
   })
 }
 export function compileCard(source,options={}) {
+ if(options.context?.experiment?.behaviors==='inspect-return-v1'&&!options.behaviorExpanded){
+  try{const expansion=expandExperimentalBehaviors(String(source),{enabled:true,dialect:options.context?.expressionDialect||'legacy'});const result=compileCard(expansion.expandedSource,{...options,behaviorExpanded:true});
+   result.behaviorExpansion=expansion;if(result.spec)result.spec.behaviorExpansion={sourceMap:expansion.sourceMap,generatedIds:expansion.generatedIds,expandedSource:expansion.expandedSource};
+   // Diagnostics and node positions share the author's original coordinate
+   // space. Keep expanded offsets separately for inspecting the macro output.
+   result.source=String(source)
+   if(result.locations)result.locations=Object.fromEntries(Object.entries(result.locations).map(([id,at])=>[id,mapExpansionOffset(at,expansion).offset]))
+   result.diagnostics=contextualDiagnostics(String(source),result.diagnostics.map(d=>({...d,...(Number.isFinite(d.offset)?{expandedOffset:d.offset,...mapExpansionOffset(d.offset,expansion)}:{})})));return result
+  }catch(e){return {spec:null,complete:false,diagnostics:[{severity:'error',code:'experimental_behavior',message:e.message,offset:e.offset||0}],locations:{}}}
+ }
  const original=String(source),prefix=original.match(/^\s*```(?:xml|html|dil)?\s*\n/i)?.[0].length||0
  const result=compileDocument(original,options)
  result.source=original
@@ -265,7 +277,8 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
       const original=n.name;n={...n,name:COMPONENT_ALIASES[n.name]}
       diagnostics.push({severity:'warning',code:'component_alias',message:`${original} normalized to ${n.name}`,offset:n.start,line:source.slice(0,n.start).split('\n').length})
     }
-    const def = REGISTRY[n.name]
+    const definition = REGISTRY[n.name]
+    const def = n.name==='sandbox'&&logicSnapshotsEnabled(context)&&definition ? {...definition,props:{...definition.props,logicSnapshot:'id'}} : definition
     if (!def) { error('component', `unknown component ${n.name}`, n.start); return null }
     // A literal action name has one unambiguous equivalent. Never swallow
     // callbacks, conflicting handlers or unsupported events on other nodes.
@@ -312,6 +325,7 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
       if(!n.attrs.id||locals.has('index')||locals.has('local')||locals.has('sandbox')||locals.has('slot'))error('sandbox','sandbox requires explicit id and cannot be nested or placed inside each/logic/slot',n.start)
       if(n.attrs.source&&n.attrs.source.type!=='literal')error('sandbox','sandbox.source must be a fixed JSX string literal',n.start)
       if(n.attrs.actions&&(n.attrs.actions.type!=='object'||n.attrs.actions.entries.some(([,v])=>v.type!=='literal'||typeof v.value!=='string')))error('sandbox','sandbox.actions must be a fixed alias-to-action object',n.start)
+      if(n.attrs.logicSnapshot&&n.attrs.logicSnapshot.type!=='literal')error('logic_snapshot','sandbox.logicSnapshot must reference a fixed logic module id',n.start)
       childLocals.add('sandbox')
     }
     if(n.name==='slot')childLocals.add('slot')
@@ -587,6 +601,12 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
     node.children?.forEach(n=>validateEvents(n,inLogic))
   }
   spec.children.forEach(n=>validateEvents(n))
+  if(logicSnapshotsEnabled(context)){
+    const modules=new Set(),consumers=[]
+    const visit=nodes=>{for(const n of nodes||[]){if(n.type==='logic')modules.add(n.id);if(n.type==='sandbox'&&n.props.logicSnapshot)consumers.push(n);visit(n.children)}}
+    visit(spec.children)
+    for(const n of consumers)if(!modules.has(n.props.logicSnapshot.value))error('logic_snapshot',`sandbox ${n.id}: unknown logic snapshot source ${n.props.logicSnapshot.value}`,nodeOffsets.get(n.id))
+  }
   if(final){diagnostics.unshift(...sharedActionDiagnostics(spec));diagnostics.push(...contentRelationDiagnostics(spec.children),...toolCollectionDiagnostics(spec),...interactionDiagnostics(spec),...feedbackDiagnostics(spec),...decisionDiagnostics(spec))}
   for(const id of Object.keys(spec.bindings)){
     function dependencies(name,trail=[]){
@@ -620,7 +640,8 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
         for (const [key, ast] of Object.entries(node.props)) {
           if (key === 'args' || key === 'itemKey') continue
           props[key] = evaluate(ast, local)
-          if (!checkValue(REGISTRY[node.type].props[key], props[key])) throw new Error(`${node.id}: ${node.type}.${key} expected ${REGISTRY[node.type].props[key]}`)
+          const expected=node.type==='sandbox'&&key==='logicSnapshot'&&logicSnapshotsEnabled(context)?'id':REGISTRY[node.type].props[key]
+          if (!checkValue(expected, props[key])) throw new Error(`${node.id}: ${node.type}.${key} expected ${expected}`)
         }
         if (props.visible === false || (node.type === 'if' && !props.test)) continue
         validateWidget(node.type, props)

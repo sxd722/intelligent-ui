@@ -23,7 +23,7 @@ import {routeCoreTasks} from '../tools/task-routing.mjs'
 import {evidencePresentation} from '../../shared/cardspec/evidence-presentation.mjs'
 const tool=(name,description,properties,required=[])=>({type:'function',function:{name,description,parameters:{type:'object',properties,required,additionalProperties:false}}})
 export const GENERATION_TOOL_PROMPT=`${BINDING_PLAN_INSTRUCTION}\n${HOST_PAGINATION_INSTRUCTION}\n取数按需：cli_discover按用途全局检索（不确定时按领域/来源浏览）→cli_describe批量核实所选契约→cli_read只读执行。候选非全集，无数据需求可不用工具。返回hostView时按核心任务选择consumer，不另写重复筛选/详情。多工具和素材围绕当前对象时，先component_describe(task-board)：compose共享选择和角色视图，避免逐个tool-view平铺。工具摘要字段不等于binding.value字段。返回dataset路径引用完整数据，items只是样本；更多样本dataset_read；longTextFields标明被截断的正文，用dataset_read的field/find按需读原文再归纳，缺筛选/详情字段dataset_enrich按真实ID补取。可先设计加载/空态，不把占位当事实。输出前可调用plan_cards规划1–3张互补卡（简单任务一张）及0–2个有用后续意图（可为空）；只写标题/任务/意图，本轮只输出首张card。宿主负责其余卡和后续入口，不重复实现。`
-export function createGenerationTools({catalog=[],invoke,analyze,budget,discover=toolDiscovery.discover,initialRecords=[],renderMode='native',webGraphics=false,enabled=true,allowDeck=true,goal,contentRelations='on',allowPlanning=goal===undefined?true:planningPolicy(goal,{enabled,allowDeck}).allowPlanning}){
+export function createGenerationTools({catalog=[],invoke,analyze,budget,discover=toolDiscovery.discover,initialRecords=[],experiment=null,renderMode='native',webGraphics=false,enabled=true,allowDeck=true,goal,contentRelations='on',allowPlanning=goal===undefined?true:planningPolicy(goal,{enabled,allowDeck}).allowPlanning}){
  const connections=createBindingPlan()
  const adaptive=budget?.policy.profile==='adaptive-v1'
  const maxCards=allowDeck?(/(?:三|3)\s*张|three.?cards/i.test(String(goal||''))?3:2):1
@@ -67,6 +67,7 @@ export function createGenerationTools({catalog=[],invoke,analyze,budget,discover
  function summary(r,offset=0,limit=4){
   const value=r.value,items=Array.isArray(value.items)?value.items:[],sample=items.slice(offset,offset+limit)
   const result={presentation:evidencePresentation(value),taskCoverage:auditResultCoverage({goal,...r}),bindingRecipe:bindingRecipe(r.tool,r.input),dataset:r.id,path:`context.datasets.${r.id}`,...(adaptive?{descriptor:datasetDescriptor(r)}:{}),tool:r.tool,input:r.input,source:value.source,fetchedAt:value.fetchedAt||r.updatedAt,coverage:value.coverage,truncated:value.truncated,totalObserved:items.length,sampleCount:sample.length,sampleOffset:offset,longTextFields:longTextFields(sample,offset),fields:[...new Set(items.slice(0,20).flatMap(Object.keys))],items:sample.map(row=>Object.fromEntries(Object.entries(row).map(([k,v])=>[k,typeof v==='string'?v.slice(0,500):v]))),...(!Array.isArray(value.items)?{value}:{}),sampleOnly:sample.length<items.length,instruction:'totalObserved为宿主已保存数量；items仅是模型样本，页面引用path.items取得完整结果。来源是否完整由coverage/truncated决定。'}
+  if(r.snapshotCoverage)result.snapshotCoverage=structuredClone(r.snapshotCoverage)
   if(r.tool==='dataset.analyze'){
    const parent=records.find(p=>p.id===value.analysis?.dataset?.id)
    // Never echo every original row again inside input + binding DSL. Keep the
@@ -116,7 +117,7 @@ export function createGenerationTools({catalog=[],invoke,analyze,budget,discover
   }
   if(name==='component_describe'){
    if(!Array.isArray(input.names)||!input.names.length||input.names.length>6||input.names.some(n=>typeof n!=='string'||!Object.hasOwn(REGISTRY,n)))throw Error('unknown component')
-   return {contract:registryReference({names:input.names})+(input.names.includes('task-board')?'\n'+COMPOSITION_REFERENCE:'')}
+   return {contract:registryReference({names:input.names})+(input.names.includes('task-board')?'\n'+COMPOSITION_REFERENCE:'')+(experiment?.logicSnapshots==='readonly-v1'&&input.names.includes('sandbox')?'\nExperimental sandbox attribute: logicSnapshot="siblingLogicId". Read-only data.logicSnapshot.state carries that logic module current state; version/revision identify updates. Keep sandbox and logic as siblings, never nest sandbox inside logic.':'')}
   }
   if(name==='plan_cards'){
    if(!allowPlanning)throw Error('本任务直接生成单卡，无需卡组规划')
@@ -200,7 +201,7 @@ export function createGenerationTools({catalog=[],invoke,analyze,budget,discover
   }
   signal?.throwIfAborted();try{validateJson(result.value,TOOLS[t.id].outputSchema)}catch(e){recordRouteRead(t.id,input.task,'failed',e.message);connections.failed(t.id,input.input,e.message);throw e}
   recordRouteRead(t.id,input.task,'succeeded')
-  const r=save(t.id,input.input,result.value);seen.set(key,r);return {...summary(r),bindingRecipe:bindingRecipe(t.id,input.input,input.binding)}
+  const r=save(t.id,input.input,result.value);if(result.snapshotCoverage)r.snapshotCoverage=structuredClone(result.snapshotCoverage);seen.set(key,r);return {...summary(r),bindingRecipe:bindingRecipe(t.id,input.input,input.binding)}
  }
  function planningRequest(){
   if(goal===undefined||locked||planningAttempted)return null

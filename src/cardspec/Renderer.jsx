@@ -1,4 +1,6 @@
+import './experimental-layout.css'
 import {CompactChipGroup} from './CompactFilters.jsx'
+import {createLogicSnapshotBus,logicSnapshotsEnabled} from '../../shared/cardspec/logic-snapshot.mjs'
 import {ImageNode} from './MediaImage.jsx'
 import {DestinationHost,Destination} from './Destinations.jsx'
 import {RelationLayout} from './RelationLayout.jsx'
@@ -261,7 +263,7 @@ function Node({ node, scope, runtime, identity }) {
         return true
       } catch (e) { runtime.error(e.message);return false }
     }
-    if(node.type==='logic')return <LogicPanel p={p} streaming={runtime.streaming} validate={local=>validateLogicView(node.children,{...scope,local})} onAction={({event,result,input})=>{
+    if(node.type==='logic')return <LogicPanel p={p} nodeId={node.id} logicSnapshots={runtime.logicSnapshots} streaming={runtime.streaming} validate={local=>validateLogicView(node.children,{...scope,local})} onAction={({event,result,input})=>{
       const action=p.actions?.[event.type];if(!action||runtime.streaming)return
       const extra={event:{...event,result,input},args:event.args===undefined?{}:event.args}
       if(runtime.fire)runtime.fire(action,extra);else executeAction(runtime.spec,runtime.store,action,extra)
@@ -396,6 +398,8 @@ function CardRendererBody(props) {
 function CardContent({ spec, resources = {}, streaming = false, onPaint, onLayout,page,session,footer,overlay,materialPreview='enhanced' }) {
   const cardSize=useCardSize(),motionLevel=useMotionPreference()
   const stores = useRef(new Map()), stage = useRef(null), painted = useRef(false)
+  const snapshotBus=useRef(null),snapshotOwner=logicSnapshotsEnabled(spec?.context)?spec?.cardId:null
+  if(snapshotBus.current?.owner!==snapshotOwner)snapshotBus.current={owner:snapshotOwner,bus:snapshotOwner?createLogicSnapshotBus():null}
   const [, refresh] = useReducer((n) => n + 1, 0), [error, setError] = useState('')
   const [accessories, setAccessories] = useState([])
   const hasDestinations=nodes=>(nodes||[]).some(n=>n.type==='region'&&n.props?.overflow?.value==='destination'||hasDestinations(n.children))
@@ -448,7 +452,7 @@ function CardContent({ spec, resources = {}, streaming = false, onPaint, onLayou
   try {
     if (spec) {
       const store = page?.store||stores.current.get(spec.cardId), scope = makeScope(spec, store,{bindings:page?.bindings})
-      const runtime = { spec, store, resources, streaming,page,session,fire:session?((action,extra)=>session.fire(action,extra)):null,notify: () => { setError(''); refresh() }, error: setError }
+      const runtime = { spec, store, resources, streaming,page,session,logicSnapshots:snapshotBus.current?.bus,fire:session?((action,extra)=>session.fire(action,extra)):null,notify: () => { setError(''); refresh() }, error: setError }
       if(presentation.collections.length)runtime.plannerSelection=plannerSelectedIds(presentation.collections,scope,evaluate)
       const settings=[...renderChildren(explicitSettings,scope,runtime),...(presentation.settings.length?[<CardSettings key="host-settings">{renderChildren(presentation.settings,scope,runtime)}</CardSettings>]:[])]
       plannerNotes=renderChildren(presentation.notes,scope,runtime)
@@ -477,7 +481,7 @@ function CardContent({ spec, resources = {}, streaming = false, onPaint, onLayou
       }
     }
   } catch (e) { children = <div className="cs-error" data-cs-error="">{e.message}</div> }
-  return <div className="cs-shell"><div ref={stage} className="dil-stage cs-stage" data-cs-tool-bindings={JSON.stringify(Object.entries(spec?.bindings||{}).map(([id,b])=>({id,tool:b.tool})))} data-composition-version={composition?2:undefined} data-composition-family={composition?.family} data-layout-template={composition?"default":template.id} data-template-reason={template.reason} data-motion-level={motionLevel} data-material-version={materialPreview==='classic'?'1':'2'} data-card-size={cardSize} data-theme={spec?.theme || 'editorial'} data-palette={spec?.palette || 'a'} data-streaming={streaming || undefined} data-visual-style={visualStyle} data-design={design ? spec.design : undefined} data-visual-reference={spec.context?.visualReference?.referenceId} style={{...(design?{...design.tokens,colorScheme:design.scheme}:{}),...designBriefTokens(spec.context?.visualReference)}}>
+  return <div className="cs-shell"><div ref={stage} className="dil-stage cs-stage" data-cs-tool-bindings={JSON.stringify(Object.entries(spec?.bindings||{}).map(([id,b])=>({id,tool:b.tool})))} data-composition-version={composition?2:undefined} data-composition-family={composition?.family} data-layout-template={composition?"default":template.id} data-template-reason={template.reason} data-motion-level={motionLevel} data-material-version={materialPreview==='classic'?'1':'2'} data-card-size={cardSize} data-theme={spec?.theme || 'editorial'} data-palette={spec?.palette || 'a'} data-streaming={streaming || undefined} data-visual-style={visualStyle} data-design={design ? spec.design : undefined} data-experiment-layout={spec.context?.experiment?.layout} data-visual-reference={spec.context?.visualReference?.referenceId} style={{...(design?{...design.tokens,colorScheme:design.scheme}:{}),...designBriefTokens(spec.context?.visualReference)}}>
     {visualStyle && !mockDesign && <div className="cs-background" data-status={background.status} data-position={spec.backgroundPosition || 'center'} aria-hidden="true">
       <PhotoStage photo={background} crop={spec.backgroundPosition} mask={spec.backgroundMask}/><div className="cs-background-scrim"/><div className="cs-ambient"/>{!composition&&template.id==='default'&&materialPreview!=='classic'&&design?.effect&&<HostEffect kind={design.effect}/>}
     </div>}

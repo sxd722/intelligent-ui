@@ -1,5 +1,5 @@
 import {TOOLS,validateToolInput,validateJson} from './tools.mjs'
-import {canonicalInput} from './prefetch.mjs'
+import {matchRecordedSnapshot,replayMiss,emptyRecordedList,RECORDED_REPLAY_MODE} from './recorded-replay.mjs'
 
 // Contract fixtures, never evidence. Sparse adapter schemas cannot prove field semantics.
 export function schemaFixture(schema,seed=1,depth=0){
@@ -14,7 +14,7 @@ export function schemaFixture(schema,seed=1,depth=0){
  if(type==='string')return ('DEBUG_SAMPLE_'+seed).padEnd(schema.minLength||0,'x').slice(0,schema.maxLength??80)
  throw Error('Unsupported fixture schema')
 }
-export function createDebugTransport({scenario='normal',calls=[],coverage=[],snapshots=[]}={}){
+export function createDebugTransport({scenario='normal',calls=[],coverage=[],snapshots=[],replayMode}={}){
  return async(payload,signal)=>{
   signal?.throwIfAborted();const t=TOOLS[payload.tool]
   validateToolInput(payload.tool,payload.input)
@@ -23,11 +23,25 @@ export function createDebugTransport({scenario='normal',calls=[],coverage=[],sna
    coverage.push({tool:payload.tool,reason:'write or generated page/slot not executed'})
    throw Object.assign(Error('DEBUG_UNSUPPORTED: 此能力未模拟，未执行外部调用'),{code:'DEBUG_UNSUPPORTED'})
   }
-  if(scenario==='failure')throw Object.assign(Error('DEBUG_SIMULATED_FAILURE'),{code:'PROVIDER_ERROR'})
+  const strict=replayMode===RECORDED_REPLAY_MODE
+  if(scenario==='failure'&&!strict)throw Object.assign(Error('DEBUG_SIMULATED_FAILURE'),{code:'PROVIDER_ERROR'})
   // Exact host-collected snapshots keep real field names and nulls. They are
   // replayed offline, not treated as evidence of a fresh network invocation.
-  const saved=scenario==='normal'&&snapshots.find(r=>r.tool===payload.tool&&canonicalInput(r.input)===canonicalInput(payload.input))
-  if(saved){validateJson(saved.value,t.outputSchema);calls.at(-1).snapshot=true;return {kind:'json',value:structuredClone(saved.value)}}
+  const fault=strict&&(scenario==='empty'||scenario==='failure')
+  const saved=(scenario==='normal'||fault)&&matchRecordedSnapshot(snapshots,payload,{allowPrefix:strict})
+  if(saved&&fault){
+   validateJson(saved.value,t.outputSchema)
+   const mode='simulated-'+scenario
+   Object.assign(calls.at(-1),{mode,scenario,baseSnapshot:true,match:saved.match,...(saved.snapshotCoverage?{baseSnapshotCoverage:saved.snapshotCoverage}:{})})
+   coverage.push({tool:payload.tool,reason:'explicit fault injection',mode,scenario,match:saved.match})
+   if(scenario==='failure')throw Object.assign(Error('DEBUG_SIMULATED_FAILURE'),{code:'PROVIDER_ERROR',mode})
+   let value
+   try{value=emptyRecordedList(saved);validateJson(value,t.outputSchema)}
+   catch(e){coverage.push({tool:payload.tool,reason:'DEBUG_UNSUPPORTED',scenario,detail:String(e.message)});throw Object.assign(Error('DEBUG_UNSUPPORTED: recorded response cannot represent a schema-valid empty list'),{code:'DEBUG_UNSUPPORTED',mode})}
+   return {kind:'json',value,dataMode:mode}
+  }
+  if(saved){validateJson(saved.value,t.outputSchema);Object.assign(calls.at(-1),{snapshot:true,match:saved.match,...(saved.snapshotCoverage?{snapshotCoverage:saved.snapshotCoverage}:{})});return {kind:'json',value:saved.value,...(saved.snapshotCoverage?{snapshotCoverage:saved.snapshotCoverage}:{})}}
+  if(strict){coverage.push({tool:payload.tool,reason:'DEBUG_REPLAY_MISS',scenario,input:payload.input});throw replayMiss(payload.tool)}
   const value=schemaFixture(t.outputSchema)
   if(Array.isArray(value.items)){
    // Adapters expose column names, not per-column types. Do not invent numeric semantics.

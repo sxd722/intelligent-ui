@@ -60,7 +60,9 @@ function PagedComposition({composition,header,items,controls,footer,page,session
    const available=blockBox(el).content
    if(graphics.length){
     const reserved=heights.reduce((sum,h,i)=>sum+(graphics.some(g=>g.i===i)?0:h),0)+graphics.reduce((sum,g)=>sum+g.chrome,0)+Math.max(0,nodes.length-1)*gap
-    const budgets=graphicBudgets(graphics.map(g=>g.preferred),available-reserved)
+    const subjectFirst=root.current.closest('[data-experiment-layout="subject-first-v1"],[data-experiment-layout="subject-first-v2"]')
+    const floor=subjectFirst?Math.max(96,Math.min(220,available*.55/graphics.length)):96
+    const budgets=graphicBudgets(graphics.map(g=>g.preferred),available-reserved,floor)
     graphics.forEach((g,i)=>{const value=Math.floor(budgets[i])+'px';if(g.panel.style.getPropertyValue('--cs-graphic-budget')!==value)g.panel.style.setProperty('--cs-graphic-budget',value)})
     heights=nodes.map(n=>blockBox(n).outer)
    }

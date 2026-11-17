@@ -1,7 +1,7 @@
 import {useCardSize} from '../CardSize.jsx'
 import {useMotionPreference} from '../MotionControl.jsx'
 import {recordRsi} from '../rsi-client.mjs'
-import React,{useEffect,useRef,useState,useMemo} from 'react'
+import React,{useEffect,useRef,useState,useMemo,useSyncExternalStore} from 'react'
 import {useViewState} from './view-state.jsx'
 import {createSandboxClient} from './sandbox-client.js'
 import {latestInputPump} from './latest-input.mjs'
@@ -14,7 +14,13 @@ import {executeAction} from '../../shared/cardspec/store.mjs'
 import {readDesignEnvironment,observeDesignEnvironment} from './design-environment.js'
 import {sandboxGraphic} from '../../shared/cardspec/sandbox-graphic.mjs'
 import {WebSandboxPanel} from './WebSandboxPanel.jsx'
-export function SandboxPanel(props){return props.runtime.spec.sandboxModules?.[props.nodeId]?.kind==='web'||props.runtime.spec.context?.renderMode==='web'?<WebSandboxPanel {...props}/>:<StrictSandboxPanel {...props}/>}
+export function SandboxPanel(props){
+ const id=props.p.logicSnapshot,bus=props.runtime.logicSnapshots
+ const snapshot=useSyncExternalStore(fn=>id&&bus?bus.subscribe(id,fn):()=>{},()=>id&&bus?bus.read(id):null,()=>null)
+ if(id&&(!bus||!snapshot?.ready))return <section className="cs-sandbox" data-cs-node={props.nodeId} data-cs-component="sandbox" data-logic-snapshot-status={bus?'waiting':'disabled'}><span role="status">{snapshot?.error||'等待逻辑模块初始化…'}</span></section>
+ const next=id?{...props,p:{...props.p,input:{...(props.p.input||{}),logicSnapshot:snapshot}}}:props
+ return props.runtime.spec.sandboxModules?.[props.nodeId]?.kind==='web'||props.runtime.spec.context?.renderMode==='web'?<WebSandboxPanel {...next}/>:<StrictSandboxPanel {...next}/>
+}
 function StrictSandboxPanel({p,nodeId,runtime,children}){
  const motionLevel=useMotionPreference(),cardSize=useCardSize()
  const [contentHeight,setContentHeight]=useState(null)

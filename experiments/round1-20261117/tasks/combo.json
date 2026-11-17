@@ -1,0 +1,191 @@
+{
+  "version": "combo-pilot-r1",
+  "frozenAt": "2026-11-17T08:36:21.986Z",
+  "tasks": [
+    {
+      "id": "combo-01-release-rehearsal",
+      "family": "依赖流程推进与撤销传播",
+      "split": "confirm",
+      "title": "录音节目交付流程演练",
+      "dataMode": "synthetic",
+      "data": {
+        "steps": [
+          {
+            "id": "collect",
+            "name": "收齐素材",
+            "minutes": 4,
+            "requires": []
+          },
+          {
+            "id": "permission",
+            "name": "确认授权",
+            "minutes": 2,
+            "requires": []
+          },
+          {
+            "id": "edit",
+            "name": "完成粗剪",
+            "minutes": 6,
+            "requires": [
+              "collect"
+            ]
+          },
+          {
+            "id": "review",
+            "name": "完成审听",
+            "minutes": 3,
+            "requires": [
+              "edit",
+              "permission"
+            ]
+          },
+          {
+            "id": "package",
+            "name": "生成交付包",
+            "minutes": 2,
+            "requires": [
+              "review"
+            ]
+          }
+        ],
+        "initialCompleted": [],
+        "rules": {
+          "completion": "只有所有前置步骤都已完成，才能标记当前步骤完成；未满足时不改变进度，并说明缺少的前置。",
+          "retraction": "撤销某一步时，同时撤销所有直接或间接依赖它的已完成步骤，其余已完成步骤不变。",
+          "effort": "累计工时只计算当前仍标为完成的不同步骤的minutes之和，不是实际流逝时间；重复标记不能重复计入。",
+          "delivery": "交付包完成才算演练完成；没有真正上传或发布操作。"
+        }
+      },
+      "negativeControl": false,
+      "capabilities": [
+        "native state/actions",
+        "dependency relations",
+        "derived arithmetic",
+        "persistence"
+      ],
+      "faultCondition": "尝试越过前置步骤，以及撤销前置后下游完成状态必须同步失效。",
+      "prompt": "帮我做一个小型录音节目的交付流程演练工具。我要按实际进度标记完成，也能撤销误标；前置没完成的步骤不能直接完成，要告诉我还缺什么。撤销前置时，依赖它的下游成果也应撤销，不能留下假的已交付状态；独立步骤保留。让我随时知道当前完成了几步、累计有效工时、接下来可以做什么，并能保存进度，刷新后接着处理同一流程。工时是给定估值，不需要倒计时或自动推进，也不执行真实上传或发布。全部规则和数据如下：{\"steps\":[{\"id\":\"collect\",\"name\":\"收齐素材\",\"minutes\":4,\"requires\":[]},{\"id\":\"permission\",\"name\":\"确认授权\",\"minutes\":2,\"requires\":[]},{\"id\":\"edit\",\"name\":\"完成粗剪\",\"minutes\":6,\"requires\":[\"collect\"]},{\"id\":\"review\",\"name\":\"完成审听\",\"minutes\":3,\"requires\":[\"edit\",\"permission\"]},{\"id\":\"package\",\"name\":\"生成交付包\",\"minutes\":2,\"requires\":[\"review\"]}],\"initialCompleted\":[],\"rules\":{\"completion\":\"只有所有前置步骤都已完成，才能标记当前步骤完成；未满足时不改变进度，并说明缺少的前置。\",\"retraction\":\"撤销某一步时，同时撤销所有直接或间接依赖它的已完成步骤，其余已完成步骤不变。\",\"effort\":\"累计工时只计算当前仍标为完成的不同步骤的minutes之和，不是实际流逝时间；重复标记不能重复计入。\",\"delivery\":\"交付包完成才算演练完成；没有真正上传或发布操作。\"}}",
+      "revision": "r1",
+      "novelty": "New DAG completion/retraction task. Unlike screen allocation and timer tasks, it requires prerequisite gating and transitive invalidation; not a renamed old case.",
+      "promptHash": "04271b85261a970bb2ad04d4bc49b9e3b5173717e8b16e57b6a352682698ca11",
+      "dataHash": "c709ed9d1a2cf238d0bb62bd3f62956394d0471e6194a90960660ef2e977ab51"
+    },
+    {
+      "id": "combo-02-transcript-review",
+      "family": "音视频资料审阅与版本化片段定位",
+      "split": "confirm",
+      "title": "双录音字幕审阅台",
+      "dataMode": "synthetic",
+      "data": {
+        "recordings": [
+          {
+            "id": "rainwalk",
+            "title": "雨后走访",
+            "durationSeconds": 46
+          },
+          {
+            "id": "workshop",
+            "title": "工坊走访",
+            "durationSeconds": 52
+          }
+        ],
+        "sources": [
+          {
+            "id": "auto",
+            "label": "自动转写"
+          },
+          {
+            "id": "edited",
+            "label": "人工校对"
+          }
+        ],
+        "segments": [
+          {
+            "recordingId": "rainwalk",
+            "sourceId": "auto",
+            "segmentId": "s1",
+            "startSeconds": 0,
+            "endSeconds": 18,
+            "text": "雨停以后，我们沿河往东走，桥下还能听见水声。"
+          },
+          {
+            "recordingId": "rainwalk",
+            "sourceId": "auto",
+            "segmentId": "s2",
+            "startSeconds": 18,
+            "endSeconds": 42,
+            "text": "从石桥走到旧车站大概三公里，我们在那里停下来记笔记。"
+          },
+          {
+            "recordingId": "rainwalk",
+            "sourceId": "edited",
+            "segmentId": "s1",
+            "startSeconds": 2,
+            "endSeconds": 16,
+            "text": "雨停以后，我们沿河往东走；桥下还能听见水声。"
+          },
+          {
+            "recordingId": "rainwalk",
+            "sourceId": "edited",
+            "segmentId": "s2",
+            "startSeconds": 16,
+            "endSeconds": 39,
+            "text": "从石桥走到旧车站大概两公里，我们在那里停下来记笔记。"
+          },
+          {
+            "recordingId": "workshop",
+            "sourceId": "auto",
+            "segmentId": "s1",
+            "startSeconds": 1,
+            "endSeconds": 24,
+            "text": "工坊九点开门，墙边摆着上周烧好的杯子。"
+          },
+          {
+            "recordingId": "workshop",
+            "sourceId": "auto",
+            "segmentId": "s2",
+            "startSeconds": 24,
+            "endSeconds": 50,
+            "text": "师傅说这次烧制要十小时，最后两小时逐渐降温。"
+          },
+          {
+            "recordingId": "workshop",
+            "sourceId": "edited",
+            "segmentId": "s1",
+            "startSeconds": 3,
+            "endSeconds": 22,
+            "text": "工坊十点开门，墙边摆着上周烧好的杯子。"
+          },
+          {
+            "recordingId": "workshop",
+            "sourceId": "edited",
+            "segmentId": "s2",
+            "startSeconds": 22,
+            "endSeconds": 47,
+            "text": "师傅说这次烧制要十二小时，最后两小时逐渐降温。"
+          }
+        ],
+        "initialSelection": {
+          "recordingId": "rainwalk",
+          "sourceId": "auto",
+          "segmentId": "s1"
+        },
+        "initialQuestions": [],
+        "identityRule": "问题记录属于recordingId、sourceId、segmentId三者共同指定的片段版本；segmentId在不同录音和来源里会重复。"
+      },
+      "negativeControl": false,
+      "capabilities": [
+        "native state/actions",
+        "scoped entity selection",
+        "versioned source references",
+        "persistence"
+      ],
+      "faultCondition": "不同录音和转写来源共用片段ID；来源切换后文字与时间区间变化，问题不能串到别的版本。",
+      "prompt": "给我做一个两段走访录音的字幕审阅小工具，只用下面自带的虚构转写，不需要联网或真的播放音频。我希望切换录音、选择自动转写或人工校对，再逐段阅读全文并看到对应的原片时间区间。我能为当前片段版本写下一条待核对的问题并保存；切换到另一段录音或另一转写版本时，文字、时间和问题都必须属于当前对象。再回到之前的录音时，保留它上次的来源和片段选择，以及已保存的问题。让我能找到已记下问题的片段，刷新后恢复当前审阅位置和全部已保存问题。来源之间只是给定的两个版本，不要自行改字或把它们合成一份。数据如下：{\"recordings\":[{\"id\":\"rainwalk\",\"title\":\"雨后走访\",\"durationSeconds\":46},{\"id\":\"workshop\",\"title\":\"工坊走访\",\"durationSeconds\":52}],\"sources\":[{\"id\":\"auto\",\"label\":\"自动转写\"},{\"id\":\"edited\",\"label\":\"人工校对\"}],\"segments\":[{\"recordingId\":\"rainwalk\",\"sourceId\":\"auto\",\"segmentId\":\"s1\",\"startSeconds\":0,\"endSeconds\":18,\"text\":\"雨停以后，我们沿河往东走，桥下还能听见水声。\"},{\"recordingId\":\"rainwalk\",\"sourceId\":\"auto\",\"segmentId\":\"s2\",\"startSeconds\":18,\"endSeconds\":42,\"text\":\"从石桥走到旧车站大概三公里，我们在那里停下来记笔记。\"},{\"recordingId\":\"rainwalk\",\"sourceId\":\"edited\",\"segmentId\":\"s1\",\"startSeconds\":2,\"endSeconds\":16,\"text\":\"雨停以后，我们沿河往东走；桥下还能听见水声。\"},{\"recordingId\":\"rainwalk\",\"sourceId\":\"edited\",\"segmentId\":\"s2\",\"startSeconds\":16,\"endSeconds\":39,\"text\":\"从石桥走到旧车站大概两公里，我们在那里停下来记笔记。\"},{\"recordingId\":\"workshop\",\"sourceId\":\"auto\",\"segmentId\":\"s1\",\"startSeconds\":1,\"endSeconds\":24,\"text\":\"工坊九点开门，墙边摆着上周烧好的杯子。\"},{\"recordingId\":\"workshop\",\"sourceId\":\"auto\",\"segmentId\":\"s2\",\"startSeconds\":24,\"endSeconds\":50,\"text\":\"师傅说这次烧制要十小时，最后两小时逐渐降温。\"},{\"recordingId\":\"workshop\",\"sourceId\":\"edited\",\"segmentId\":\"s1\",\"startSeconds\":3,\"endSeconds\":22,\"text\":\"工坊十点开门，墙边摆着上周烧好的杯子。\"},{\"recordingId\":\"workshop\",\"sourceId\":\"edited\",\"segmentId\":\"s2\",\"startSeconds\":22,\"endSeconds\":47,\"text\":\"师傅说这次烧制要十二小时，最后两小时逐渐降温。\"}],\"initialSelection\":{\"recordingId\":\"rainwalk\",\"sourceId\":\"auto\",\"segmentId\":\"s1\"},\"initialQuestions\":[],\"identityRule\":\"问题记录属于recordingId、sourceId、segmentId三者共同指定的片段版本；segmentId在不同录音和来源里会重复。\"}",
+      "revision": "r1",
+      "novelty": "New scoped temporal annotation task, not photo-date adjudication or document retrieval. Shared local segment IDs across two recordings and two sources require composite identity and per-recording selection restoration.",
+      "promptHash": "5aa822e516bb3e7ac1abc21c80b9c02283c5c201350ac19dadb196f24e5c54a4",
+      "dataHash": "ea490c2fdeadabb6a65d9c4166073b1e9c5cad55fdf07baac224e6673c496c79"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "version": "combo-pilot-freeze-r1",
+  "frozenAt": "2026-11-17T08:36:21.986Z",
+  "conditions": [
+    "B1",
+    "S1",
+    "H1",
+    "H1S1"
+  ],
+  "repeats": 1,
+  "taskCount": 2,
+  "plannedMainRuns": 8,
+  "taskFile": {
+    "path": "tasks/combo.json",
+    "sha256": "bdbed98927984e6140336c33df2d5424d5813ac66c5023ba51d6848fe654748c"
+  },
+  "evaluatorOnlyFile": {
+    "path": "tasks/oracles-combo.json",
+    "sha256": "25ef2477b3db118728c4cb232990feb3ad87da64fd0a2db4b1756eb2274df283"
+  },
+  "tasks": [
+    {
+      "id": "combo-01-release-rehearsal",
+      "family": "依赖流程推进与撤销传播",
+      "promptHash": "04271b85261a970bb2ad04d4bc49b9e3b5173717e8b16e57b6a352682698ca11",
+      "dataHash": "c709ed9d1a2cf238d0bb62bd3f62956394d0471e6194a90960660ef2e977ab51",
+      "promptCharacters": 770
+    },
+    {
+      "id": "combo-02-transcript-review",
+      "family": "音视频资料审阅与版本化片段定位",
+      "promptHash": "5aa822e516bb3e7ac1abc21c80b9c02283c5c201350ac19dadb196f24e5c54a4",
+      "dataHash": "ea490c2fdeadabb6a65d9c4166073b1e9c5cad55fdf07baac224e6673c496c79",
+      "promptCharacters": 1675
+    }
+  ],
+  "oracleSelfCheck": {
+    "status": "passed",
+    "method": "Independent set-DAG traversal + arithmetic; composite-key source-row and interval lookup; no generated code"
+  },
+  "generationBoundary": "Generator receives task.prompt and experiment settings only. Never load oracles-combo.json into model context.",
+  "noveltyReview": "Compared against four screening and two confirmation tasks; graph invalidation and versioned temporal annotations are new structures."
+}

@@ -1,0 +1,167 @@
+{
+  "version": "confirm-oracle-r1",
+  "access": "evaluator-only; never supplied to generator",
+  "tasks": {
+    "confirm-01-piece-lookup": {
+      "requirements": [
+        "A single query reveals exact location and quantity without additional navigation.",
+        "Unknown remains unknown.",
+        "Reload preserves current queried item."
+      ],
+      "paths": [
+        {
+          "id": "known-lookup",
+          "operations": [
+            {
+              "intent": "query",
+              "entity": "moon"
+            },
+            {
+              "intent": "reload"
+            }
+          ],
+          "expected": {
+            "entity": "moon",
+            "name": "月亮标记",
+            "location": "蓝盒 B4",
+            "quantity": 6
+          }
+        },
+        {
+          "id": "unknown-lookup",
+          "operations": [
+            {
+              "intent": "query",
+              "entity": "hourglass"
+            },
+            {
+              "intent": "reload"
+            }
+          ],
+          "expected": {
+            "entity": "hourglass",
+            "name": "沙漏标记",
+            "location": null,
+            "quantity": 1,
+            "unknownExplicit": true
+          }
+        }
+      ],
+      "invariants": [
+        "No mutation of supplied quantity/location.",
+        "Search result updates to the currently requested entity."
+      ],
+      "layout": "Primary answer and query control visible without avoidable navigation; do not require visual complexity."
+    },
+    "confirm-02-photo-evidence": {
+      "requirements": [
+        "Evidence belongs only to current photo and literal quotes remain accessible.",
+        "Conflicting years cannot be silently resolved; unknown never becomes zero/current year.",
+        "Per-photo decision/notes, filter and return/reload persist."
+      ],
+      "paths": [
+        {
+          "id": "defer-conflict",
+          "operations": [
+            {
+              "intent": "inspect",
+              "entity": "p1"
+            },
+            {
+              "intent": "reviewEvidence",
+              "entities": [
+                "e11",
+                "e12"
+              ]
+            },
+            {
+              "intent": "defer",
+              "entity": "p1",
+              "note": "先问相册主人，暂不定年份"
+            },
+            {
+              "intent": "inspect",
+              "entity": "p2"
+            },
+            {
+              "intent": "return",
+              "entity": "p1"
+            },
+            {
+              "intent": "reload"
+            }
+          ],
+          "expected": {
+            "photo": "p1",
+            "evidenceIds": [
+              "e11",
+              "e12"
+            ],
+            "candidateYears": [
+              1998,
+              2001
+            ],
+            "status": "pending",
+            "confirmedYear": null,
+            "note": "先问相册主人，暂不定年份",
+            "p3ConfirmedYear": null
+          }
+        },
+        {
+          "id": "confirm-agreement",
+          "operations": [
+            {
+              "intent": "inspect",
+              "entity": "p2"
+            },
+            {
+              "intent": "reviewEvidence",
+              "entities": [
+                "e21",
+                "e22"
+              ]
+            },
+            {
+              "intent": "confirm",
+              "entity": "p2",
+              "year": 2004,
+              "note": "两条独立记录一致"
+            },
+            {
+              "intent": "filterUnconfirmed"
+            },
+            {
+              "intent": "inspect",
+              "entity": "p3"
+            },
+            {
+              "intent": "reload"
+            }
+          ],
+          "expected": {
+            "p2": {
+              "status": "confirmed",
+              "year": 2004,
+              "note": "两条独立记录一致"
+            },
+            "unconfirmedIds": [
+              "p1",
+              "p3"
+            ],
+            "currentPhoto": "p3",
+            "currentEvidenceIds": [
+              "e31"
+            ],
+            "currentYear": null
+          }
+        }
+      ],
+      "invariants": [
+        "No evidence e11/e12 shown as p2 evidence.",
+        "Saving one photo must not overwrite another.",
+        "Full original evidence quotes remain reachable."
+      ],
+      "classificationRule": "Known distinct year set >1: conflict; exactly1: agreement; none: unknown. Confirmation is explicit user choice, not automatic majority vote."
+    }
+  }
+}

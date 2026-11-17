@@ -1,0 +1,189 @@
+{
+  "version": "screen-r1",
+  "createdAt": "2026-11-17T06:47:11.272226+00:00",
+  "tasks": [
+    {
+      "id": "screen-01-recording-kit",
+      "family": "规格核对与选择",
+      "split": "screen",
+      "title": "野外录音套装借用决定",
+      "dataMode": "synthetic",
+      "data": {
+        "kits": [
+          {
+            "id": "reed",
+            "name": "芦苇",
+            "weightG": 380,
+            "batteryHours": 8,
+            "dailyYuan": 45
+          },
+          {
+            "id": "owl",
+            "name": "夜枭",
+            "weightG": 520,
+            "batteryHours": 12,
+            "dailyYuan": 60
+          },
+          {
+            "id": "moss",
+            "name": "苔藓",
+            "weightG": 290,
+            "batteryHours": null,
+            "dailyYuan": 35
+          },
+          {
+            "id": "stone",
+            "name": "石溪",
+            "weightG": 450,
+            "batteryHours": 6,
+            "dailyYuan": 40
+          }
+        ],
+        "initialNeeds": {
+          "maxWeightG": 500,
+          "minBatteryHours": 8,
+          "maxDailyYuan": 55
+        }
+      },
+      "prompt": "我为一次野外录音借设备。以下是虚构的四套设备资料，不要补编缺失值。请做一个能让我调整重量上限、最低续航和每日预算、检查哪些套装满足要求的工具。我想选两套看具体取舍，再保存最终借哪一套以及自己的理由；读详情后返回、刷新页面都应保留选择和决定。最低续航未知的设备要和确认达标的区分。初始要求和数据如下：{\"kits\": [{\"id\": \"reed\", \"name\": \"芦苇\", \"weightG\": 380, \"batteryHours\": 8, \"dailyYuan\": 45}, {\"id\": \"owl\", \"name\": \"夜枭\", \"weightG\": 520, \"batteryHours\": 12, \"dailyYuan\": 60}, {\"id\": \"moss\", \"name\": \"苔藓\", \"weightG\": 290, \"batteryHours\": null, \"dailyYuan\": 35}, {\"id\": \"stone\", \"name\": \"石溪\", \"weightG\": 450, \"batteryHours\": 6, \"dailyYuan\": 40}], \"initialNeeds\": {\"maxWeightG\": 500, \"minBatteryHours\": 8, \"maxDailyYuan\": 55}}",
+      "faultCondition": "一套设备续航缺失；未知不能按0或达标处理。",
+      "negativeControl": false,
+      "capabilities": [
+        "native state/actions",
+        "selection",
+        "comparison",
+        "persistence"
+      ],
+      "promptHash": "8d7719f4b9a648811ba436d10317bc461a49acd2b9fee1b37d7bf2eb0c340e52",
+      "dataHash": "ec0444c27371b71716b90457849b72b2171acae9dfcdb2920d83e1d7da2c01f2",
+      "revision": "r1",
+      "novelty": "New task authored for round1; not imported from repository fixtures or exposed cases."
+    },
+    {
+      "id": "screen-02-print-room",
+      "family": "现场作业安排",
+      "split": "screen",
+      "title": "共享印刷室工单分配",
+      "dataMode": "synthetic",
+      "data": {
+        "machines": [
+          {
+            "id": "pine",
+            "name": "松木机",
+            "availableMinutes": 60
+          },
+          {
+            "id": "cedar",
+            "name": "雪松机",
+            "availableMinutes": 70
+          }
+        ],
+        "jobs": [
+          {
+            "id": "poster",
+            "name": "海报",
+            "minutes": 45
+          },
+          {
+            "id": "leaflet",
+            "name": "传单",
+            "minutes": 35
+          },
+          {
+            "id": "ticket",
+            "name": "入场券",
+            "minutes": 30
+          }
+        ],
+        "initialAssignment": {
+          "poster": "pine",
+          "leaflet": "pine",
+          "ticket": "cedar"
+        }
+      },
+      "prompt": "我管理社区共享印刷室。根据下面虚构的工时和设备可用时段，做一个能把三个工单在两台设备之间重新分配的小工具。每个工单只能分给一台设备；我调整后，要看到每台设备已占用、还剩多少或超出多少分钟，不能只挪动标签。让我保存安排、查看某个工单再返回，并在刷新后恢复当前分配。请保留所有工单，不能靠删工单消除超额。数据：{\"machines\": [{\"id\": \"pine\", \"name\": \"松木机\", \"availableMinutes\": 60}, {\"id\": \"cedar\", \"name\": \"雪松机\", \"availableMinutes\": 70}], \"jobs\": [{\"id\": \"poster\", \"name\": \"海报\", \"minutes\": 45}, {\"id\": \"leaflet\", \"name\": \"传单\", \"minutes\": 35}, {\"id\": \"ticket\", \"name\": \"入场券\", \"minutes\": 30}], \"initialAssignment\": {\"poster\": \"pine\", \"leaflet\": \"pine\", \"ticket\": \"cedar\"}}",
+      "faultCondition": "初始分配超额；后续存在满足容量的分配。",
+      "negativeControl": false,
+      "capabilities": [
+        "native state/actions",
+        "allocation",
+        "arithmetic",
+        "persistence"
+      ],
+      "promptHash": "08c60a2aecfe16c5a41fe962ddd7d00ece7dc56cab7f5c3a916f06470ef83360",
+      "dataHash": "0e4e5253c23e0e718efa06bec8e61c5313bba958413c0b357608a5c01be963f5",
+      "revision": "r1",
+      "novelty": "New task authored for round1; not imported from repository fixtures or exposed cases."
+    },
+    {
+      "id": "screen-03-water-transfer",
+      "family": "连续变量与时间回放",
+      "split": "screen",
+      "title": "两级蓄水转移观察",
+      "dataMode": "synthetic",
+      "data": {
+        "initial": {
+          "sourceL": 60,
+          "receiverL": 20,
+          "elapsedSeconds": 0,
+          "running": false,
+          "rateLPerSecond": 5
+        },
+        "capacitiesL": {
+          "source": 80,
+          "receiver": 80
+        },
+        "allowedRates": [
+          2,
+          5,
+          10
+        ],
+        "stepSeconds": 1,
+        "rule": "每个业务步从源罐向接收罐转移 min(设定速率×1秒,源罐剩余,接收罐剩余容量) 升；两个罐之外无损耗。源罐空或接收罐满时停止。播放每秒执行一次同样的业务步，暂停时不得继续转移。"
+      },
+      "prompt": "给科学兴趣小组做一个两罐转水的观察小程序，使用下面明确的教学规则而非真实流体模型。我想看水量怎样一步步变化，能开始、暂停、一次前进一步，改变转移速率后继续；画面中的水量与数字必须是同一次业务状态。暂停后数量稳定，刷新后保留水量和暂停状态，重新开始实验可回到初始值；到达边界不溢出、不出现负数。数据与规则：{\"initial\": {\"sourceL\": 60, \"receiverL\": 20, \"elapsedSeconds\": 0, \"running\": false, \"rateLPerSecond\": 5}, \"capacitiesL\": {\"source\": 80, \"receiver\": 80}, \"allowedRates\": [2, 5, 10], \"stepSeconds\": 1, \"rule\": \"每个业务步从源罐向接收罐转移 min(设定速率×1秒,源罐剩余,接收罐剩余容量) 升；两个罐之外无损耗。源罐空或接收罐满时停止。播放每秒执行一次同样的业务步，暂停时不得继续转移。\"}",
+      "faultCondition": "暂停、速率变化和源罐空边界；图形不能消费过期的状态。",
+      "negativeControl": "continuous-variable: slider permitted; do not force gameification",
+      "capabilities": [
+        "logic tick",
+        "step/pause",
+        "graphic representation",
+        "persistence"
+      ],
+      "promptHash": "66c46b5edda4be3d719883cf02f30e1f7b1b1fb7d553d322f3370c1a4416ee74",
+      "dataHash": "4e42e4c76bd93334bc5e0d7ae701a27c03d6871fd260fd6c163a99f6e0baddc7",
+      "revision": "r1",
+      "novelty": "New task authored for round1; not imported from repository fixtures or exposed cases."
+    },
+    {
+      "id": "screen-04-luminous-library",
+      "family": "资料归整",
+      "split": "screen",
+      "title": "发光生物资料夹",
+      "dataMode": "recorded-live",
+      "data": {
+        "provider": "Wikipedia",
+        "initialQuery": "bioluminescence",
+        "alternateQuery": "biofluorescence",
+        "lang": "en",
+        "resultLimit": 4
+      },
+      "prompt": "我给自然观察小组整理发光生物资料。请用真实可用的维基百科查询能力，从 bioluminescence 开始找英文条目；让我改查 biofluorescence，选择条目后读到超出搜索摘要的正文，并固定一段我觉得有用的原文和来源链接。返回结果后保留当前对象和已固定依据，刷新页面后能恢复，且可以重新查询更新资料。不要把搜索 snippet 当全文，也不要编造正文或引用。这里主要是检索、阅读和保存依据，不需要小游戏。",
+      "faultCondition": "查询A/B身份与详情分离，旧查询详情不能污染新对象；空/失败保留明确状态。",
+      "negativeControl": "list-retrieval: list is appropriate",
+      "capabilities": [
+        "opencli.wikipedia.search",
+        "opencli.wikipedia.page",
+        "opencli.wikipedia.summary",
+        "binding",
+        "source navigation",
+        "persistence"
+      ],
+      "promptHash": "6d175335928d6d85398aa01229cb24a025dd6d686c32dd20c72764edfaa4e499",
+      "dataHash": "d5077460fdff6a3e59768ce13341add4a2a86d4e7625159e9e6866a253ce4644",
+      "revision": "r1",
+      "novelty": "New task authored for round1; not imported from repository fixtures or exposed cases."
+    }
+  ],
+  "modelInputRule": "Only prompt and fixed data/snapshots. Never send oracles.json or evaluator steps/expected values to generation."
+}

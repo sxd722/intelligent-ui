@@ -1,0 +1,413 @@
+{
+  "version": "combo-oracle-r1",
+  "access": "evaluator-only; never supplied to generator or model prompt",
+  "frozenAt": "2026-11-17T08:36:21.986Z",
+  "tasks": {
+    "combo-01-release-rehearsal": {
+      "requirements": [
+        "Dependencies block premature completion with an explanation and zero progress mutation.",
+        "Retraction removes transitive dependents while preserving independent completed work.",
+        "Counts and effective effort reflect distinct currently completed steps.",
+        "Saved workflow restores exactly; no real publish/upload claims."
+      ],
+      "oracleFormula": "A completed set C is valid iff each v in C has requires(v) subset C. Retract(v) removes v and every node reachable from v along prerequisite-to-dependent edges. count=|C|; effort=sum(minutes[v] for v in C).",
+      "paths": [
+        {
+          "id": "blocked-then-complete",
+          "operations": [
+            {
+              "intent": "attemptComplete",
+              "entity": "package",
+              "expectNoProgress": true
+            },
+            {
+              "intent": "complete",
+              "entity": "collect"
+            },
+            {
+              "intent": "complete",
+              "entity": "edit"
+            },
+            {
+              "intent": "attemptComplete",
+              "entity": "review",
+              "expectNoProgress": true
+            },
+            {
+              "intent": "complete",
+              "entity": "permission"
+            },
+            {
+              "intent": "complete",
+              "entity": "review"
+            },
+            {
+              "intent": "complete",
+              "entity": "package"
+            },
+            {
+              "intent": "save"
+            },
+            {
+              "intent": "reload"
+            }
+          ],
+          "checkpoints": [
+            {
+              "after": 1,
+              "completed": [],
+              "count": 0,
+              "effortMinutes": 0,
+              "missingPrerequisite": "review"
+            },
+            {
+              "after": 4,
+              "completed": [
+                "collect",
+                "edit"
+              ],
+              "count": 2,
+              "effortMinutes": 10,
+              "missingPrerequisite": "permission"
+            },
+            {
+              "after": 7,
+              "completed": [
+                "collect",
+                "permission",
+                "edit",
+                "review",
+                "package"
+              ],
+              "count": 5,
+              "effortMinutes": 17,
+              "delivered": true
+            }
+          ],
+          "expected": {
+            "completed": [
+              "collect",
+              "permission",
+              "edit",
+              "review",
+              "package"
+            ],
+            "count": 5,
+            "effortMinutes": 17,
+            "delivered": true,
+            "restored": true
+          }
+        },
+        {
+          "id": "retract-dependency-preserve-independent",
+          "operations": [
+            {
+              "intent": "complete",
+              "entity": "permission"
+            },
+            {
+              "intent": "complete",
+              "entity": "collect"
+            },
+            {
+              "intent": "complete",
+              "entity": "edit"
+            },
+            {
+              "intent": "complete",
+              "entity": "review"
+            },
+            {
+              "intent": "complete",
+              "entity": "package"
+            },
+            {
+              "intent": "retract",
+              "entity": "collect"
+            },
+            {
+              "intent": "complete",
+              "entity": "collect"
+            },
+            {
+              "intent": "attemptComplete",
+              "entity": "package",
+              "expectNoProgress": true
+            },
+            {
+              "intent": "save"
+            },
+            {
+              "intent": "reload"
+            }
+          ],
+          "checkpoints": [
+            {
+              "after": 5,
+              "completed": [
+                "collect",
+                "permission",
+                "edit",
+                "review",
+                "package"
+              ],
+              "effortMinutes": 17
+            },
+            {
+              "after": 6,
+              "completed": [
+                "permission"
+              ],
+              "count": 1,
+              "effortMinutes": 2,
+              "delivered": false
+            },
+            {
+              "after": 8,
+              "completed": [
+                "collect",
+                "permission"
+              ],
+              "count": 2,
+              "effortMinutes": 6,
+              "delivered": false,
+              "missingPrerequisite": "review"
+            }
+          ],
+          "expected": {
+            "completed": [
+              "collect",
+              "permission"
+            ],
+            "count": 2,
+            "effortMinutes": 6,
+            "delivered": false,
+            "readyUnfinished": [
+              "edit"
+            ],
+            "restored": true
+          }
+        }
+      ],
+      "invariants": [
+        "The five task IDs, dependency graph and effort constants never change.",
+        "A set membership is counted once regardless of UI update history.",
+        "Blocked operations preserve completed set, total and delivered status.",
+        "Any unsupported button can be disabled rather than clickable, but missing prerequisites must remain discoverable without executing the step."
+      ],
+      "layout": "Current progress, available next actions and failure reason must be reachable at432/320. No mandated diagram or controls; explanations can be disclosed on demand."
+    },
+    "combo-02-transcript-review": {
+      "requirements": [
+        "Recording/source/segment identity determines the exact full supplied text and interval.",
+        "Saved questions belong to composite identities, not bare segment IDs.",
+        "Per-recording last source/segment selection and all questions survive switching and refresh.",
+        "A saved question can be found and opens its exact anchored version."
+      ],
+      "oracleRelation": "key=(recordingId,sourceId,segmentId); lookup must match all three fields in the frozen segments table. Display interval from startSeconds/endSeconds, allowing equivalent mm:ss formatting. Saving/updating one key must not mutate another key.",
+      "paths": [
+        {
+          "id": "recording-switch-with-colliding-segment-id",
+          "operations": [
+            {
+              "intent": "selectSource",
+              "sourceId": "edited"
+            },
+            {
+              "intent": "selectSegment",
+              "segmentId": "s2"
+            },
+            {
+              "intent": "saveQuestion",
+              "text": "两公里的测量依据是什么？"
+            },
+            {
+              "intent": "selectRecording",
+              "recordingId": "workshop"
+            },
+            {
+              "intent": "selectSource",
+              "sourceId": "auto"
+            },
+            {
+              "intent": "selectSegment",
+              "segmentId": "s2"
+            },
+            {
+              "intent": "verifyNoQuestionFromOtherRecording"
+            },
+            {
+              "intent": "saveQuestion",
+              "text": "十小时是否包含降温？"
+            },
+            {
+              "intent": "selectRecording",
+              "recordingId": "rainwalk"
+            },
+            {
+              "intent": "reload"
+            },
+            {
+              "intent": "findSavedQuestion",
+              "text": "十小时是否包含降温？"
+            }
+          ],
+          "checkpoints": [
+            {
+              "after": 3,
+              "selection": {
+                "recordingId": "rainwalk",
+                "sourceId": "edited",
+                "segmentId": "s2"
+              },
+              "intervalSeconds": [
+                16,
+                39
+              ],
+              "literalTextContains": "大概两公里",
+              "question": "两公里的测量依据是什么？"
+            },
+            {
+              "after": 7,
+              "selection": {
+                "recordingId": "workshop",
+                "sourceId": "auto",
+                "segmentId": "s2"
+              },
+              "intervalSeconds": [
+                24,
+                50
+              ],
+              "literalTextContains": "要十小时",
+              "question": null
+            },
+            {
+              "after": 10,
+              "selection": {
+                "recordingId": "rainwalk",
+                "sourceId": "edited",
+                "segmentId": "s2"
+              },
+              "intervalSeconds": [
+                16,
+                39
+              ],
+              "question": "两公里的测量依据是什么？",
+              "savedQuestionCount": 2
+            }
+          ],
+          "expected": {
+            "selection": {
+              "recordingId": "workshop",
+              "sourceId": "auto",
+              "segmentId": "s2"
+            },
+            "intervalSeconds": [
+              24,
+              50
+            ],
+            "question": "十小时是否包含降温？",
+            "savedQuestionCount": 2,
+            "otherQuestionPreserved": true,
+            "restored": true
+          }
+        },
+        {
+          "id": "source-switch-preserves-versioned-notes",
+          "operations": [
+            {
+              "intent": "saveQuestion",
+              "text": "开头两秒是否是环境声？"
+            },
+            {
+              "intent": "selectSource",
+              "sourceId": "edited"
+            },
+            {
+              "intent": "selectSegment",
+              "segmentId": "s1"
+            },
+            {
+              "intent": "verifyNoQuestionFromOtherSource"
+            },
+            {
+              "intent": "saveQuestion",
+              "text": "校对版为何从第二秒开始？"
+            },
+            {
+              "intent": "reload"
+            },
+            {
+              "intent": "findSavedQuestion",
+              "text": "开头两秒是否是环境声？"
+            }
+          ],
+          "checkpoints": [
+            {
+              "after": 1,
+              "selection": {
+                "recordingId": "rainwalk",
+                "sourceId": "auto",
+                "segmentId": "s1"
+              },
+              "intervalSeconds": [
+                0,
+                18
+              ],
+              "question": "开头两秒是否是环境声？"
+            },
+            {
+              "after": 4,
+              "selection": {
+                "recordingId": "rainwalk",
+                "sourceId": "edited",
+                "segmentId": "s1"
+              },
+              "intervalSeconds": [
+                2,
+                16
+              ],
+              "question": null
+            },
+            {
+              "after": 6,
+              "selection": {
+                "recordingId": "rainwalk",
+                "sourceId": "edited",
+                "segmentId": "s1"
+              },
+              "intervalSeconds": [
+                2,
+                16
+              ],
+              "question": "校对版为何从第二秒开始？",
+              "savedQuestionCount": 2
+            }
+          ],
+          "expected": {
+            "selection": {
+              "recordingId": "rainwalk",
+              "sourceId": "auto",
+              "segmentId": "s1"
+            },
+            "intervalSeconds": [
+              0,
+              18
+            ],
+            "question": "开头两秒是否是环境声？",
+            "savedQuestionCount": 2,
+            "otherQuestionPreserved": true,
+            "restored": true
+          }
+        }
+      ],
+      "invariants": [
+        "All eight literal source texts and original time bounds remain available without invented audio playback or network data.",
+        "No cross-recording or cross-source question leakage, despite repeated s1/s2 IDs.",
+        "Selecting an object/source/segment changes the visible passage and interval together.",
+        "A new recording's initial source choice is not prescribed; evaluation explicitly chooses it before checking values."
+      ],
+      "layout": "Selected passage, interval and question action remain readable/reachable. Saved-question discovery may use any clear interaction, without prescribing list, tabs, grid, timeline or card count."
+    }
+  }
+}

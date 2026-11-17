@@ -1,0 +1,131 @@
+{
+  "version": "confirm-r1",
+  "frozenAt": "2026-11-17T07:38:34.917Z",
+  "tasks": [
+    {
+      "id": "confirm-01-piece-lookup",
+      "family": "直接事实查询负对照",
+      "split": "confirm",
+      "title": "桌游零件位置速查",
+      "dataMode": "synthetic",
+      "data": {
+        "pieces": [
+          {
+            "id": "compass",
+            "name": "罗盘标记",
+            "location": "蓝盒 B2",
+            "quantity": 3
+          },
+          {
+            "id": "moon",
+            "name": "月亮标记",
+            "location": "蓝盒 B4",
+            "quantity": 6
+          },
+          {
+            "id": "bridge",
+            "name": "木桥",
+            "location": "绿盒 A1",
+            "quantity": 2
+          },
+          {
+            "id": "hourglass",
+            "name": "沙漏标记",
+            "location": null,
+            "quantity": 1
+          }
+        ],
+        "initialQuery": "罗盘标记"
+      },
+      "negativeControl": true,
+      "capabilities": [
+        "native state/actions",
+        "lookup",
+        "persistence"
+      ],
+      "faultCondition": "一个零件位置未知；不可补造存放位置。",
+      "prompt": "做一个桌游零件位置速查小工具。我只想选择或输入零件名字，立即知道它放在哪里、共有几个；位置未记录就明确告诉我未知。刷新后记住刚才查的零件。不要把这样一个查询变成多步流程。全部资料是我提供的虚构数据，不需要外部查询：{\"pieces\":[{\"id\":\"compass\",\"name\":\"罗盘标记\",\"location\":\"蓝盒 B2\",\"quantity\":3},{\"id\":\"moon\",\"name\":\"月亮标记\",\"location\":\"蓝盒 B4\",\"quantity\":6},{\"id\":\"bridge\",\"name\":\"木桥\",\"location\":\"绿盒 A1\",\"quantity\":2},{\"id\":\"hourglass\",\"name\":\"沙漏标记\",\"location\":null,\"quantity\":1}],\"initialQuery\":\"罗盘标记\"}",
+      "revision": "r1",
+      "promptHash": "8155432939647797816ae3df3c0358e32b21cde67eefe571a9801a87e75b135f",
+      "dataHash": "acbd37ad15f1783a75efdb7b5e23a0c16a964eb63e30a9c4f748afeb3accd13b",
+      "novelty": "New confirmation target/structure; not imported from fixtures or screen tasks. Frozen before any generation."
+    },
+    {
+      "id": "confirm-02-photo-evidence",
+      "family": "对象证据组织与人工决定",
+      "split": "confirm",
+      "title": "旧照片年代校对",
+      "dataMode": "synthetic",
+      "data": {
+        "photos": [
+          {
+            "id": "p1",
+            "title": "旧渡口合影",
+            "caption": "四人站在渡口木牌旁"
+          },
+          {
+            "id": "p2",
+            "title": "开学第一天",
+            "caption": "两人在校门前"
+          },
+          {
+            "id": "p3",
+            "title": "雪后院子",
+            "caption": "空院子与积雪"
+          }
+        ],
+        "evidence": [
+          {
+            "id": "e11",
+            "photoId": "p1",
+            "source": "照片背面手写",
+            "quote": "1998 年秋，老渡口最后一次合影。",
+            "year": 1998
+          },
+          {
+            "id": "e12",
+            "photoId": "p1",
+            "source": "相册页标签",
+            "quote": "本页照片摄于 2001 年。",
+            "year": 2001
+          },
+          {
+            "id": "e21",
+            "photoId": "p2",
+            "source": "冲印袋记录",
+            "quote": "2004-09-02 收件，照片为 2004 年 9 月开学。",
+            "year": 2004
+          },
+          {
+            "id": "e22",
+            "photoId": "p2",
+            "source": "当事人留言",
+            "quote": "这是我 2004 年入学那天。",
+            "year": 2004
+          },
+          {
+            "id": "e31",
+            "photoId": "p3",
+            "source": "相册页空白",
+            "quote": "未写日期。",
+            "year": null
+          }
+        ],
+        "initialPhoto": "p1"
+      },
+      "negativeControl": false,
+      "capabilities": [
+        "native state/actions",
+        "entity evidence",
+        "selection",
+        "persistence"
+      ],
+      "faultCondition": "同一照片有矛盾年份，另一个照片完全没有年份；不能把未知值推断成当前年份。",
+      "prompt": "帮我整理这组三张旧照片的年代。我希望逐张查看照片记录及属于它的原始依据，清楚看到一致、冲突和未知；对有冲突的照片可以保留待核实并写自己的备注，对证据一致的照片可以确认年份。让我能只看尚未确认的照片，切换或返回后不串资料，刷新后保留每张照片的决定及备注。这里没有实际照片文件，不要为这些照片编造图片；依据全文必须可读。这些是虚构练习资料：{\"photos\":[{\"id\":\"p1\",\"title\":\"旧渡口合影\",\"caption\":\"四人站在渡口木牌旁\"},{\"id\":\"p2\",\"title\":\"开学第一天\",\"caption\":\"两人在校门前\"},{\"id\":\"p3\",\"title\":\"雪后院子\",\"caption\":\"空院子与积雪\"}],\"evidence\":[{\"id\":\"e11\",\"photoId\":\"p1\",\"source\":\"照片背面手写\",\"quote\":\"1998 年秋，老渡口最后一次合影。\",\"year\":1998},{\"id\":\"e12\",\"photoId\":\"p1\",\"source\":\"相册页标签\",\"quote\":\"本页照片摄于 2001 年。\",\"year\":2001},{\"id\":\"e21\",\"photoId\":\"p2\",\"source\":\"冲印袋记录\",\"quote\":\"2004-09-02 收件，照片为 2004 年 9 月开学。\",\"year\":2004},{\"id\":\"e22\",\"photoId\":\"p2\",\"source\":\"当事人留言\",\"quote\":\"这是我 2004 年入学那天。\",\"year\":2004},{\"id\":\"e31\",\"photoId\":\"p3\",\"source\":\"相册页空白\",\"quote\":\"未写日期。\",\"year\":null}],\"initialPhoto\":\"p1\"}",
+      "revision": "r1",
+      "promptHash": "b31586eccfc5096634e66973bc750c37ad3fa40c2834ccc5cbc08b707168b9ea",
+      "dataHash": "592032abd999cf2f3f2423e52363e611710e90cff324ee5b7dccd51891a57b31",
+      "novelty": "New confirmation target/structure; not imported from fixtures or screen tasks. Frozen before any generation."
+    }
+  ]
+}

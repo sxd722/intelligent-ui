@@ -1,0 +1,328 @@
+{
+  "version": "oracle-r1",
+  "access": "evaluator-only; excluded from generation prompts",
+  "tasks": {
+    "screen-01-recording-kit": {
+      "requirements": [
+        "Adjusting constraints changes the eligible entity set correctly; unknown battery remains unknown.",
+        "Inspect two selected entities and compare real fields.",
+        "Save a chosen entity and user reason; return and reload preserve them."
+      ],
+      "paths": [
+        {
+          "id": "initial-compare",
+          "operations": [
+            {
+              "intent": "compare",
+              "entities": [
+                "reed",
+                "moss"
+              ]
+            },
+            {
+              "intent": "inspect",
+              "entity": "moss"
+            },
+            {
+              "intent": "return"
+            }
+          ],
+          "expected": {
+            "initialEligible": [
+              "reed"
+            ],
+            "initialUnknown": [
+              "moss"
+            ],
+            "comparison": {
+              "reed": {
+                "batteryHours": 8,
+                "weightG": 380,
+                "dailyYuan": 45
+              },
+              "moss": {
+                "batteryHours": null,
+                "weightG": 290,
+                "dailyYuan": 35
+              }
+            },
+            "selectionAfterReturn": [
+              "reed",
+              "moss"
+            ]
+          }
+        },
+        {
+          "id": "relax-and-decide",
+          "operations": [
+            {
+              "intent": "setConstraint",
+              "key": "minBatteryHours",
+              "value": 6
+            },
+            {
+              "intent": "choose",
+              "entity": "stone"
+            },
+            {
+              "intent": "saveReason",
+              "value": "六小时足够且费用较低"
+            },
+            {
+              "intent": "reload"
+            }
+          ],
+          "expected": {
+            "eligible": [
+              "reed",
+              "stone"
+            ],
+            "unknown": [
+              "moss"
+            ],
+            "savedEntity": "stone",
+            "savedReason": "六小时足够且费用较低",
+            "minBatteryHours": 6
+          }
+        }
+      ],
+      "invariants": [
+        "Every kit ID remains stable.",
+        "Unknown battery never becomes zero or a fabricated number.",
+        "Saving does not invoke a new model."
+      ],
+      "formula": "eligible := known battery >= minBattery AND weight<=maxWeight AND cost<=budget. unknown := battery null with other constraints satisfied."
+    },
+    "screen-02-print-room": {
+      "requirements": [
+        "Each job belongs to exactly one machine.",
+        "Allocation changes alter per-machine load/remaining/overrun correctly.",
+        "Saved allocation and selected job survive return and reload."
+      ],
+      "paths": [
+        {
+          "id": "resolve-overrun",
+          "operations": [
+            {
+              "intent": "assign",
+              "job": "leaflet",
+              "machine": "cedar"
+            },
+            {
+              "intent": "inspect",
+              "job": "ticket"
+            },
+            {
+              "intent": "return"
+            },
+            {
+              "intent": "save"
+            },
+            {
+              "intent": "reload"
+            }
+          ],
+          "expected": {
+            "initialLoads": {
+              "pine": 80,
+              "cedar": 30
+            },
+            "initialOverrun": {
+              "pine": 20,
+              "cedar": 0
+            },
+            "assignment": {
+              "poster": "pine",
+              "leaflet": "cedar",
+              "ticket": "cedar"
+            },
+            "loads": {
+              "pine": 45,
+              "cedar": 65
+            },
+            "remaining": {
+              "pine": 15,
+              "cedar": 5
+            },
+            "overrun": {
+              "pine": 0,
+              "cedar": 0
+            }
+          }
+        },
+        {
+          "id": "different-overrun",
+          "operations": [
+            {
+              "intent": "assign",
+              "job": "poster",
+              "machine": "cedar"
+            }
+          ],
+          "expected": {
+            "assignment": {
+              "poster": "cedar",
+              "leaflet": "pine",
+              "ticket": "cedar"
+            },
+            "loads": {
+              "pine": 35,
+              "cedar": 75
+            },
+            "remaining": {
+              "pine": 25,
+              "cedar": 0
+            },
+            "overrun": {
+              "pine": 0,
+              "cedar": 5
+            }
+          }
+        }
+      ],
+      "invariants": [
+        "Total allocated workload always 110 minutes.",
+        "No job omitted or duplicated.",
+        "Unknown/simulation labels not represented as external production scheduling."
+      ],
+      "formula": "load(machine)=sum(job.minutes where assignment[job.id]===machine.id); remaining=max(0,capacity-load); overrun=max(0,load-capacity)"
+    },
+    "screen-03-water-transfer": {
+      "requirements": [
+        "Step/play/pause consume one shared business state.",
+        "Rate change affects subsequent transfer; conservation and boundaries hold.",
+        "Graphic and numeric state correspond; paused reload restores."
+      ],
+      "paths": [
+        {
+          "id": "step-pause-restore",
+          "operations": [
+            {
+              "intent": "step"
+            },
+            {
+              "intent": "step"
+            },
+            {
+              "intent": "step"
+            },
+            {
+              "intent": "step"
+            },
+            {
+              "intent": "pause"
+            },
+            {
+              "intent": "wait",
+              "ms": 2200
+            },
+            {
+              "intent": "reload"
+            }
+          ],
+          "expected": {
+            "sourceL": 40,
+            "receiverL": 40,
+            "elapsedSeconds": 4,
+            "running": false,
+            "totalL": 80,
+            "rateLPerSecond": 5
+          }
+        },
+        {
+          "id": "rate-boundary",
+          "operations": [
+            {
+              "intent": "rate",
+              "value": 10
+            },
+            {
+              "intent": "step",
+              "repeat": 6
+            },
+            {
+              "intent": "step"
+            }
+          ],
+          "expected": {
+            "sourceL": 0,
+            "receiverL": 80,
+            "running": false,
+            "totalL": 80,
+            "rateLPerSecond": 10,
+            "extraStepChangesWater": false
+          }
+        }
+      ],
+      "invariants": [
+        "sourceL+receiverL=80.",
+        "Both volumes stay within [0,80].",
+        "No external tool/host action is triggered by tick.",
+        "Pausing and reduced motion do not change transfer semantics."
+      ],
+      "formula": "d=min(rate*1,source,80-receiver); nextSource=source-d; nextReceiver=receiver+d. 4x5 =>40/40; 6x10=>0/80."
+    },
+    "screen-04-luminous-library": {
+      "requirements": [
+        "Initial and changed queries call the registered tool with matching query/lang.",
+        "Selected result title/URL corresponds to one actual returned entity; detail reads that title.",
+        "Detail adds actual fetched extract content beyond snippet.",
+        "Pinned quotation is a literal substring of the fetched extract and retains title/URL/source time.",
+        "Return/reload preserve selected object and pinned evidence; refresh/changed query do not present stale content as current."
+      ],
+      "paths": [
+        {
+          "id": "initial-detail-pin-return",
+          "operations": [
+            {
+              "intent": "query",
+              "value": "bioluminescence"
+            },
+            {
+              "intent": "inspect",
+              "entity": "first actual search result"
+            },
+            {
+              "intent": "pinQuote",
+              "value": "a literal fetched paragraph chosen through UI"
+            },
+            {
+              "intent": "openSource"
+            },
+            {
+              "intent": "return"
+            },
+            {
+              "intent": "reload"
+            }
+          ],
+          "expectedRule": "Use recorded/live search and page rows as oracle, never fabricate expected titles or extracts."
+        },
+        {
+          "id": "query-switch-refresh",
+          "operations": [
+            {
+              "intent": "query",
+              "value": "biofluorescence"
+            },
+            {
+              "intent": "inspect",
+              "entity": "first actual alternate result"
+            },
+            {
+              "intent": "refresh"
+            }
+          ],
+          "expectedRule": "New query input and selected title match actual new response; quote/source do not migrate to wrong entity."
+        }
+      ],
+      "invariants": [
+        "Snippet is not labeled full article.",
+        "Unavailable service is external-service/unverified, not an empty-success list.",
+        "recorded-live is not claimed live-read.",
+        "Unknown total result count is not invented."
+      ],
+      "formula": "normalize whitespace only for excerpt containment; preserve original exact excerpt in evidence."
+    }
+  }
+}

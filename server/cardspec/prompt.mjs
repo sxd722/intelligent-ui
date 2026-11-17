@@ -14,12 +14,12 @@ import {componentSelection,componentSelectionReference,compactComponentIndex} fr
 
 // Production uses compact presentation and registry disclosure while preserving
 // the proven expression/action examples. Legacy exports remain for staged/DIL QA.
-function baseCardGenerationPrompt(experiencePlan,{compact=false,adaptive=false,goal='',expressionDialect='legacy',renderMode='native',toolsEnabled=false}={}){
+function baseCardGenerationPrompt(experiencePlan,{compact=false,adaptive=false,goal='',expressionDialect='legacy',renderMode='native',toolsEnabled=false,experiment}={}){
   const core=(expressionDialect==='js-v1'?CARD_JS_LANGUAGE_CORE:CARD_LANGUAGE_CORE)+'\n'+INTEGRITY_PROMPT
   const selection=componentSelection(goal,{renderMode,toolsEnabled})
   if(adaptive)return COMPACT_CARD_PROMPT.split('【完整组件契约】')[0]+'\n'+core+
     '\n'+compactComponentIndex()+'\n'+componentSelectionReference(selection)+'\n'+
-    BOARD_DESIGN_GUIDE+'\n'+registryReference({compact:true,names:selection.names})+
+    BOARD_DESIGN_GUIDE+'\n'+(experiment?.disclosure==='on-demand-v1'?'【按需精确契约】可用能力与上方清单不变；实现前对需要的组件调用 component_describe 读取精确属性。':registryReference({compact:true,names:selection.names}))+
     '\nrange(n)返回0至n-1；不限制正文行数时省略clamp。'+
     '\n仅提交时使用的偏好放settings；图片多选可用choice-grid/choice-item，与map.selectedIds共用选中ID。短摘要+真实价格/评分，缺失不编造。来源、示意和长说明放intro/outro或详情；保留影响选择的关键未知信息。工具原文按需展开；图/筛选引用同一数据集，不把样本伪装成全量。'
   if(compact)return COMPACT_CARD_PROMPT.replace('【完整组件契约】',componentIndex()+'\n用途不确定时可用capability_find，再用component_describe/cli_describe读取精确契约。\n'+core+'\n【完整组件契约】')

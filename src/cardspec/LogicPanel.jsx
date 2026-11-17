@@ -3,7 +3,7 @@ import {useViewState} from './view-state.jsx'
 import {createLogicController} from './logic-controller.mjs'
 import {runLogic} from './logic-client.js'
 import {logicJson,logicTickMs} from '../../shared/cardspec/logic-contract.mjs'
-export function LogicPanel({p,streaming,validate,children,onAction}){
+export function LogicPanel({p,streaming,validate,children,onAction,nodeId,logicSnapshots}){
  const [saved,save]=useViewState('logic',null),controller=useRef(null),element=useRef(null)
  const [snapshot,setSnapshot]=useState(()=>({state:saved?.source===p.source?saved.state:p.initial,error:'',busy:false,ready:p.reactive!==true,source:p.source,initialKey:logicJson(p.initial,{record:true})}))
  const [playing,setPlaying]=useState(false),[visible,setVisible]=useState(false)
@@ -13,10 +13,12 @@ export function LogicPanel({p,streaming,validate,children,onAction}){
  const initialKey=logicJson(p.initial,{record:true}),inputKey=logicJson(p.input??{})
  const current=snapshot.source===p.source&&snapshot.initialKey===initialKey,ready=current&&snapshot.ready
  useEffect(()=>{
-  const c=createLogicController({source:p.source,initial:p.initial,input:p.input??{},saved,run:runLogic,validate:s=>validator.current(s),save,notify:setSnapshot,reactive:p.reactive===true,afterCommit:result=>bridge.current?.(result)})
-  controller.current=c;setSnapshot(c.snapshot());setPlaying(false)
-  return()=>{c.dispose();controller.current=null}
- },[p.source,initialKey,p.reactive])
+  const channel=logicSnapshots?.register(nodeId,{source:p.source,initial:p.initial})
+  const notify=s=>{setSnapshot(s);channel?.publish(s)}
+  const c=createLogicController({source:p.source,initial:p.initial,input:p.input??{},saved,run:runLogic,validate:s=>validator.current(s),save,notify,reactive:p.reactive===true,afterCommit:result=>bridge.current?.(result)})
+  controller.current=c;notify(c.snapshot());setPlaying(false)
+  return()=>{c.dispose();channel?.close();controller.current=null}
+ },[p.source,initialKey,p.reactive,nodeId,logicSnapshots])
  useEffect(()=>{controller.current?.setInput(p.input??{})},[inputKey])
  useEffect(()=>{controller.current?.setActive(visible&&!streaming)},[visible,streaming,p.source,initialKey,p.reactive])
  useEffect(()=>{

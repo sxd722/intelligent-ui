@@ -7,6 +7,7 @@ import {logicLifecycleIssue} from './logic-diagnostics.mjs'
 import {compileSandbox} from './sandbox.mjs'
 import {compileWebSandbox} from './web-sandbox.mjs'
 import {diagnosticContext} from '../../shared/cardspec/diagnostic-context.mjs'
+import {logicSnapshotsEnabled,makeLogicSnapshot} from '../../shared/cardspec/logic-snapshot.mjs'
 
 // Run only on completed documents, not every streaming character.
 export async function validateRichContent(result) {
@@ -29,6 +30,23 @@ export async function validateRichContent(result) {
   // documents never reach evaluation/QuickJS or tool effects.
   if(!result.complete)return
   const scope=makeScope(spec,createStore())
+  const snapshotModules=new Map(),probeSnapshots=new Map()
+  if(logicSnapshotsEnabled(spec.context)){
+    const collect=nodes=>{for(const n of nodes||[]){if(n.type==='logic')snapshotModules.set(n.id,n);collect(n.children)}}
+    collect(spec.children)
+  }
+  async function snapshotInput(id){
+    if(probeSnapshots.has(id))return probeSnapshots.get(id)
+    const n=snapshotModules.get(id);if(!n)throw Error(`Unknown logic snapshot ${id}`)
+    const source=evaluate(n.props.source,scope),initial=evaluate(n.props.initial,scope)
+    let state=initial
+    if(n.props.reactive&&evaluate(n.props.reactive,scope)){
+      const {getQuickJS}=await import('quickjs-emscripten')
+      state=executeLogic(await getQuickJS(),{source,state,event:{type:'init'},input:n.props.input?evaluate(n.props.input,scope):{}})
+    }
+    validateLogicView(n.children,{...scope,local:state},{strictLocalValues:true})
+    const value=makeLogicSnapshot(id,source,initial,state);probeSnapshots.set(id,value);return value
+  }
   try {
     // Compile every literal module before delivery, including initially hidden
     // regions. Missing source is an initial-generation repair, never a later call.
@@ -39,6 +57,7 @@ export async function validateRichContent(result) {
         try {
         if(n.props.source?.type!=='literal'||!n.props.source.value?.trim())throw Error(`sandbox ${n.id}: include complete JSX in literal source; no deferred generation`)
         const options={probe:true,input:n.props.input?evaluate(n.props.input,scope):{},initial:n.props.initial?evaluate(n.props.initial,scope):{},capabilities:Object.keys(n.props.actions?evaluate(n.props.actions,scope):{})}
+        if(logicSnapshotsEnabled(spec.context)&&n.props.logicSnapshot)options.input={...options.input,logicSnapshot:await snapshotInput(n.props.logicSnapshot.value)}
         spec.sandboxModules[n.id]=spec.context?.renderMode==='web'?await compileWebSandbox(n.props.source.value):await compileSandbox(n.props.source.value,options)
         } catch(e) { result.complete=false;result.diagnostics.push(issue(/^Sandbox action is not exposed:/.test(e.message)?'sandbox_bridge_contract':'rich_content',`sandbox ${n.id}: ${e.message}`,n.id)) }
       }

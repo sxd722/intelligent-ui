@@ -18,7 +18,7 @@ const dist=fileURLToPath(new URL('../../dist/',import.meta.url))
 let occupied=false
 const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.wasm':'application/wasm','.woff2':'font/woff2','.svg':'image/svg+xml'}
 // No production server/API proxy: only build-owned code/styles/WASM are served.
-export async function runDebugBrowser(spec,{steps=[],scenarios=['normal','empty','failure'],width=432,size='square',signal,artifactDir,seed=73129,viewports,captureSteps=false,deck,snapshots=[]}={}){
+export async function runDebugBrowser(spec,{steps=[],scenarios=['normal','empty','failure'],width=432,size='square',signal,artifactDir,seed=73129,viewports,captureSteps=false,deck,snapshots=[],replayMode}={}){
  if(viewports!==undefined&&(!Array.isArray(viewports)||!viewports.length||viewports.length>6||viewports.some(w=>!Number.isInteger(w)||w<280||w>1440)))throw Error('invalid host QA viewports')
  if(occupied)return {status:'unverified',reason:'debug browser busy',runs:[]}
  occupied=true;let browser,server,activePage,phase='startup';const runs=[]
@@ -70,7 +70,7 @@ export async function runDebugBrowser(spec,{steps=[],scenarios=['normal','empty'
    page.on('popup',p=>void p.close())
    await page.goto(origin+'/card-debug.html',{waitUntil:'load',timeout:8000})
    await page.waitForFunction(()=>!!window.cardDebug)
-   const options={snapshots,scenario,width,size,...(deck?{deck}:{})}
+   const options={snapshots,replayMode,scenario,width,size,...(deck?{deck}:{})}
    await page.evaluate(({spec,options})=>window.cardDebug.mount(spec,options),{spec,options})
    await page.waitForFunction(()=>window.cardDebug.ready())
    await page.waitForTimeout(450)
