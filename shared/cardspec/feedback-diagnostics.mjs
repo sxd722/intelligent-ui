@@ -75,7 +75,7 @@ export function observableContent(spec,store,extra={}){
    if(p.visible===false||n.type==='if'&&!p.test)continue
    if(n.type==='each'){for(const [index,item]of(p.items||[]).slice(0,40).entries())walk(n.children,{...scope,item,index,[p.as||'item']:item});continue}
    if(n.type==='region'&&p.overflow==='details')continue
-   const props=['stat','progress','chart','table','image','mindmap','flowchart','mermaid','collection'].includes(n.type)?p:{label:p.label}
+   const props=['stat','facts','checklist','progress','chart','table','image','mindmap','flowchart','mermaid','collection'].includes(n.type)?p:{label:p.label}
    output.push({type:n.type,props:Object.fromEntries(Object.entries(props).filter(([k])=>!k.startsWith('on')&&!['args','selectedId','index'].includes(k)))})
    walk(n.children,scope)
   }catch{}}

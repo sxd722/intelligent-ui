@@ -1,3 +1,4 @@
+import {TASK_HELPERS} from './task-evidence.mjs'
 import {parseJavaScriptExpression,evaluateJavaScriptExpression} from './javascript-expression.mjs'
 import {composeTask,projectTaskView} from './task-composition.mjs'
 // Versioned expression languages. Source is never evaluated in the host realm.
@@ -84,7 +85,7 @@ export function parseExpression(source, {dialect='legacy'} = {}) {
         next(); const args = []
         while (token.value !== ')') { args.push(expr(0)); if (token.value !== ',') break; next() }
         take(')')
-        const limits = ({ min:[1,32], max:[1,32], clamp:[3,3], round:[1,2], formatNumber:[1,2], includes:[2,2], filter:[2,2], find:[2,2], map:[2,2], sum:[1,2], count:[1,2], formatDate:[1,3], dateKey:[1,2], addDays:[2,2], addMonths:[2,2] })[node.name] || [1,1]
+        const limits = ({ compose:[1,2], projectView:[1,2], orderBy:[2,3], groupCounts:[2,2], replaceBy:[3,3], addMinutes:[2,2], minutesBetween:[2,2], min:[1,32], max:[1,32], clamp:[3,3], round:[1,2], formatNumber:[1,2], includes:[2,2], filter:[2,2], find:[2,2], map:[2,2], sum:[1,2], count:[1,2], formatDate:[1,3], dateKey:[1,2], addDays:[2,2], addMonths:[2,2] })[node.name] || [1,1]
         if (args.length < limits[0] || args.length > limits[1]) throw new Error(`${node.name} requires ${limits[0]}–${limits[1]} arguments; collections use item/index in the second expression`)
         node = { type: 'call', name: node.name, args }
       }
@@ -107,8 +108,9 @@ export function parseExpression(source, {dialect='legacy'} = {}) {
   return ast
 }
 
-export const FUNCTION_NAMES = ['compose','projectView','min', 'max', 'clamp', 'round', 'formatNumber', 'floor', 'ceil', 'abs', 'len', 'number', 'string', 'includes', 'filter', 'find', 'map', 'sum', 'count', 'formatDate', 'dateKey', 'monthOf', 'dayOf', 'addDays', 'addMonths', 'range']
+export const FUNCTION_NAMES = [...Object.keys(TASK_HELPERS),'compose','projectView','min', 'max', 'clamp', 'round', 'formatNumber', 'floor', 'ceil', 'abs', 'len', 'number', 'string', 'includes', 'filter', 'find', 'map', 'sum', 'count', 'formatDate', 'dateKey', 'monthOf', 'dayOf', 'addDays', 'addMonths', 'range']
 export function dateKey(value, zone = 'Asia/Shanghai') {
+  if(value===null||value===undefined||value==='')return ''
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value
   const d = new Date(value)
   if (!Number.isFinite(+d)) return ''
@@ -188,6 +190,7 @@ export function evaluate(ast, scope, budget = { remaining: 20000 }) {
         return items.reduce((sum, item, index) => sum + Number(test(item, index) || 0), 0)
       }
       const v = a.map((x) => ev(x))
+      if(Object.hasOwn(TASK_HELPERS,name))return TASK_HELPERS[name](...v)
       switch (name) {
         case 'compose': return composeTask(v[0],v[1],scope.bindings)
         case 'projectView': return projectTaskView(v[0],v[1])

@@ -1,0 +1,12 @@
+.cs-destination-home{display:contents}
+.cs-destination-home[hidden],.cs-destination-page[hidden]{display:none!important}
+.cs-destination-page{width:100%;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;flex:1}
+.cs-destination-page>header{display:flex;align-items:center;gap:12px;flex:none}
+.cs-destination-page>header strong{font-size:18px;min-width:0;line-height:1.35}
+.cs-destination-page>header button,.cs-destination-entry{border:0;color:inherit;background:color-mix(in srgb,currentColor 6%,transparent);border-radius:12px;min-height:44px;padding:10px 12px;cursor:pointer;font:inherit}
+.cs-destination-entry{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left}
+.cs-destination-entry:hover{background:color-mix(in srgb,var(--cs-accent,currentColor) 12%,transparent)}
+.cs-destination-entry:focus-visible,.cs-destination-page button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.cs-destination-body{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.cs-stage[data-card-size="full"] .cs-destination-body{overflow:visible}
+@media(prefers-reduced-motion:no-preference){.cs-destination-page:not([hidden]){animation:cs-destination-enter .2s ease-out}@keyframes cs-destination-enter{from{opacity:.4;transform:translateX(12px)}to{opacity:1;transform:none}}}

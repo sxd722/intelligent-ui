@@ -24,6 +24,20 @@
 .dil-stage[data-card-size=full] .cs-composition-body{display:flex;flex-direction:column}
 .cs-result-card[data-card-size=full]>.cs-result-scroll{height:auto;max-height:none;overflow:visible}
 .dil-stage[data-card-size=full]>.cs-host-controls{max-height:none;overflow:visible}
-.cs-carousel[data-expanded=true] .cs-dial-track{height:auto!important;overflow:visible;display:flex;flex-direction:column;gap:12px;padding:0}
-.cs-carousel[data-expanded=true] .cs-dial-slide{position:relative!important;inset:auto!important;width:100%!important;transform:none!important;opacity:1!important;visibility:visible!important;height:auto!important}
-.cs-carousel[data-expanded=true] .cs-dial-content{height:auto;max-height:none;overflow:visible}
+.cs-carousel[data-expanded=true] .cs-dial-track{height:auto!important;overflow:visible;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,156px),1fr));align-items:stretch;gap:8px;padding:0}
+.cs-carousel[data-expanded=true] .cs-dial-slide{position:relative!important;inset:auto!important;width:100%!important;transform:none!important;opacity:1!important;visibility:visible!important;height:auto!important;max-height:none;overflow:visible}
+.cs-carousel.cs-carousel-dial[data-expanded=true] .cs-dial-slide .cs-dial-content{height:100%;max-height:none;overflow:visible;padding:8px;box-sizing:border-box;opacity:1;filter:none;box-shadow:none}
+.cs-carousel[data-expanded=true] .cs-dial-content>[data-cs-component=carousel-item]{height:100%;gap:6px}
+.cs-carousel[data-expanded=true] .cs-dial-content>[data-cs-component=carousel-item]>.cs-button:last-child{margin-top:auto;min-height:44px}
+.cs-carousel[data-expanded=true] .cs-dial-content .cs-image{height:clamp(64px,21cqw,88px)}
+.cs-carousel[data-expanded=true] .cs-photo{position:relative}
+.cs-carousel[data-expanded=true] .cs-thumbnail-credit{position:absolute;right:3px;bottom:3px;margin:0}
+.cs-carousel[data-expanded=true] .cs-credit-toggle{min-width:24px;min-height:24px;border-radius:50%;background:var(--cs-base,#fff);color:var(--cs-ink,#123)}
+/* Complex stages and forms keep the whole row; no squeezing their controls. */
+.cs-carousel[data-expanded=true] .cs-dial-slide:has(iframe,canvas,table,.cs-chart,.cs-diagram,.cs-field,.cs-slider,.cs-calendar){grid-column:1/-1}
+@container (max-width:319px){
+ .cs-carousel[data-expanded=true] .cs-dial-content>[data-cs-component=carousel-item]:has(>[data-cs-component=image]){display:grid;grid-template-columns:72px minmax(0,1fr);align-content:start}
+ .cs-carousel[data-expanded=true] .cs-dial-content>[data-cs-component=carousel-item]>[data-cs-component=image]{grid-column:1;grid-row:1/span 3}
+ .cs-carousel[data-expanded=true] .cs-dial-content>[data-cs-component=carousel-item]:has(>[data-cs-component=image])>:not([data-cs-component=image]){grid-column:2}
+ .cs-carousel[data-expanded=true] .cs-dial-content>[data-cs-component=carousel-item]:has(>[data-cs-component=image])>.cs-button:last-child{grid-column:1/-1}
+}

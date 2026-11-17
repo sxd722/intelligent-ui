@@ -1,3 +1,4 @@
+import {FilterDisclosure} from './CompactFilters.jsx'
 import {resultCoverage} from '../../shared/cardspec/result-pagination.mjs'
 import {ToolStage,STAGED_KINDS} from './ToolStage.jsx'
 import React,{useState,useContext,useId,useLayoutEffect} from 'react'
@@ -13,13 +14,23 @@ import './tool-view.css'
 import {TaskToolView} from './TaskToolView.jsx'
 import {NativeDecisionView} from './NativeDecisionView.jsx'
 import {decisionProfile} from '../../shared/cardspec/decision-profile.mjs'
+import {SubjectBoard} from './SubjectBoard.jsx'
+import {composeTask} from '../../shared/cardspec/task-composition.mjs'
 
 function Thumb({item}){
  const [failed,setFailed]=useState([]),src=[...(typeof item.raw.assetRef==='string'?['/api/tools/assets/'+encodeURIComponent(item.raw.assetRef)]:[]),...resultImageSources(item.raw)].find(u=>!failed.includes(u))
  return <span className="tv-thumb">{src?<img src={src} loading="lazy" referrerPolicy="no-referrer" alt={item.title} onError={()=>setFailed(v=>[...v,src])}/>:<span aria-label="无来源图片">{item.title.slice(0,1)}</span>}</span>
 }
 function WeatherVisual(){const id=useId();return <svg className="tv-weather-art" viewBox="0 0 160 100" aria-label="天气主题插画（非实时天气图标）"><defs><radialGradient id={id}><stop stopColor="currentColor"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></radialGradient></defs><circle cx="80" cy="50" r="46" fill={`url(#${id})`} opacity=".3"/><g className="tv-orbit" stroke="currentColor" strokeWidth="2">{Array.from({length:8},(_,i)=><path key={i} transform={`rotate(${i*45} 80 50)`} d="M80 12v9"/>)}</g><circle cx="80" cy="50" r="20" fill="currentColor" opacity=".65"/></svg>}
-export function ToolView(props){const profile=decisionProfile(props.runtime.spec.bindings?.[props.p.binding]?.tool),task=props.p.task;return profile&&!task?.groupBy&&!task?.aggregate&&!(profile.kind==='poster'&&(task?.pin||task?.selection==='single'||task?.compare===false))?<NativeDecisionView {...props}/>:task?<TaskToolView {...props}/>:<StandardToolView {...props}/>}
+export function ToolView(props){
+ const {p,runtime,scope}=props,profile=decisionProfile(runtime.spec.bindings?.[p.binding]?.tool),task=p.task
+ if(p.presentation==='summary'){
+  const sources=p.bindings||{[p.label||'当前资料']:p.binding},view=composeTask(sources,{},scope.bindings)
+  return <SubjectBoard {...props} p={{...p,view}}/>
+ }
+ const decision=p.presentation==='decision'||(!p.presentation||p.presentation==='auto')&&!p.onSelect
+ return decision&&profile&&!task?.groupBy&&!task?.aggregate&&!(profile.kind==='poster'&&(task?.pin||task?.selection==='single'||task?.compare===false))?<NativeDecisionView {...props}/>:task?<TaskToolView {...props}/>:<StandardToolView {...props}/>
+}
 function StandardToolView({p,runtime,scope,fire}){
  const size=useCardSize(),[root,height]=useCompositionSpace({sharePage:true})
  const [cardWidth,setCardWidth]=useState(320)
@@ -41,15 +52,15 @@ function StandardToolView({p,runtime,scope,fire}){
  const family=p.style&&p.style!=='auto'?p.style:runtime.spec.design||'default'
  const metric=item=><span className="tv-metric"><b>{displayValue(item.metric)}</b><small>{model.metricLabel||'来源数值'}</small></span>
  return <section ref={root} className="cs-tool-view" style={size==="square"?{maxHeight:height||"calc(100cqw - 72px)"}:undefined} data-size={size} data-family={family} data-kind={model.kind||'fallback'} data-tool-view-error={loaded?error?.code:undefined} aria-label={p.label||'工具视图'}>
-  <header><span><small>{TOOL_VIEW_KINDS[model.kind]||'工具数据'}</small><strong>{p.label||t?.site||tool||'工具视图'}</strong></span>{size==="square"&&rows.length>1&&<button aria-label="筛选候选" aria-pressed={!!view.filtersOpen} onClick={()=>change({filtersOpen:!view.filtersOpen})}>筛选</button>}<span className="tv-count">{loaded?(value?.items?.length??rows.length):'—'}<small>已获取</small></span><button aria-expanded={raw} onClick={()=>setRaw(!raw)}>数据</button></header>
+  <header><span><small>{TOOL_VIEW_KINDS[model.kind]||'工具数据'}</small><strong>{p.label||t?.site||tool||'工具视图'}</strong></span><span className="tv-count">{loaded?(value?.items?.length??rows.length):'—'}<small>已获取</small></span><button aria-expanded={raw} onClick={()=>setRaw(!raw)}>数据与来源</button></header>
   <div className="tv-status" role="status">{!enabled?'工具增强已关闭':busy?'正在更新，保留上次结果':record?.error||(!loaded?'尚未获取数据':coverage.label)}{record?.cache?.status==='hit'?' · 缓存':''}{record?.updatedAt&&<time> · {new Date(record.updatedAt).toLocaleTimeString()}</time>}</div>
   {(!loaded||record?.status==='error')&&t?.readOnly!==false&&<button type="button" disabled={!ready||busy} onClick={()=>session.retry(p.binding)}>{busy?'查询中…':'查询 / 重试'}</button>}
   {!loaded&&t?.readOnly===false&&<small>通过卡片中明确的操作执行后，这里展示回执；不会自动执行或重复操作。</small>}
   <div className="tv-body" hidden={raw} data-layout-scroll={selected||view.filtersOpen||error?"allow":undefined} data-scroll-region="tool-view">
   {loaded&&error?<div className="tv-fallback" role="status"><strong>自动展示暂不可用</strong><small>{error.code} · {error.message}</small><p>原始数据仍保留，可使用现有结果浏览或模型重排。</p><button disabled={!ready} onClick={browse}>浏览原始结果</button><button disabled={!ready||!value?.items?.length} onClick={()=>session.adaptResults(p.binding,'editorial')}>按实际结果重新组织</button></div>:<>
    {selected?<div className="tv-detail"><button onClick={()=>change({selected:null,selectedItem:null})}>← 返回候选</button><div className="tv-detail-head"><Thumb item={selected}/><div><h3>{selected.title}</h3><p>{selected.subtitle}</p></div></div>{selected.metric!=null&&metric(selected)}{selected.summary&&<p className="tv-description">{selected.summary}</p>}{selected.time&&<small>{selected.time}</small>}{safeLink(selected.url)&&<a href={safeLink(selected.url)} target="_blank" rel="noreferrer">查看来源 ↗</a>}{detailRequests(tool,selected.raw).length>0&&<button disabled={!ready} onClick={()=>{browse();session.openDetail(selected.raw)}}>查询完整详情</button>}<details><summary>本条原始信息</summary><pre>{JSON.stringify(selected.raw,null,2)}</pre></details></div>:<>
-    {rows.length>1&&(size!=="square"||view.filtersOpen)&&<div className="tv-filter"><input aria-label="筛选已获取候选" placeholder="筛选已获取候选…" value={view.query} onChange={e=>change({query:e.target.value,page:0})}/>{facets.length>1&&<div className="tv-facets"><button aria-pressed={!view.facet} onClick={()=>change({facet:'',page:0})}>全部</button>{facets.map(f=><button key={f} aria-pressed={view.facet===f} onClick={()=>change({facet:f,page:0})}>{f}</button>)}</div>}</div>}
-    {!(size==='square'&&view.filtersOpen)&&<>
+    {rows.length>1&&<FilterDisclosure summary={[view.query,view.facet].filter(Boolean).join(" · ")} open={!!view.filtersOpen} onChange={filtersOpen=>change({filtersOpen})} onClear={()=>change({query:"",facet:"",page:0})}><div className="tv-filter"><input aria-label="筛选已获取候选" placeholder="筛选已获取候选…" value={view.query} onChange={e=>change({query:e.target.value,page:0})}/>{facets.length>1&&<div className="tv-facets"><button aria-pressed={!view.facet} onClick={()=>change({facet:'',page:0})}>全部</button>{facets.map(f=><button key={f} aria-pressed={view.facet===f} onClick={()=>change({facet:f,page:0})}>{f}</button>)}</div>}</div></FilterDisclosure>}
+    {<>
     {STAGED_KINDS.includes(model.kind)?<ToolStage scope={tool+':'+(record?.valueInputKey||'')} availableHeight={size==='square'?(height??cardWidth-72)-110:Infinity} model={model} rows={filtered} format={p.format||((height??300)<250?'2x2':size==='square'?'4x4':'miniapp')} onInspect={select} onChoose={(item,items)=>fire('onSelect',{id:item.raw.rowKey??item.raw.id??item.key,entityId:item.entityId,viewKey:item.viewKey,value:item.key,item:item.raw,items:items.map(i=>i.raw),ids:items.map(i=>i.key)})}/>:<>
     {model.kind==='places'&&rows.some(r=>Number.isFinite(r.lat)&&Number.isFinite(r.lon))&&<PointMap p={{items:filtered.map(r=>({...r.raw,id:r.key,title:r.title,lat:r.lat,lon:r.lon}))}} fire={(_,e)=>{const r=rows.find(r=>r.key===e.id);if(r)select(r)}}/>}
     {model.kind==='weather'&&<WeatherVisual/>}
@@ -68,7 +79,7 @@ function StandardToolView({p,runtime,scope,fire}){
    </>}
   </>}
   </div>
-  <footer><small>{model.source||value?.source||tool}</small></footer>
+  {raw&&<footer><small>{model.source||value?.source||tool}</small></footer>}
   {raw&&<div className="tv-raw" data-layout-scroll="allow" data-scroll-region="tool-data">{loaded&&t?.readOnly!==false&&<button disabled={!ready||busy} onClick={()=>session.retry(p.binding)}>刷新数据</button>}<pre>{value?JSON.stringify(value,null,2):'尚无工具结果'}</pre></div>}
  </section>
 }

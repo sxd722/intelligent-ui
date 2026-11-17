@@ -72,14 +72,9 @@ export function attachLayout(stage, onLayout) {
         if (overflow <= 1) break
       }
     }
-    // Plain footnotes may sit immediately below the square, like intro/outro.
-    // Never move controls, titles, or the caption inside a content region.
-    const accessoryIds = overflow > 1 ? [...card.children].filter((el) => {
-      if (el.matches('.cs-caption')) return true
-      if (!el.matches('.cs-region[data-role=summary]')) return false
-      const children = [...(el.querySelector('.cs-region-body')?.children || [])]
-      return children.length > 0 && children.every((child) => child.matches('.cs-caption'))
-    }).filter((el) => !el.querySelector('button,input,textarea,a,select')).map((el) => el.dataset.csNode?.slice(1)).filter(Boolean) : []
+    // Typography does not prove that a caption is dispensable: it may own
+    // live selection feedback or a required outcome. Keep it in the card.
+    const accessoryIds = []
     // Fallback keeps content reachable and is observable. Generation QA treats it
     // as a layout failure; never silently clip required information or shrink type.
     card.dataset.emergency = overflow > 1 ? 'true' : 'false'

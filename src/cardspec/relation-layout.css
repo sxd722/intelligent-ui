@@ -1,0 +1,19 @@
+.cs-relation{display:grid;gap:10px;width:100%;min-width:0;container-type:inline-size;color:inherit}
+.cs-relation-part{min-width:0;overflow-wrap:anywhere;position:relative}
+.cs-relation[data-relation="compare"]{grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr));align-items:start}
+.cs-relation[data-relation="compare"]>.cs-relation-part{grid-column:1/-1}
+.cs-relation[data-relation="compare"]>.cs-relation-part:is([data-compare="1"],[data-compare="2"]){grid-column:auto;padding:12px 10px;background:color-mix(in srgb,currentColor 5%,transparent);border-radius:12px;align-self:stretch}
+.cs-relation[data-relation="compare"]>.cs-relation-part[data-compare="2"]{background:color-mix(in srgb,var(--cs-accent,currentColor) 11%,transparent)}
+.cs-relation .cs-region{background:transparent;box-shadow:none;min-height:0;padding:0;border:0}
+.cs-relation .cs-region-body{min-height:0;gap:8px!important}
+.cs-relation-part :is(.cs-title,strong){line-height:1.3}
+.cs-relation-part .cs-title{font-size:clamp(16px,4cqi,20px)}
+.cs-relation-part :is(.cs-text,.cs-prose p){line-height:1.6}
+.cs-relation-part .cs-caption{line-height:1.45;opacity:.85}
+.cs-relation[data-relation="sequence"]>.cs-relation-part[data-step]{padding:0 0 12px 34px}
+.cs-relation-step{position:absolute;inset:0 auto auto 0;width:25px;height:25px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,currentColor 8%,transparent);font-size:12px;font-weight:700}
+.cs-relation[data-relation="sequence"]>.cs-relation-part[data-step]:not(:last-child):after{content:"";position:absolute;left:12px;top:32px;bottom:0;width:1px;background:color-mix(in srgb,currentColor 16%,transparent)}
+.cs-relation[data-relation="apply"]>.cs-relation-part[data-control]{padding:8px 0}
+.cs-relation[data-relation="apply"]>.cs-relation-part:nth-child(n+3){padding:4px 0}
+@container (max-width:270px){.cs-relation[data-relation="compare"]>.cs-relation-part:is([data-compare="1"],[data-compare="2"]){grid-column:1/-1}}
+@media(prefers-reduced-motion:no-preference){.cs-relation-part{transition:background-color .18s ease}}

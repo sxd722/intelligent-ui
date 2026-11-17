@@ -1,0 +1,3 @@
+import {PEARL_SHADER,WAVE_SHADER} from './gpu-material.mjs'
+const fixture=(title,source,value,max)=>`<card schemaVersion="1" theme="soft" design="pearl"><state id="amount" type="number" initial={${value}}/><title>${title}</title><gpu-material id="material" label="互动材质" source={${JSON.stringify(source)}} params={[state.amount,0,0,0]} height={200}/><slider id="amountSlider" label="材质参数" value={state.amount} min={0} max={${max}} step={0.1} onChange="adjust"/><text>当前参数：{state.amount}</text><action id="adjust"><set target="amount" value={event.value}/></action></card>`
+export const GPU_MATERIAL_FIXTURES={gpuPearl:fixture('月距力 · 珠光实验',PEARL_SHADER,.4,2),gpuWave:fixture('波场 · 调整空间频率',WAVE_SHADER,4,12),gpuFailure:fixture('局部错误隔离','return vec4f(unknown_symbol);',.4,2)}

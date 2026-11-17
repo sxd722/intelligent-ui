@@ -2,12 +2,12 @@ import {validateCanvasDrawing} from './canvas-contract.mjs'
 import {GRAPHIC_PROMPT} from './graphic-prompt.mjs'
 import {REACT_SURFACE_PROMPT} from './react-surface-prompt.mjs'
 import {logicJson} from './logic-contract.mjs'
-import {WEB_PROMPT} from './web-policy.mjs'
+import {WEB_PROMPT,webGraphicsPrompt} from './web-policy.mjs'
 export const sandboxMode=value=>['hybrid','web'].includes(value)?value:'native'
 export const SANDBOX_LIMITS={source:20000,compiled:36000,css:70000,state:65536,memory:64*1024*1024,timeMs:150,tree:180000}
 export const SANDBOX_CAPABILITY="UI模式：Web创作可用。普通按钮、滑杆、列表、图表用CardSpec，原创SVG插图、信息图、动态图及复杂空间图/模拟可用独立sandbox（每卡最多4个、不同id），与卡片共用材质；跨沙箱联动用宿主state/input/actions，局部state独立恢复，不直接互相调用。source必须在本次CardSpec中写完整JSX字符串（推荐 source={`export default function App(...) {...}`}）；不另行生成，不声明glm.generate用于填充sandbox。不要求fallback子组件。brief为短说明，height160–480。禁止嵌套或放each/slot/logic内。共享状态从input读取为data，actions为别名到宿主action固定映射；React事件用bridge.call(alias,payload)，外部控件改变state后input自动刷新；initial只存局部状态。示例：<state id=\"n\" type=\"number\" initial={30}/><slider label=\"数值\" min={0} max={100} value={state.n} onChange=\"adjust\"/><sandbox id=\"diagram\" brief=\"数值图形\" input={{n:state.n}} actions={{adjust:\"adjust\"}} source={'export default function App({data,bridge}){return <button onClick={()=>bridge.call(\"adjust\",{value:data.n+1})}>{data.n}</button>}'} height={220}/><action id=\"adjust\"><set target=\"n\" value={clamp(event.value,0,100)}/></action>。brief与source固定，不因点击或滚动再调用模型。"+'\nJSX source约定（外层仍输出CardSpec，不单独输出JSX）：'+REACT_SURFACE_PROMPT.replace('Return only JSX:', 'source内容：')
 export const NATIVE_CAPABILITY='UI模式：仅原生CardSpec。禁止sandbox/HTML/React。核心任务必须用现有组件、action或隔离logic完整实现；视觉可用关系图/图表/表单/分步视图替代，不把功能留到网页。'
-export const sandboxInstruction=mode=>sandboxMode(mode)==='web'?WEB_PROMPT:sandboxMode(mode)==='hybrid'?GRAPHIC_PROMPT+'\n'+SANDBOX_CAPABILITY+INLINE_MODULE_EXAMPLE:NATIVE_CAPABILITY
+export const sandboxInstruction=(mode,settings={})=>sandboxMode(mode)==='web'?WEB_PROMPT+'\n'+webGraphicsPrompt(settings):sandboxMode(mode)==='hybrid'?GRAPHIC_PROMPT+'\n'+SANDBOX_CAPABILITY+INLINE_MODULE_EXAMPLE:NATIVE_CAPABILITY
 const INLINE_MODULE_EXAMPLE='\n完整源码写法（source闭合后不加styles属性，CSS在模块内export；不要<style>元素）：<sandbox id="visual" brief="交互示意" height={200} initial={{count:0}} source={`export const styles=".pulse{animation:pulse 2s infinite alternate}@keyframes pulse{to{opacity:.5}}"; export default function App({state,setState}){return <div><svg viewBox="0 0 100 50"><circle className="pulse" cx={50} cy={25} r={12}/></svg><button onClick={()=>setState(s=>({...s,count:s.count+1}))}>观察 {state.count}</button></div>}`} />。不要声明React.useState；此写法保证刷新恢复。优先紧凑完整源码，勿重复实现原生UI。'
 // Generation-only guard: existing cards remain readable. Detect the provable
 // collision where a parent-controlled value is also independently owned locally.
@@ -17,6 +17,13 @@ export function sandboxOwnershipDiagnostics(spec){
  walk(spec.children)
  const stateRef=e=>e?.type==='get'&&e.object?.type==='ref'&&e.object.name==='state'&&e.key?.type==='literal'?e.key.value:null
  return surfaces.flatMap(n=>{
+  const source=n.props.source?.value
+  const declared=new Set((n.props.initial?.entries||[]).map(([k])=>k))
+  if(typeof source==='string'&&!n.props.input&&!/setState|useState|bridge\.on/.test(source)){
+   const reads=[...source.matchAll(/\bstate\??\.([A-Za-z_$][\w$]*)/g)].map(m=>m[1])
+   const missing=[...new Set(reads.filter(k=>!declared.has(k)))]
+   if(missing.length)return [{severity:'error',code:'sandbox-missing-input',message:`sandbox ${n.id}: local state reads ${missing.join(', ')} have no initial value or writer. Pass host values through input and read data; local state is not host state.`}]
+  }
   if(n.props.actions)return [] // explicit shared-state bridge; input owns shared values
   const keys=new Set((n.props.initial?.entries||[]).map(([k])=>k))
   const collisions=new Set((n.props.input?.entries||[]).filter(([k,e])=>keys.has(k)&&stateRef(e)).map(([,e])=>stateRef(e)))

@@ -1,3 +1,5 @@
+import {deckInterface,deckCoverage} from './deck-contract.mjs'
+import {rsiContext} from '../rsi-journal.mjs'
 import {generationToolDisclosure} from './tool-disclosure.mjs'
 import {sandboxMode,sandboxInstruction} from '../../shared/cardspec/sandbox-policy.mjs'
 import {sandboxEnabled} from './sandbox.mjs'
@@ -17,7 +19,7 @@ import {generationSettings,generationModelOptions} from '../../shared/cardspec/g
 
 import { toolDiscoveryReference,expandedToolIds } from '../../shared/cardspec/tool-discovery.mjs'
 
-export async function handleCardSpec(req, res, payload, { streamUpstream, photo, model, keyLoaded,toolCatalog,researchSession,recordGeneration,debugRunner }) {
+export async function handleCardSpec(req, res, payload, { streamUpstream, photo, model, keyLoaded,toolCatalog,researchSession,recordGeneration,debugRunner,designReference }) {
   const settings=generationSettings(payload),upstream=streamUpstream
   // Profile is the default, not a second override of server-owned build phases.
   streamUpstream=(messages,options)=>upstream(messages,{...generationModelOptions(settings.modelProfile),...options})
@@ -26,8 +28,8 @@ export async function handleCardSpec(req, res, payload, { streamUpstream, photo,
   res.flushHeaders?.()
   const requestId = randomUUID(), turnId = payload.turnId || randomUUID(), started = performance.now()
   let cardId = randomUUID()
-  const policy=generationPolicy(payload.messages.findLast(m=>m.role==='user')?.content,{profile:payload.generationProfile,mode:payload.mode,debugGeneration:settings.debugGeneration,buildMode:settings.buildMode,extendedGeneration:settings.extendedGeneration})
-  const budget=(policy.profile==='adaptive-v1'||policy.debugGeneration)?createGenerationBudget(policy):null
+  const policy=generationPolicy(payload.messages.findLast(m=>m.role==='user')?.content,{profile:payload.generationProfile,mode:payload.mode,debugGeneration:settings.debugGeneration,buildMode:settings.buildMode,extendedGeneration:settings.extendedGeneration,generationMinutes:settings.generationMinutes})
+  const budget=(policy.generationMinutes||policy.profile==='adaptive-v1'||policy.debugGeneration)?createGenerationBudget(policy):null
   const controller = new AbortController(), deadline = Number.isFinite(policy.timeoutMs)?setTimeout(() => controller.abort(Object.assign(new Error(`生成超过 ${policy.timeoutMs / 60000} 分钟时限，请重试或缩小任务范围。`),{code:'GENERATION_TIMEOUT'})), policy.timeoutMs):null
   res.once('close', () => { if (!res.writableEnded) controller.abort() })
   const layout=generationLayout(payload.cardSize)
@@ -75,7 +77,7 @@ export async function handleCardSpec(req, res, payload, { streamUpstream, photo,
     let analysis, plan, experience
     if(payload.mode==='experience'){
       begin('experience','体验规划','plan')
-      experience=await planExperience({streamUpstream:call,goal:userGoal,cardSize:layout.cardSize,capabilities:discovery,renderMode:payload.renderMode,signal:controller.signal,onEvent:send})
+      experience=await planExperience({streamUpstream:call,goal:userGoal,cardSize:layout.cardSize,capabilities:discovery,renderMode:payload.renderMode,webGraphics:settings.webGraphics,signal:controller.signal,onEvent:send})
       meta({experiencePlan:experience.plan,experiencePlanning:experience,model_call_count:1});finish()
     }
     if ((payload.mode || 'direct') === 'staged') {
@@ -86,7 +88,7 @@ export async function handleCardSpec(req, res, payload, { streamUpstream, photo,
         begin(step.name, step.title, 'plan')
         availableTools=expandedToolIds(catalog,userGoal,analysis?[analysis]:[])
         meta({tool_disclosure:disclosure()})
-        const messages = planningMessages(step.prompt+'\n'+sandboxInstruction(payload.renderMode)+'\n'+layout.instruction+'\n'+discovery+toolHealthReference(catalog,availableTools)+`\n本轮优先候选（不是全部能力）：${availableTools.join(',')||'无'}。只读CLI结果绑定现有组件，可见时按需轮询；写操作只能由独立用户按钮触发并交给宿主确认；glm.generate只在用户点击后生成下一页或局部slot。只规划需要的工具及用途，不输出binding/action源码或工具schema。`, context, history, analysis, step.name)
+        const messages = planningMessages(step.prompt+'\n'+sandboxInstruction(payload.renderMode,settings)+'\n'+layout.instruction+'\n'+discovery+toolHealthReference(catalog,availableTools)+`\n本轮优先候选（不是全部能力）：${availableTools.join(',')||'无'}。只读CLI结果绑定现有组件，可见时按需轮询；写操作只能由独立用户按钮触发并交给宿主确认；glm.generate只在用户点击后生成下一页或局部slot。只规划需要的工具及用途，不输出binding/action源码或工具schema。`, context, history, analysis, step.name)
         let text = ''
         const collect = (piece) => {
           markPiece(piece)
@@ -119,10 +121,12 @@ export async function handleCardSpec(req, res, payload, { streamUpstream, photo,
     if(budget)meta({resumeToken:requestId})
     if(checkpoint)send({type:'stream_note',note:'已恢复上次取数结果；来源时间保持原样，可在卡片内手动刷新。生成使用新的有界预算。',requestId,turnId})
     const deck=[]
-    research=researchSession?.(value=>{send({...value,requestId,turnId});if(value.type==='research')send({type:'stream_note',note:value.status==='running'?'正在获取资料 · '+value.tool:value.status==='failed'?'部分资料暂不可用':'已取得资料',requestId,turnId})},{catalog,budget,modelProfile:settings.modelProfile,timeoutMs:policy.timeoutMs,initialRecords:checkpoint?.records||[],renderMode:payload.renderMode,enabled:payload.toolsEnabled!==false,goal:userGoal,...(budget?{allowPlanning:policy.plan}:{}),...(experience?.plan?{allowPlanning:false}:{})})
+    research=researchSession?.(value=>{send({...value,requestId,turnId});if(value.type==='research')send({type:'stream_note',note:value.status==='running'?'正在获取资料 · '+value.tool:value.status==='failed'?'部分资料暂不可用':'已取得资料',requestId,turnId})},{catalog,budget,modelProfile:settings.modelProfile,timeoutMs:policy.timeoutMs,initialRecords:checkpoint?.records||[],renderMode:payload.renderMode,webGraphics:settings.webGraphics,enabled:payload.toolsEnabled!==false,contentRelations:settings.contentRelations,goal:userGoal,...(budget?{allowPlanning:policy.plan}:{}),...(experience?.plan?{allowPlanning:false}:{})})
     const base={streamUpstream:call,photo,catalog,research,budget,signal:controller.signal,...(debugRunner?{debugRunner}:{})}
     const emit=value=>{send({...value,requestId,turnId});if(value.type==='build_progress')send({type:'stream_note',note:value.message,requestId,turnId});if(value.type==='debug')send({type:'stream_note',note:value.status==='running'?'正在隔离环境中测试交互':value.status==='passed'?'模拟交互检查通过':value.status==='partial'?'部分交互未覆盖，已记录调试范围':value.status==='unverified'?'调试环境未完成验证，保留编译结果':'发现交互问题，准备修复',requestId,turnId});if(value.type==='status'&&value.status==='repairing'){repairCount++;send({type:'stream_note',note:'正在修复 CardSpec 校验或运行错误',requestId,turnId});meta({previous_source:lastSource});patch([{p:'/message/content/parts/0',o:'replace',v:''}]);lastSource=''}}
-    const first=await generateCard({...base,cardId,experience,input:{prompt:userGoal},view:{...settings,generationProfile:policy.profile,renderMode:payload.renderMode,goal:userGoal,plan,analysis,history:payload.messages.slice(0,-1),cardSize:layout.cardSize,generationMode:payload.mode},emit,
+    let visualReference
+    if(payload.stitchReferenceId&&designReference)try{visualReference=await designReference(payload.stitchReferenceId);emit({type:'design_reference',status:'ready',brief:visualReference})}catch(e){emit({type:'stream_note',note:'设计参考未加载，继续原生生成：'+String(e.message).slice(0,180)})}
+    const first=await generateCard({...base,cardId,experience,input:{prompt:userGoal},view:{...settings,visualReference,generationProfile:policy.profile,renderMode:payload.renderMode,goal:userGoal,plan,analysis,history:payload.messages.slice(0,-1),cardSize:layout.cardSize,generationMode:payload.mode},emit,
       onDebugCandidate:c=>{draftShown=true;meta({debug_candidate:{version:c.version,status:c.spec?'testing':'invalid',diagnostics:c.diagnostics},...(c.spec?{card_spec:c.spec,card_intro:c.spec.intro,card_outro:c.spec.outro,core_ready:false}:{})});patch([{p:'/message/content/parts/0',o:'replace',v:c.source}]);send({type:'debug_candidate',version:c.version,status:c.spec?'testing':'invalid',cardIndex:0,requestId,turnId})},
       onValidated:result=>{if(!budget)return;budget.usable();timings.first_usable_ms=elapsed();meta({card_spec:result.spec,core_ready:true,resources:{},generationBudget:budget.snapshot()})},
       onPiece:piece=>{markPiece(piece);if(piece.content){lastSource+=piece.content;patch([{p:'/message/content/parts/0',o:draftShown?'replace':'append',v:draftShown?lastSource:piece.content}]);draftShown=false}if(piece.reasoning)patch([{p:'/message/reasoning',o:'append',v:piece.reasoning}])},
@@ -134,20 +138,24 @@ export async function handleCardSpec(req, res, payload, { streamUpstream, photo,
     const manifest=research?.plan?.()
     research?.lockPlan?.()
     deck.push({id:first.spec.cardId,title:manifest?.cards[0]?.title||'主卡',status:'ready',...first})
-    for(const [i,p]of(manifest?.cards||[]).entries())if(i)deck.push({id:randomUUID(),title:p.title,goal:p.goal,status:'pending'})
+    for(const [i,p]of(manifest?.cards||[]).entries())if(i)deck.push({id:randomUUID(),title:p.title,goal:p.goal,journeyIds:p.journeyIds,status:'pending'})
     const publish=()=>meta({card_spec:first.spec,card_intro:first.spec.intro,card_outro:first.spec.outro,resources:first.resources,diagnostics:first.diagnostics,repair_count:first.repairCount,experienceDiagnostics:first.spec.experienceDiagnostics,card_deck:deck,model_call_count:budget?.snapshot().modelCalls||research?.snapshot().modelCalls||1,research:research?.snapshot(),generationBudget:budget?.snapshot()})
     publish()
     for(let i=1;i<deck.length;i++){
       deck[i].status='generating';publish()
       try{
-        const next=await generateCard({...base,cardId:deck[i].id,input:{prompt:deck[i].goal},view:{...settings,generationProfile:policy.profile,renderMode:payload.renderMode,goal:userGoal,cardSize:layout.cardSize,generationMode:'direct',plan:manifest.cards[i]},emit:value=>send({...value,cardIndex:i,requestId,turnId}),
+        const next=await generateCard({...base,cardId:deck[i].id,input:{prompt:deck[i].goal},view:{...settings,generationProfile:policy.profile,renderMode:payload.renderMode,goal:userGoal,cardSize:layout.cardSize,generationMode:'direct',plan:manifest.cards[i],journeys:first.spec.context.journeys,journeyIds:deck[i].journeyIds,deckInterface:deckInterface(first.spec)},emit:value=>send({...value,cardIndex:i,requestId,turnId}),
           onDebugCandidate:c=>{Object.assign(deck[i],{source:c.source,debugCandidate:{version:c.version,status:c.spec?'testing':'invalid',diagnostics:c.diagnostics},...(c.spec?{spec:c.spec,resources:{}}:{})});publish();send({type:'debug_candidate',version:c.version,status:c.spec?'testing':'invalid',cardIndex:i,requestId,turnId})}})
         next.spec.generationPlan=null
         Object.assign(deck[i],next,{status:'ready'})
       }catch(e){Object.assign(deck[i],{status:'error',error:controller.signal.aborted?'生成已中断':e.message})}
       publish()
     }
+    const coverage=deckCoverage(userGoal,deck)
+    for(const item of deck)if(item.spec)item.spec.deckCoverage=coverage
+    publish()
     finish()
+    const archive=rsiContext.getStore();if(archive)await archive.journal.append(archive.id,'results',{results:deck,budget:budget?.snapshot()})
     if(budget&&recordGeneration)await recordGeneration({requestId,goal:userGoal,results:deck,budget:budget.snapshot()}).catch(e=>send({type:'stream_note',note:'RSI trace保存失败：'+e.message,requestId,turnId}))
     send({type:'server_ste_metadata',metadata:{...timings,total_ms:elapsed(),model_slug:model,mode:payload.mode,format:'cardspec',repair_count:first.repairCount,deck_count:deck.length,plan_repair_count:planRepairCount,research:research?.snapshot(),generationBudget:budget?.snapshot()},requestId,turnId})
     send({type:'message_stream_complete',status:'succeeded',requestId,turnId})

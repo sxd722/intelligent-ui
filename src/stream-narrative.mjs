@@ -84,7 +84,8 @@ export function createStreamNarrative(){
     }
     if(type==='research_model'){model=f.model||model;add('model','模型调用完成',f.model||'',at,{usage:usageLabel(f.usage)});return}
     if(type==='cardplan'||type==='experience'){
-      add('plan',type==='cardplan'?'卡片规划':'体验规划',readableData(f.plan)||f.reason||f.error||'',at,{status:st,elapsedMs:f.elapsedMs,usage:usageLabel(f.usage)});return
+      const routing=f.taskRouting?.tasks?.map(t=>({task:t.kind,query:t.query,data:t.data,candidates:t.tools?.map(t=>t.id)}))
+      add('plan',f.phase==='task_route'?'核心任务与工具匹配':type==='cardplan'?'卡片规划':'体验规划',readableData(f.plan)||readableData(routing)||f.reason||f.error||'',at,{status:st,elapsedMs:f.elapsedMs,usage:usageLabel(f.usage)});return
     }
     if(type==='stream_error'){add('error','生成错误',f.error?.message||f.message||'流异常',at,{status:st||'失败'});return}
     if(['stream_note','build_progress','status','diagnostics','resource-warning','debug','debug_feedback','debug_commit','debug_committed'].includes(type)){

@@ -3,7 +3,9 @@
 import {pathToFileURL} from 'node:url'
 import path from 'node:path'
 import {TOOLS} from '../../shared/cardspec/tools.mjs'
-import {OPENCLI_PACKAGE,OPENCLI_VERSION,openCliInput} from './opencli.mjs'
+import {OPENCLI_PACKAGE,OPENCLI_ROOT,OPENCLI_VERSION,openCliInput} from './opencli.mjs'
+import {systemPublicFetch} from './system-public-fetch.mjs'
+import {applyPublicProxy,publicNetworkOptions} from './public-network.mjs'
 import {queryTrains} from './12306-query.mjs'
 import {guardPublicFetch} from './public-fetch-guard.mjs'
 import {browserDocumentCommand} from './browser-document.mjs'
@@ -21,7 +23,9 @@ try{
   if(s?.daemonVersion!==OPENCLI_VERSION||!s.extensionConnected||s.profileRequired||s.profileDisconnected)throw new Error('Chrome 扩展未连接或 profile 不可用')
   if(bound&&(s.pid!==bound.daemonPid||s.contextId!==bound.profile))throw Error('绑定的 daemon 或 profile 已改变，请重新绑定')
  }
+ if(!t.browser)applyPublicProxy(OPENCLI_ROOT)
  const {installNodeNetwork}=await load('dist/src/node-network.js');installNodeNetwork()
+ if(!t.browser){const network=publicNetworkOptions(OPENCLI_ROOT);if(network.systemTls)globalThis.fetch=systemPublicFetch(globalThis.fetch,{proxy:network.proxy})}
  // The SDK sometimes wraps errors without preserving their code. Retain the
  // last explicit access gate in this single-invocation worker for that case.
  let accessFailure

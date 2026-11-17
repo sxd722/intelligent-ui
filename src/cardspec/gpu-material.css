@@ -1,0 +1,6 @@
+.cs-gpu-material{position:relative;width:100%;min-width:0;margin:0;overflow:hidden;isolation:isolate;border:0;background:transparent;border-radius:inherit;flex-shrink:0}
+.cs-gpu-material canvas,.cs-gpu-fallback{position:absolute;inset:0;width:100%;height:100%;display:block}
+.cs-gpu-fallback{background:radial-gradient(ellipse at 37% 30%,#fff9 0%,#ecd5e980 18%,#84a9cd60 40%,transparent 67%);filter:hue-rotate(var(--gpu-shift,0deg));transition:filter .25s}
+.cs-gpu-material[data-gpu-status=ready] .cs-gpu-fallback{opacity:0}
+.cs-gpu-material figcaption{position:absolute;bottom:6px;left:8px;right:8px;font-size:11px;line-height:1.3;color:inherit;opacity:.7}.cs-gpu-material figcaption span{display:none}
+@media(prefers-reduced-motion:reduce){.cs-gpu-fallback{transition:none}}

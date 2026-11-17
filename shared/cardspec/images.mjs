@@ -24,6 +24,14 @@ export function collectImages(spec) {
           if (typeof query === 'string' && query.trim()) jobs.set(photoKey(query,role), { key:photoKey(query,role), query, role })
         } catch { /* query may only become available after a user selection */ }
       }
+      if(n.type==='task-board'&&n.props.view){
+        try{for(const media of evaluate(n.props.view,local)?.media||[]){
+          if(typeof media.query==='string'&&media.query.trim()){
+            const role='thumbnail',query=media.query,key=photoKey(query,role)
+            jobs.set(key,{key,query,role})
+          }
+        }}catch{ /* Media can depend on tool results not yet available. */ }
+      }
       visit(n.children || [], local)
     }
   }

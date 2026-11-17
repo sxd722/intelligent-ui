@@ -25,7 +25,7 @@ export function createModelClient({base, key, model, openaiKey, fetchImpl=fetch}
       body.tools=[BUILD_OPERATION_TOOL];body.tool_choice={type:'function',function:{name:'submit_build_operation'}}
       delete body.response_format
     }
-    const res=await fetchImpl(`${openai?'https://api.openai.com/v1':base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${openai?openaiKey:key}`},body:JSON.stringify(body),signal,redirect:'error'})
+    const res=await fetchImpl(`${openai?'https://api.openai.com/v1':base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${openai?openaiKey:key}`},body:JSON.stringify(body),signal,redirect:'manual'})
     if(!res.ok||!res.body)throw new Error(`model gateway HTTP ${res.status}`)
     const decoder=new TextDecoder(),calls=new Map();let buffer='',content='',reasoning='',finish=null,done=false,usage,reportedModel
     function line(line){

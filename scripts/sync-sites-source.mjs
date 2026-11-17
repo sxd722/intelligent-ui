@@ -3,8 +3,9 @@ import {cp,mkdir,readFile,writeFile,unlink} from 'node:fs/promises'
 import {fileURLToPath} from 'node:url'
 import path from 'node:path'
 import {createHash} from 'node:crypto'
-import {SANDBOX_RENDER_SCRIPT} from '../src/cardspec/sandbox-document.mjs'
-const root=fileURLToPath(new URL('../',import.meta.url)),target=path.join(root,'sites/intelligent-ui')
+import {SANDBOX_RENDER_SCRIPT as rawSandboxRenderer} from '../src/cardspec/sandbox-document.mjs'
+const SANDBOX_RENDER_SCRIPT=rawSandboxRenderer.replace(/\r\n?/g,'\n')
+const root=fileURLToPath(new URL('../',import.meta.url)),target=process.env.SITES_EXPORT_TARGET?path.resolve(process.env.SITES_EXPORT_TARGET):path.join(root,'sites/intelligent-ui')
 const localOnly=['src/cardspec/RecoveryLab.jsx','shared/cardspec/recovery-train-fixture.mjs']
 const publicSource=p=>!localOnly.includes(path.relative(root,p).replaceAll('\\','/'))
 await mkdir(path.join(target,'ui'),{recursive:true})
@@ -137,6 +138,18 @@ toolSource=toolSource.replace("import {toolAssets} from './assets.mjs'","const t
  .replace("from './opencli.mjs'","from '../cloud-tools.mjs'").replace("from './write-operations.mjs'","from '../cloud-tools.mjs'").replace("from './autocli.mjs'","from '../cloud-tools.mjs'")
 await write('server/tools/service.mjs',toolSource)
 await write('server/tools/result-cache.mjs',await readFile(path.join(root,'server/tools/result-cache.mjs'),'utf8'))
+await write('server/tools/discovery-tree.mjs',await readFile(path.join(root,'server/tools/discovery-tree.mjs'),'utf8'))
+for(const name of ['weather-fallback.mjs','discovery-query.mjs'])await write('server/tools/'+name,await readFile(path.join(root,'server/tools',name),'utf8'))
+const discoverySource=await readFile(path.join(root,'server/tools/semantic-discovery.mjs'),'utf8')
+const ranking=discoverySource.slice(discoverySource.indexOf('export function rankTools('),discoverySource.indexOf('export function createToolDiscovery('))
+await write('server/tools/semantic-discovery.mjs',`import {TOOLS,selectToolIds} from '../../shared/cardspec/tools.mjs'
+import {presentationFor} from '../../shared/cardspec/tool-presentations.mjs'
+import {intentGroups} from './discovery-query.mjs'
+const eligible=t=>TOOLS[t.id]&&!t.unsupportedReason&&t.provider!=='host'&&t.id!=='glm.generate'
+${ranking}
+export const toolAreas=catalog=>[...new Set(catalog.filter(eligible).map(t=>t.group).filter(Boolean))].join('、')
+export const toolDiscovery={async discover(catalog,query,{limit=8}={}){return {tools:rankTools(catalog,query,{limit}),retrieval:{method:'keyword-fallback',fallbackReason:'Cloud has no local embedding runtime',catalogSize:catalog.length},instruction:'候选不是能力全集，可使用 cli_discover 再检索，并用 cli_describe 展开契约。'}},async warm(){},close(){}}
+`)
 // The Worker pre-instantiates a bundled WASM module; no remote runtime download.
 const rich=await readFile(path.join(target,'server/cardspec/rich-validation.mjs'),'utf8')
 await write('server/cardspec/rich-validation.mjs',rich.replace("import('quickjs-emscripten')","import('../cloud-logic.mjs')"))

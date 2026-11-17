@@ -1,3 +1,4 @@
+import {contentRelationDiagnostics} from './content-skeleton.mjs'
 import {decisionProfile} from './decision-profile.mjs'
 import {decisionDiagnostics} from './decision-diagnostics.mjs'
 import {COMPOSITIONS} from './compositions.mjs'
@@ -17,8 +18,10 @@ import { TOOLS, validateJson, toolInitialValue } from './tools.mjs'
 import {toolCollectionDiagnostics} from './tool-diagnostics.mjs'
 import {bindingDependencies} from './dataflow.mjs'
 import {interactionDiagnostics} from './interaction-diagnostics.mjs'
+import {sharedActionDiagnostics} from './shared-action-diagnostics.mjs'
 import {validateLogicSource,logicJson} from './logic-contract.mjs'
 import {sandboxActions} from './sandbox-bridge.mjs'
+import {validateMaterial} from './gpu-material.mjs'
 import {COMPONENT_ALIASES,ignoredPresentationAttribute} from './presentation-compat.mjs'
 import {validateTaskFields} from './task-operations.mjs'
 import {slotContract} from './tool-slots.mjs'
@@ -273,7 +276,11 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
         diagnostics.push({severity:'warning',code:'event_alias',message:`${n.name}.onClick normalized to onPress; action and args preserved`,offset:n.start,line:source.slice(0,n.start).split('\n').length})
       }
     }
-    const interactive=c=>['button','pressable','chip','link','input','textarea','select','checkbox','toggle','radio-group','segmented','slider','calendar','carousel','popover','table','collection','experience','map','mindmap','flowchart','chart','swipe-stack','navigation','copy','logic','sandbox','slot'].includes(c.name)||Object.keys(c.attrs||{}).some(k=>/^on[A-Z]/.test(k))||c.name==='region'&&constVal(c.attrs,'overflow')==='details'
+    if(n.name==='link'&&n.attrs.href){
+      if(n.attrs.url)error('attribute','link.href and url conflict; provide one destination',n.start)
+      else{n={...n,attrs:{...n.attrs,url:n.attrs.href}};delete n.attrs.href;diagnostics.push({severity:'warning',code:'attribute_alias',message:'link.href normalized to url; destination and safety checks preserved',offset:n.start})}
+    }
+    const interactive=c=>['button','pressable','chip','link','input','textarea','select','checkbox','checklist','toggle','radio-group','segmented','slider','calendar','carousel','popover','table','collection','experience','map','mindmap','flowchart','chart','swipe-stack','navigation','copy','logic','sandbox','slot'].includes(c.name)||Object.keys(c.attrs||{}).some(k=>/^on[A-Z]/.test(k))||c.name==='region'&&constVal(c.attrs,'overflow')==='details'
     const nestedControl=children=>children.some(c=>interactive(c)||nestedControl(c.children||[]))
     if((['button','pressable','chip'].includes(n.name)||n.name==='list-item'&&n.attrs.onPress)&&nestedControl(n.children))error('content_model','clickable content cannot contain another interactive control; use sibling controls in a row or stack',n.start)
     // Omitted presentation IDs are a host concern. Allocation follows source
@@ -287,6 +294,10 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
     if (parentType === 'inline' && !inline.has(n.name) && !['if', 'each'].includes(n.name)) error('content_model', `block ${n.name} inside inline content`, n.start)
     const props = {}
     const childLocals = new Set(locals)
+    if(n.name==='gpu-material'){
+      if(!n.attrs.id||locals.has('index'))error('gpu-material','gpu-material needs a stable id and cannot appear in each',n.start)
+      try{if(n.attrs.source?.type!=='literal')throw Error('gpu-material.source must be a fixed WGSL body string');validateMaterial({source:constVal(n.attrs,'source')})}catch(e){error('gpu-material',e.message,n.start)}
+    }
     if(n.name==='sandbox'){
       const programs=n.children.filter(c=>c.name==='#text'&&c.value?.type==='literal'&&typeof c.value.value==='string'&&/^\s*export\s/.test(c.value.value))
       if(programs.length){
@@ -372,10 +383,11 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
     if(card.attrs.backgroundMask.type!=='literal'||!['spotlight','fade-left','mist'].includes(value))error('background_mask','unsupported photo mask',card.start)
     else spec.backgroundMask=value
   }
-  if(['default','pearl','atlas','rebel','parchment','business','academy'].includes(context.designPreference)){
+  if(getDesign(context.designPreference)){
     if(spec.design!==context.designPreference)diagnostics.push({severity:'warning',code:'host_design_applied',message:'Host applied the requested design '+context.designPreference,offset:card.start,line:1})
     spec.design=context.designPreference
   }
+  if(context.requireDesignChoice&&!spec.design)diagnostics.push({severity:'warning',code:'design_choice_missing',message:'New card omitted design. Explicitly select one supported design token for the task; visualStyle alone is a material, not a design choice. Keep the usable card and its interactions.',offset:card.start,line:1})
   if(card.attrs.composition){
     const value=constVal(card.attrs,'composition')
     if(card.attrs.composition.type!=='literal'||value!=='auto'&&!Object.hasOwn(COMPOSITIONS,value))error('composition','unsupported composition',card.start)
@@ -401,6 +413,21 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
     spec.backgroundPosition = position
   }
   const declared = { data: new Set(), state: new Set(), derive: new Set(), action: new Set(),binding:new Set() }
+  // A declaration placed beside its consumer in an ordinary layout has the
+  // same card scope. Normalize it without a model rewrite; never cross an each,
+  // conditional or isolated runtime where hoisting would change its meaning.
+  const liftedBindings=[]
+  const layoutContainers=new Set(['region','box','stack','row','grid','grid-item'])
+  function liftLayoutBindings(nodes){for(const n of nodes){if(!layoutContainers.has(n.name))continue
+    n.children=(n.children||[]).filter(child=>{
+      if(child.name!=='binding')return true
+      liftedBindings.push(child)
+      diagnostics.push({severity:'warning',code:'binding_scope_normalized',message:'Layout-local binding declaration uses card scope; normalized without executing the tool.',offset:child.start})
+      return false
+    })
+    liftLayoutBindings(n.children)
+  }}
+  liftLayoutBindings(card.children);card.children.unshift(...liftedBindings)
   // A tool view is syntax sugar over the existing binding lifecycle, never a
   // second executor. Existing dependency, permission and visibility rules apply.
   let viewBinding=0
@@ -427,7 +454,7 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
     const id = staticString(n, 'id')
     if (!checkValue('id', id) || declared[n.name].has(id)) { error('declaration', `invalid/duplicate ${n.name} ${id}`, n.start); continue }
     declared[n.name].add(id)
-    const allowed = n.name==='binding'?['id','tool','input','initial','load','refresh','requires']:n.name === 'state' ? ['id', 'type', 'initial'] : n.name === 'action' ? ['id'] : ['id', 'type', 'value']
+    const allowed = n.name==='binding'?['id','tool','input','initial','load','refresh','requires']:n.name === 'state' ? ['id', 'type', 'initial','scope'] : n.name === 'action' ? ['id'] : ['id', 'type', 'value']
     for (const key of Object.keys(n.attrs)) if (!allowed.includes(key)) error('attribute', `unsupported ${n.name}.${key}`, n.start)
     if(n.name==='binding') {
       const tool=staticString(n,'tool'),load=constVal(n.attrs,'load','manual'),rawRefresh=constVal(n.attrs,'refresh',0),refresh=rawRefresh===true?60:Number(rawRefresh)
@@ -453,7 +480,13 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
     } else if (n.name === 'state') {
       const type = staticString(n, 'type')
       if (!STATE_TYPES.includes(type) || !n.attrs.initial) error('declaration', 'state needs type and initial', n.start)
-      else { spec.state[id] = { type, initial: n.attrs.initial }; collectExpr(n.attrs.initial,new Set(),n.start) }
+      else {
+        const stateScope=staticString(n,'scope',false)||'page'
+        if(!['page','deck'].includes(stateScope))error('declaration','state.scope must be page or deck',n.start)
+        const shared=context.deckInterface?.states?.[id]
+        if(stateScope==='deck'&&shared&&shared.type!==type)error('declaration',`shared state ${id} must keep type ${shared.type}`,n.start)
+        spec.state[id] = { type, initial: shared&&stateScope==='deck'?lit(shared.initial):n.attrs.initial,...(stateScope==='deck'?{scope:'deck'}:{}) }; collectExpr(n.attrs.initial,new Set(),n.start)
+      }
     } else {
       if (!n.children.length || n.children.length > 16) error('action', 'action requires 1–16 steps', n.start)
       spec.actions[id] = n.children.map((s) => {
@@ -487,7 +520,7 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
     if (ast.type === 'ref' && !baseRoots.has(ast.name) && !locals.has(ast.name)) error('binding', `unknown binding ${ast.name} in this scope; each aliases exist only in their itemKey and children. Collection predicates use item/index; use a distinct outer alias for nested comparisons. Pass row values to actions through args`, at)
     // Predicates introduce item/index only for their second argument. Validate
     // even empty collections and inactive branches; no tool data is required.
-    if (ast.type === 'call' && ['filter', 'find', 'map', 'flatMap', 'sum', 'count','some','every','findIndex','reduce'].includes(ast.name)) {
+    if (ast.type === 'call' && ['filter', 'find', 'map', 'flatMap', 'sum', 'count','some','every','findIndex','reduce','sort','toSorted'].includes(ast.name)) {
       ast.args.forEach((arg, index) => validateExpr(arg, index === 1 ? new Set([...locals, ...(ast.params||['item','index'])]) : locals, at))
       return
     }
@@ -537,8 +570,9 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
       for(const cb of [step.onSuccess,step.onError])if(cb&&!Object.hasOwn(spec.actions,cb))error('action',`unknown callback ${cb}`)
     } else if (!Object.hasOwn(spec.state, step.target)) error('action', `unknown state target ${step.target}`)
   }
-  let logicCount=0,sandboxCount=0
+  let logicCount=0,sandboxCount=0,materialCount=0
   function validateEvents(node,inLogic=false) {
+    if(node.type==='gpu-material'&&++materialCount>2)error('gpu-material','at most two GPU materials per card')
     if(node.type==='sandbox'&&++sandboxCount>4)error('sandbox','at most four independent sandboxes per card; share state through input/actions')
     if(node.type==='logic'){
       inLogic=true;if(++logicCount>4)error('logic','at most four logic modules per card')
@@ -553,7 +587,7 @@ function compileDocument(source, { final = false, cardId = 'card', context = {},
     node.children?.forEach(n=>validateEvents(n,inLogic))
   }
   spec.children.forEach(n=>validateEvents(n))
-  if(final)diagnostics.push(...toolCollectionDiagnostics(spec),...interactionDiagnostics(spec),...feedbackDiagnostics(spec),...decisionDiagnostics(spec))
+  if(final){diagnostics.unshift(...sharedActionDiagnostics(spec));diagnostics.push(...contentRelationDiagnostics(spec.children),...toolCollectionDiagnostics(spec),...interactionDiagnostics(spec),...feedbackDiagnostics(spec),...decisionDiagnostics(spec))}
   for(const id of Object.keys(spec.bindings)){
     function dependencies(name,trail=[]){
       if(trail.includes(name)){error('tool_dependency',`cyclic tool dependency: ${[...trail,name].join(' -> ')}`);return}

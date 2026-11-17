@@ -10,7 +10,7 @@ export const LAYOUT_TEMPLATES = Object.freeze({
 })
 export const TEMPLATE_IDS = Object.freeze(Object.keys(LAYOUT_TEMPLATES))
 const heading = new Set(['title','caption','badge'])
-const graphics = new Set(['chart','heatmap','flowchart','mindmap','mermaid','map','image','carousel','collection','experience','sandbox'])
+const graphics = new Set(['gpu-material','chart','heatmap','flowchart','mindmap','mermaid','map','image','carousel','collection','experience','sandbox'])
 export function templateRole(node) {
  if(graphics.has(node.type))return 'visual'
  if(node.type==='region'&&node.props?.role?.value==='actions')return 'actions'

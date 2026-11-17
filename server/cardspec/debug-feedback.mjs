@@ -2,19 +2,35 @@
 // steps before successful steps and explicitly report any omitted evidence.
 const clip=(v,n=240)=>String(v??'').slice(0,n)
 const failed=a=>!a.ok||a.restored===false||a.assertion?.passed===false||a.errors?.length
+const smallState=state=>Object.fromEntries(Object.entries(state||{}).filter(([,v])=>JSON.stringify(v)?.length<=90).slice(0,20))
+export function debugRepairLane(record){
+ const errors=(record.diagnostics||[]).filter(d=>d.severity==='error')
+ if(record.browser?.classification==='host_unverified')return 'host'
+ if(errors.length&&errors.every(d=>['debug_test_oracle_conflict','debug_test_revision_required'].includes(d.code)))return 'test'
+ if(errors.some(d=>!['requirement_assertion','debug_test_oracle_conflict','debug_test_revision_required'].includes(d.code)))return 'implementation'
+ if(errors.length)return 'behavior-review'
+ return (record.diagnostics||[]).some(d=>d.code==='debug_test_step')?'test':'none'
+}
 export function summarizeDebugFeedback(record,{limit=6000}={}){
- const runs=record.browser?.runs||[],all=runs.flatMap(run=>(run.actions||[]).map((a,i)=>({a,step:i+1,scenario:run.scenario,width:run.width})))
+ const runs=record.browser?.runs||[],all=runs.flatMap(run=>(run.actions||[]).map((a,i)=>({a,before:i?run.actions[i-1].observed:run.initial,step:i+1,scenario:run.scenario,width:run.width})))
  const diagnostics=[...(record.diagnostics||[])].sort((a,b)=>Number(b.severity==='error')-Number(a.severity==='error')).map(d=>({...d,message:clip(d.message,450)}))
  const priority=a=>a.skipped?-1:failed(a)?2:0
- const actions=all.sort((a,b)=>priority(b.a)-priority(a.a)).map(({a,step,scenario,width})=>({step,scenario,width,op:a.step?.op,name:clip(a.step?.name,100),ok:a.ok,changed:a.changed,restored:a.restored,classification:a.classification,
-  ...(a.error?{error:clip(a.error)}:{}),...(a.assertion?{assertion:{passed:a.assertion.passed,failures:(a.assertion.failures||[]).map(x=>clip(x,180)).slice(0,3)}}:{}),
+ const actions=all.sort((a,b)=>priority(b.a)-priority(a.a)).map(({a,before,step,scenario,width})=>({step,scenario,width,op:a.step?.op,name:clip(a.step?.name,100),ok:a.ok,autoNavigation:a.autoNavigation?.length?a.autoNavigation:undefined,changed:a.changed,restored:a.restored,classification:a.classification,
+  ...(failed(a)&&!a.skipped?{beforeState:smallState(before?.state),...(a.step?.expect?.text?{navigation:(a.observed?.controls||[]).filter(c=>c.name?.startsWith('卡片页面：')).map(c=>({name:c.name,role:c.role})).slice(0,4)}:{})}:{}),
+  ...(a.error?{error:clip(a.error)}:{}),...(a.oracle?{testRevision:{expected:a.oracle.expected,anchor:a.oracle.anchor}}:{}),...(a.assertion?{assertion:{passed:a.assertion.passed,failures:(a.assertion.failures||[]).map(x=>clip(x,180)).slice(0,3)}}:{}),
   ...(a.stateKeysChanged?{stateKeysChanged:a.stateKeysChanged.slice(0,8)}:{}),
-  ...(failed(a)&&a.observed?{observed:{text:clip(a.observed.text,350),state:Object.fromEntries(Object.entries(a.observed.state||{}).filter(([k])=>Object.hasOwn(a.step?.expect?.state||{},k)).slice(0,6).map(([k,v])=>[k,typeof v==='string'?clip(v,100):v]))}}:{})}))
+  ...(failed(a)&&a.observed?{observed:{text:clip(a.observed.text,350),state:Object.fromEntries(Object.entries(a.observed.state||{}).filter(([k])=>Object.hasOwn(a.step?.expect?.state||{},k)||a.stateKeysChanged?.includes(k)).slice(0,6).map(([k,v])=>[k,typeof v==='string'?clip(v,100):v])),derived:Object.fromEntries(Object.entries(a.observed.derived||{}).filter(([k])=>Object.hasOwn(a.step?.expect?.derived||{},k)||a.step?.expect?.relations?.some(r=>[r.left,r.right].some(p=>p.startsWith('derived.'+k+'.')||p==='derived.'+k))).slice(0,6))}}:{})}))
  const controls=(runs[0]?.final?.controls||[]).map(c=>({role:c.role,name:clip(c.name,100),handle:c.handle,sandbox:c.sandbox,owner:c.owner,disabled:c.disabled,value:c.value})).sort((a,b)=>Number(b.name.startsWith('卡片页面：'))-Number(a.name.startsWith('卡片页面：')))
- const feedback={version:record.version,status:record.status,mode:record.mode,diagnostics:[],actions:[],controls:[],coverage:[],summary:{runs:runs.length,actions:all.length,failed:all.filter(({a})=>failed(a)).length},omitted:{diagnostics:0,actions:0,controls:0,coverage:0},elapsedMs:record.elapsedMs}
+ const repairLane=debugRepairLane(record)
+ const feedback={version:record.version,status:record.status,mode:record.mode,repairLane,...(repairLane==='test'?{instruction:'Keep source unchanged. Correct only the disputed expectation/locator and rerun the same path; do not delete assertions. A test conflict is not an implementation defect.'}:repairLane==='behavior-review'?{instruction:'Expected and observed behavior disagree. Check the user requirement and test preconditions before changing code; do not blindly copy observed values into assertions. Retain the failing path.'}:{}),convergence:record.convergence,terminalCoverage:record.terminalCoverage,verification:record.browser?.classification,phase:record.browser?.phase,diagnostics:[],actions:[],controls:[],coverage:[],...(record.cujCoverage?{cuj:{status:record.cujCoverage.status,checked:record.cujCoverage.items.filter(r=>r.status==='checked').map(r=>r.id),remaining:record.cujCoverage.items.filter(r=>r.status!=='checked'&&r.status!=='other-card').map(r=>({id:r.id,status:r.status}))}}:{}),summary:{runs:runs.length,actions:all.length,failed:all.filter(({a})=>failed(a)).length,testConflicts:all.filter(({a})=>a.classification==='test_oracle_conflict').length},omitted:{diagnostics:0,actions:0,controls:0,coverage:0},elapsedMs:record.elapsedMs}
  // Reserve useful space for the failed step even when diagnostics contain long
  // code contexts. No single action may consume the whole return envelope.
  const add=(key,items,cap)=>{for(const item of items){if(feedback[key].length<cap){feedback[key].push(item);if(JSON.stringify(feedback).length<=limit-160)continue;feedback[key].pop()}feedback.omitted[key]++}}
+ if(feedback.cuj)feedback.cuj.paths=(record.cujCoverage.paths||[]).slice(0,4)
+ feedback.testContext={start:'Every test/retest starts from initial state; previous calls do not advance this path.',initialState:smallState(runs[0]?.initial?.state),persisted:runs[0]?.actions?.[0]?.observed?.persisted}
+ feedback.retry={tool:'card_retest',version:record.version,instruction:'If source is unchanged, send version + steps only. Include prerequisites and visible page navigation; do not repeat source or waive failing assertions.'}
+ if(record.progress)feedback.progress=record.progress
+ if(feedback.cuj)feedback.cuj.reviewOnly=record.cujCoverage.items.filter(r=>r.kind==='review'&&r.status!=='checked'&&r.status!=='other-card').map(r=>r.id)
  add('diagnostics',diagnostics.filter(d=>d.severity==='error').slice(0,2).map(d=>({...d,context:typeof d.context==='string'?clip(d.context,400):d.context})),2)
  add('actions',actions.filter(a=>a.ok===false||a.assertion?.passed===false||a.restored===false).slice(0,2),2)
  add('controls',controls,12)

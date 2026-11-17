@@ -7,20 +7,21 @@ import {evaluate} from './expression.mjs'
 export function activeBindings(spec,scope,regions={}){
  const used=new Set(),active=new Set()
  const mark=(ids,shown)=>{for(const id of ids){used.add(id);if(shown)active.add(id)}}
- const walk=(nodes,shown=true,local=scope)=>{for(const n of nodes||[]){
+ const walk=(nodes,shown=true,local=scope,destination=null)=>{for(const n of nodes||[]){
   const guards=[n.props?.visible,...(n.type==='if'?[n.props?.test]:[])].filter(Boolean)
-  for(const g of guards)mark(expressionReads(spec,g,'bindings'),shown)
+  for(const g of guards)mark(expressionReads(spec,g,'bindings'),shown&&(!regions.$destination||destination===regions.$destination))
   let on=shown
   try{on=shown&&guards.every(g=>!!evaluate(g,local))}catch{on=false}
+  const visible=on&&(!regions.$destination||destination===regions.$destination)
   const props=Object.fromEntries(Object.entries(n.props||{}).filter(([k])=>!['visible','test'].includes(k)))
-  mark(expressionReads(spec,[props,n.value],'bindings'),on)
-  if(n.type==='tool-view'&&n.props?.bindings?.type==='literal')mark(Object.values(n.props.bindings.value),on)
-  if(n.type==='tool-view'&&n.props?.binding?.type==='literal')mark([n.props.binding.value],on)
+  mark(expressionReads(spec,[props,n.value],'bindings'),visible)
+  if(n.type==='tool-view'&&n.props?.bindings?.type==='literal')mark(Object.values(n.props.bindings.value),visible)
+  if(n.type==='tool-view'&&n.props?.binding?.type==='literal')mark([n.props.binding.value],visible)
   if(n.type==='each'){
    let rows=[];try{rows=evaluate(n.props.items,local)||[]}catch{}
-   if(on&&Array.isArray(rows)&&rows.length){for(const [index,item]of rows.slice(0,500).entries())walk(n.children,true,{...local,[n.props.as?.value||'item']:item,index})}
-   else walk(n.children,false,local)
-  }else walk(n.children,on&&(!(n.type==='region'&&(n.props?.overflow?.value==='details'||n.props?.role?.value==='details'))||regions[n.id]===true),local)
+   if(on&&Array.isArray(rows)&&rows.length){for(const [index,item]of rows.slice(0,500).entries())walk(n.children,true,{...local,[n.props.as?.value||'item']:item,index},destination)}
+   else walk(n.children,false,local,destination)
+  }else walk(n.children,on&&(!(n.type==='region'&&(['details','inline','destination'].includes(n.props?.overflow?.value)||n.props?.role?.value==='details'))||regions[n.id]===true),local,n.type==='region'&&n.props?.overflow?.value==='destination'?n.id:destination)
  }}
  walk(spec.children)
  // Headless bindings remain supported. Explicitly hidden UI consumers wait.

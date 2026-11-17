@@ -7,7 +7,7 @@ export function SameKind({source,spec,resources,busy,onResult,onNormal,available
  async function run(){
   if(!available||!prompt.trim()||active.current||busy)return
   const controller=new AbortController();active.current=controller;setError('')
-  const post=async(path,body)=>{const response=await fetch('/api/cards/same-kind/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});const data=await response.json();if(!response.ok)throw Error(data.error||'同款生成失败');return data}
+  const post=async(path,body)=>{const response=await fetch('/api/cards/same-kind/'+path,{method:'POST',headers:{'Content-Type':'application/json',...(spec.context?.rsiRecordId?{'X-RSI-Parent-Id':spec.context.rsiRecordId}:{})},body:JSON.stringify(body),signal:controller.signal});const data=await response.json();if(!response.ok)throw Error(data.error||'同款生成失败');return data}
   let verifier
   try{
    if(browserValidation){const {createReuseVerifier}=await import('./same-kind-verifier.mjs');verifier=await createReuseVerifier(controller.signal)}

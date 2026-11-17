@@ -35,7 +35,7 @@ test('a repaired completed request never leaves repair instructions or a candida
   await handleCardSpec({},res,{turnId:prompt,mode:'direct',messages:[...history,{role:'user',content:prompt}]},{keyLoaded:true,model:'test',photo:async()=>null,
    streamUpstream:async(messages,o)=>{
     calls++
-    if(!repair){assert.equal(JSON.parse(messages.at(-1).content).request,prompt);assert.ok(!messages.some(m=>m.role==='assistant'));assert.ok(!messages.some(m=>m.content.startsWith('修复以下诊断')))}
+    if(!repair){assert.equal(JSON.parse(messages.findLast(m=>m.role==='user'&&m.content.startsWith('{')).content).request,prompt);assert.ok(!messages.some(m=>m.role==='assistant'));assert.ok(!messages.some(m=>m.content.startsWith('修复以下诊断')))}
     o.onPiece({content:repair?(calls===1?'<card><unknown/></card>':old):fresh})
    }})
   assert.equal(frames.findLast(f=>f.type==='message_stream_complete').status,'succeeded',JSON.stringify(frames.findLast(f=>f.type==='stream_error')))

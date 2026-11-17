@@ -1,3 +1,6 @@
+import {appendCost,costTotal,GPT_PRICE} from '../shared/model-cost.mjs'
+import {RsiFeedback} from './RsiFeedback.jsx'
+import {recordUiInteraction} from './rsi-client.mjs'
 import {DesignPreview} from './DesignPreview.jsx'
 import {Inspector} from './StreamInspector.jsx'
 import {createStreamNarrative} from './stream-narrative.mjs'
@@ -65,7 +68,7 @@ function DilStage({ theme = 'editorial', palette = 'a', themeLabel, children }) 
   )
 }
 
-function PhaseView({ phase, theme, palette, themeLabel, onTelemetry, recovery, designPreview }) {
+function PhaseView({ phase, theme, palette, themeLabel, onTelemetry, recovery, designPreview, comparison }) {
   const msg = phase.message
   const live = phase.live
   const reasoning = msg?.reasoning ?? ''
@@ -83,7 +86,7 @@ function PhaseView({ phase, theme, palette, themeLabel, onTelemetry, recovery, d
       </header>
       <ReasoningBlock text={reasoning} live={live} />
       {kind === 'dil' || kind === 'cardspec' ? (
-        <AssistantDil message={msg} format={kind} designPreview={designPreview} streaming={live} theme={theme} palette={palette} onTelemetry={onTelemetry} recovery={recovery} />
+        <AssistantDil message={msg} format={kind} comparison={comparison} designPreview={designPreview} streaming={live} theme={theme} palette={palette} onTelemetry={onTelemetry} recovery={recovery} />
       ) : (
         <div className={`phase-doc${live ? ' phase-doc--live' : ''}`}>
           {live && <Thinking />}
@@ -99,7 +102,7 @@ function PhaseView({ phase, theme, palette, themeLabel, onTelemetry, recovery, d
   )
 }
 
-function AssistantDil({ message, format, streaming, theme, palette, onTelemetry, recovery, designPreview }) {
+function AssistantDil({ message, format, streaming, theme, palette, onTelemetry, recovery, designPreview, comparison }) {
   const dil = message?.metadata?.model_dil_v2
   const cardSpec = message?.metadata?.card_spec
   const isCardSpec = format === 'cardspec' || message?.metadata?.format === 'cardspec'
@@ -129,12 +132,14 @@ function AssistantDil({ message, format, streaming, theme, palette, onTelemetry,
           <Markdown text={intro} />
         </div>
       ) : null}
-      {cardSpec?.requirementCoverage&&<details className="card-prose"><summary>需求覆盖 · {cardSpec.requirementCoverage.status==='checked'?'行为断言通过，内容待评审':cardSpec.requirementCoverage.status==='partial'?'部分完成':'未逐项验证'}</summary><p>{cardSpec.requirementCoverage.scope}</p><ul>{cardSpec.requirementCoverage.items.map(r=><li key={r.id}>{r.quote} — {r.status==='checked'?'行为检查通过':r.status==='blocked'?'事实受阻':r.status==='limited'?'行为通过，事实有限':'未验证'}{r.reason?'：'+r.reason:''}</li>)}</ul></details>}
-      <CardFocus><DesignPreview design={isCardSpec?(designPreview||cardSpec?.context?.designMock):null} pending={streaming&&!(cardSpec&&message?.metadata?.core_ready)}>{isCardSpec ? failed && !cardSpec ? <Recovery {...recoveryProps}/> : <div inert={failed?'':undefined}><CardDeck deck={message?.metadata?.card_deck} recovery={recoveryProps} spec={cardSpec} toolsReady={!failed && (message?.status === "succeeded" || message?.metadata?.core_ready === true)} persistenceKey={cardSpec?`cardspec:pages:${cardSpec.cardId}`:undefined} resources={message?.metadata?.resources} streaming={streaming} onPaint={(at) => onTelemetry?.({ type: 'client_first_paint', at })} onLayout={(layout) => onTelemetry?.({ type: 'client_layout', layout })} /></div> : <DilStage theme={theme} palette={palette}>
+      {cardSpec?.remainingTasks?.length>0&&<section className="card-prose"><p role="status"><strong>已保留最佳可用版本</strong> · 仍有 {cardSpec.remainingTasks.length} 项未完成或尚未验证，并非全部通过。</p><details><summary>查看未验证功能与待修复项</summary><p>已通过的交互可继续使用。以下检查或功能仍待完成，不会自动继续调用模型。</p><ul>{cardSpec.remainingTasks.map(t=><li key={t.id}><strong>{cardSpec.requirementCoverage?.items?.find(r=>r.id===t.requirement)?.quote||t.requirement||t.target}</strong> · {{interaction:'交互待验证',test:'测试尚未完成',layout:'布局待检查',implementation:'实现待修复',host:'宿主待检查','behavior-review':'行为结果待核对',review:'内容待评审'}[t.lane]||'待检查'}：{t.reason}</li>)}</ul></details></section>}
+      {cardSpec?.terminalCoverage?.required&&<section className="card-prose" role="status">完整路径：{['win','loss','restore'].map(k=><span key={k} style={{marginRight:12}}>{{win:'胜利',loss:'失败',restore:'刷新后继续'}[k]} {cardSpec.terminalCoverage.checked.includes(k)?'✓ 已验证':'· 未验证'}</span>)}</section>}
+      {cardSpec?.requirementCoverage&&<details className="card-prose"><summary>需求覆盖 · {cardSpec.requirementCoverage.status==='checked'?'行为断言通过，内容待评审':cardSpec.requirementCoverage.status==='failed'?'CUJ 结果未通过':cardSpec.requirementCoverage.status==='partial'?'部分已验证':'未逐项验证'}</summary><p>{cardSpec.requirementCoverage.scope}</p><ul>{cardSpec.requirementCoverage.items.map(r=><li key={r.id}>{r.quote} — {r.status==='checked'?'行为检查通过':r.status==='failed'?'结果断言失败':r.status==='blocked'?'事实受阻':r.status==='limited'?'行为通过，事实有限':'未验证'}{r.reason?'：'+r.reason:''}</li>)}</ul></details>}
+      <CardFocus comparison={comparison} onDesignReference={recovery?.onDesignReference} interactive={!streaming&&(!failed||!!cardSpec)}><DesignPreview design={isCardSpec?(designPreview||cardSpec?.context?.designMock):null} pending={streaming&&!(cardSpec&&message?.metadata?.core_ready)}>{isCardSpec ? failed && !cardSpec ? <Recovery {...recoveryProps}/> : <div><CardDeck deck={message?.metadata?.card_deck} recovery={recoveryProps} spec={cardSpec} toolsReady={!failed && (message?.status === "succeeded" || message?.metadata?.core_ready === true)} persistenceKey={cardSpec?`cardspec:pages:${cardSpec.cardId}`:undefined} resources={message?.metadata?.resources} streaming={streaming} onPaint={(at) => onTelemetry?.({ type: 'client_first_paint', at })} onLayout={(layout) => onTelemetry?.({ type: 'client_layout', layout })} /></div> : <DilStage theme={theme} palette={palette}>
         <DilCard dil={dil} streaming={streaming} />
         {streaming && <Thinking placement="card" empty={!dil?.code} />}
       </DilStage>}</DesignPreview></CardFocus>
-      {isCardSpec && failed && cardSpec && <Recovery {...recoveryProps} retained/>}
+      {isCardSpec && failed && cardSpec && <section className="card-prose" role="status" aria-label="验收未完成"><strong>验收未完成 · 保留当前交互版本</strong><p>卡片可继续操作；以下问题仍未通过或未验证，不代表功能全部正确。</p><details><summary>查看未通过项</summary><pre>{recoveryProps.error || recoveryProps.diagnostics.filter(d=>d.severity==='error').map(d=>d.message).join('\n') || '生成已停止，剩余功能尚未验证。'}</pre></details></section>}
       {isCardSpec && !streaming && !failed && cardSpec && !CLOUD_NO_TOOLS && recovery?.onReused && <SameKind browserValidation={import.meta.env.VITE_SAME_KIND_BROWSER === '1'} available={import.meta.env.VITE_SAME_KIND_ENABLED !== '0'} key={cardSpec.cardId} spec={cardSpec} source={message?.metadata?.validated_source||message?.content?.parts?.[0]||''} resources={message?.metadata?.resources} busy={recovery.busy} onResult={recovery.onReused} onNormal={recovery.onEdit}/>}
       {!isCardSpec && message?.metadata?.diagnostics?.some((d) => d.severity === 'error') && <div className="diag-pill">{dil?.code ? '本次更新未通过校验，保留上一个有效版本' : '本次生成未通过校验，尚未生成可用卡片'}</div>}
       {outro ? (
@@ -146,16 +151,16 @@ function AssistantDil({ message, format, streaming, theme, palette, onTelemetry,
   )
 }
 
-export function AssistantTurn({ turn, onTelemetry, goal, onRetry, onEdit, onReused, busy }) {
-  const recovery={goal,onRetry,onEdit,onReused,busy,failed:['failed','cancelled'].includes(turn.status),cancelled:turn.status==='cancelled',error:turn.error}
+export function AssistantTurn({ turn, onTelemetry, goal, onRetry, onEdit, onReused, onDesignReference, busy }) {
+  const recovery={goal,onRetry,onEdit,onReused,onDesignReference,busy,failed:['failed','cancelled'].includes(turn.status),cancelled:turn.status==='cancelled',error:turn.error}
   const hasCardPhase=turn.phases.some(p=>p.kind==='cardspec')
   return (
-    <div className="turn">
+    <div className="turn" onClickCapture={e=>{const el=e.target.closest?.('button,a,input,select,summary,[role="tab"],[role="radio"]');if(el&&!el.closest('details.card-prose'))recordUiInteraction(turn.rsiRecordId||turn.phases?.findLast(p=>p.message?.metadata?.card_spec)?.message?.metadata?.card_spec?.context?.rsiRecordId,el)}}>
       {turn.phases.map((p) => (
         <PhaseView
           key={p.id}
           phase={p}
-          designPreview={turn.designPreview}
+          designPreview={turn.designPreview} comparison={turn.stitch}
           theme={turn.theme}
           palette={turn.palette}
           themeLabel={turn.themeLabel}
@@ -163,6 +168,7 @@ export function AssistantTurn({ turn, onTelemetry, goal, onRetry, onEdit, onReus
           recovery={recovery}
         />
       ))}
+      <RsiFeedback id={turn.rsiRecordId||turn.phases?.findLast(p=>p.message?.metadata?.card_spec)?.message?.metadata?.card_spec?.context?.rsiRecordId||turn.id} ready={turn.status!=='running'}/>
       {turn.format==='cardspec' && recovery.failed && !hasCardPhase && <Recovery {...recovery}/>}
       {turn.format!=='cardspec' && turn.error && <div className="meta-row" role="alert" style={{ color: 'var(--color-text-danger)' }}>{turn.error}</div>}
     </div>
@@ -187,6 +193,7 @@ export default function App() {
   const [restored]=useState(()=>readConversation(window.sessionStorage))
   const [messages, setMessages] = useState(restored.messages) // user msgs + assistant turns
   const renderMode=useSandboxMode()
+  const [webGraphics,setWebGraphics]=useState(()=>{try{return localStorage.getItem('cardspec-web-graphics')==='1'}catch{return false}})
   const [toolsEnabled,setToolsEnabled]=useState(()=>{if(CLOUD_DEMO_TOOLS){try{return localStorage.getItem('cardspec-cloud-demo-tools')!=='off'}catch{return true}}return !CLOUD_NO_TOOLS&&restored.toolsEnabled!==false})
   useEffect(()=>{if(CLOUD_DEMO_TOOLS)try{localStorage.setItem('cardspec-cloud-demo-tools',toolsEnabled?'on':'off')}catch{}},[toolsEnabled])
   const [persistenceError,setPersistenceError]=useState('')
@@ -195,6 +202,12 @@ export default function App() {
   const setInput=useCallback(value=>{setInputValue(value);setDraftRevision(n=>n+1)},[])
   const [streaming, setStreaming] = useState(false)
   const [frames, setFrames] = useState([])
+  const [costLedger,setCostLedger]=useState(()=>{try{const saved=JSON.parse(sessionStorage.getItem('gpt-cost-ledger')||'[]');return Array.isArray(saved)?saved.reduce(appendCost,[]):[]}catch{return []}})
+  const [costStart,setCostStart]=useState(()=>costLedger.length)
+  useEffect(()=>{try{sessionStorage.setItem('gpt-cost-ledger',JSON.stringify(costLedger))}catch{}},[costLedger])
+  const totalCost=costTotal(costLedger),currentCost=costTotal(costLedger.slice(costStart))
+  const [contentMode,setContentMode]=useState(()=>{try{return ['concise','guided'].includes(localStorage.getItem('cardspec-content-mode'))?localStorage.getItem('cardspec-content-mode'):'continuous'}catch{return 'continuous'}})
+  const [generationMinutes,setGenerationMinutes]=useState(()=>{try{const n=Number(localStorage.getItem('cardspec-generation-minutes'));return [2,5,10].includes(n)?n:5}catch{return 5}})
   const [rev, setRev] = useState(0)
   const [theme, setTheme] = useState('light')
   const [inspectorOpen, setInspectorOpen] = useState(() => window.innerWidth >= 900)
@@ -208,6 +221,10 @@ export default function App() {
   const [expressionDialect,setExpressionDialect]=useState(()=>{try{const saved=localStorage.getItem('cardspec-expression-dialect');return saved==='js-v1'||(!saved&&CLOUD_DEMO_TOOLS)?'js-v1':'legacy'}catch{return CLOUD_DEMO_TOOLS?'js-v1':'legacy'}})
   const [modelProfile,setModelProfile]=useState(()=>{try{return normalizeModelProfile(localStorage.getItem('cardspec-model-profile'))}catch{return 'default'}})
   const [format, setFormat] = useState('cardspec')
+  const [stitchCompare,setStitchCompare]=useState(()=>{try{return !CLOUD_NO_TOOLS&&localStorage.getItem('cardspec-stitch-compare')!=='off'}catch{return !CLOUD_NO_TOOLS}})
+  const [stitchReference,setStitchReference]=useState(null)
+  const [stitchAvailable,setStitchAvailable]=useState(false)
+  useEffect(()=>{if(CLOUD_NO_TOOLS)return;const controller=new AbortController();fetch('/api/health',{signal:controller.signal}).then(r=>r.json()).then(v=>setStitchAvailable(v.stitchComparison===true)).catch(()=>{});return()=>controller.abort()},[])
   const [streamError, setStreamError] = useState(null)
   const [clearOpen,setClearOpen]=useState(false)
 
@@ -229,6 +246,7 @@ export default function App() {
   }, [messages.length, rev, streaming])
 
   const pushFrame = useCallback((f) => {
+    if(f.type==='model_cost')setCostLedger(prev=>appendCost(prev,f))
     const at = performance.now()
     traceRef.current.push({ at, frame: f })
     narrativeRef.current.push(f, at)
@@ -240,12 +258,15 @@ export default function App() {
   const recordTelemetry = useCallback((event) => { if (event.turnId === traceTurnRef.current) pushFrame(event) }, [pushFrame])
 
   const send = useCallback(
-    async (text, requestedFormat = format, resumeToken) => {
+    async (text, requestedFormat = format, resumeToken, parentRecordId) => {
       const userText = (text ?? input).trim()
       if (!userText || streaming) return
+      const reference=requestedFormat==='cardspec'&&!resumeToken?stitchReference:null
+      setStitchReference(null)
       setInput('')
       setStreamError(null)
       setStreaming(true)
+      setCostStart(costLedger.length)
       const historyForApi = generationHistory(messages,requestedFormat,userText,turnDslSource)
 
       const turnId = crypto.randomUUID()
@@ -256,6 +277,13 @@ export default function App() {
       narrativeRef.current = createStreamNarrative()
       setFrames([])
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', content: userText }, newTurn])
+      if(reference)newTurn.stitch={id:reference.id,status:'ready'}
+      if(!reference&&stitchAvailable&&stitchCompare&&requestedFormat==='cardspec'&&!resumeToken){
+        newTurn.stitch={id:turnId,status:'starting'}
+        // Independent job, tied to this immutable turn rather than turnRef.
+        // Refinement itself never sends an unconfirmed draft to Stitch.
+        void fetch('/api/stitch-comparisons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:turnId,prompt:userText,cardSize,toolsEnabled,width:Math.min(432,Math.max(280,window.innerWidth-40)),height:Math.min(780,Math.max(400,window.innerHeight-120))})}).then(async response=>{const data=await response.json();if(!response.ok)throw Error(data.error||'Stitch 启动失败');newTurn.stitch={id:turnId,status:data.status};setRev(r=>r+1)}).catch(e=>{newTurn.stitch={id:turnId,status:'error',error:e.message};setRev(r=>r+1)})
+      }
       applierRef.current = createDeltaApplier()
       const controller = new AbortController()
       abortRef.current = controller
@@ -270,11 +298,12 @@ export default function App() {
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: historyForApi, mode:requestedFormat==='dil'&&mode==='experience'?'direct':mode, format:requestedFormat, turnId,toolsEnabled,cardSize,renderMode,designMode,designPreference,generationProfile,buildMode,debugGeneration,extendedGeneration,expressionDialect,modelProfile,resumeToken }),
+          headers: { 'Content-Type': 'application/json','X-RSI-Record-Id':turnId,...(parentRecordId?{'X-RSI-Parent-Id':parentRecordId}:{}) },
+          body: JSON.stringify({ messages: historyForApi, mode:requestedFormat==='dil'&&mode==='experience'?'direct':mode, format:requestedFormat, turnId,toolsEnabled,cardSize,contentMode,renderMode,webGraphics:renderMode==='web'&&webGraphics,designMode,designPreference,generationProfile,buildMode,debugGeneration,extendedGeneration,generationMinutes:extendedGeneration?undefined:generationMinutes,expressionDialect,modelProfile,resumeToken,stitchReferenceId:reference?.id }),
           signal: controller.signal
         })
         if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`)
+        newTurn.rsiRecordId=res.headers.get('X-RSI-Record-Id')||turnId
 
         const reader = res.body.getReader()
         const decoder = new TextDecoder()
@@ -388,7 +417,7 @@ export default function App() {
         setStreaming(false)
       }
     },
-    [input, messages, pushFrame, streaming, mode, format,toolsEnabled,cardSize,renderMode,designMode,designPreference,generationProfile,buildMode,debugGeneration,extendedGeneration,expressionDialect,modelProfile]
+    [input, messages, pushFrame, streaming, mode, format,toolsEnabled,cardSize,contentMode,renderMode,webGraphics,designMode,designPreference,generationProfile,buildMode,debugGeneration,extendedGeneration,generationMinutes,costLedger.length,expressionDialect,modelProfile,stitchCompare,stitchAvailable,stitchReference]
   )
 
   const liveTurn = turnRef.current
@@ -410,6 +439,7 @@ export default function App() {
     <div className="app">
       <div className="chat-side">
         <div className="configuration-heading"><h1>生成式交互卡片</h1><button aria-expanded={!configCollapsed} aria-controls="generation-configuration" onClick={()=>{setConfigCollapsed(!configCollapsed);try{localStorage.setItem('card-config-collapsed',configCollapsed?'0':'1')}catch{}}}>{configCollapsed?'展开配置':'收起配置'}</button></div>
+        {(modelProfile==='gpt-instant'||totalCost.calls>0)&&<span className="chip" role="status" title={`仅本标签页已收到 usage 的 GPT 文本生成/调试调用；不含图片、Stitch、其他页面及未返回 usage 的收费。标准费率 input/cached/output $5/$0.5/$30 per 1M，${GPT_PRICE.asOf}。估算不是账单。`}>GPT 估算：本次 ${currentCost.usd.toFixed(4)} · 本标签页 ${totalCost.usd.toFixed(4)} USD{totalCost.unknown>0?` · ${totalCost.unknown} 次用量未知`:''} <a href={GPT_PRICE.source} target="_blank" rel="noreferrer">费率</a></span>}
         <header className="topbar" id="generation-configuration" hidden={configCollapsed}>
           <span className="chip">card engine · {format==='cardspec'?MODEL_PROFILES[modelProfile].label:'DIL'}</span>
           <button
@@ -425,13 +455,15 @@ export default function App() {
           {format==='cardspec'&&designMode==='image-first'&&<span className="chip" title="GPT Image 出图后直接交给所选生成模型，不再额外调用识别模型">{supportsDesignImage(modelProfile)?"设计图直传 · 所选模型":"当前深度模型未通过图片验证，请切换模型或使用宿主构图"}</span>}
           {format==='cardspec'&&<label className="chip">设计家族 <select aria-label="设计家族" value={designPreference} disabled={streaming} onChange={e=>setDesignPreference(e.target.value)}><option value="auto">模型选择</option><option value="folio">平面纸感 · Folio</option><option value="pearl">月距力</option><option value="atlas">动态学术</option><option value="rebel">Persona</option><option value="parchment">羊皮纸叙事</option><option value="business">专业商务</option><option value="academy">辉石学院</option><option value="default">默认</option></select></label>}
           {format==='cardspec'&&<label className="chip">构建 <select aria-label="构建模式" value={buildMode} disabled={streaming} onChange={e=>{setBuildMode(e.target.value);try{localStorage.setItem('cardspec-build-mode',e.target.value)}catch{}}}><option value="quick">快速 · 直接构建</option><option value="deep">深度实验 · 需求/模块/验收</option></select></label>}
-          {format==='cardspec'&&<label className="chip" title={extendedGeneration?'不设任务总时限及调用/修复总次数；保留取消、无进展检测、单轮资源与沙箱保护。':buildMode==='deep'?'深度构建自动验收；最多18次模型调用、8次修复、10分钟。未覆盖需求不能标记完成。':'错误自动重试，最多 8 次修复、24 次模型调用、15 分钟；通过后停止。重复失败稿、取消或预算耗尽时结束。'}><input type="checkbox" checked={renderMode==='web'||extendedGeneration||buildMode==='deep'||debugGeneration} disabled={streaming||renderMode==='web'||extendedGeneration||buildMode==='deep'} onChange={e=>{setDebugGeneration(e.target.checked);try{localStorage.setItem('cardspec-debug-generation',e.target.checked?'1':'0')}catch{}}}/>生成期调试与修复{extendedGeneration?'（持续）':'（最多 8 次）'}</label>}
+          {format==='cardspec'&&<label className="chip" title={extendedGeneration?'不设任务总时限及调用/修复总次数；保留取消、无进展检测、单轮资源与沙箱保护。':buildMode==='deep'?'深度构建自动验收；最多18次模型调用、8次修复；总时限采用所选预算。未覆盖需求不能标记完成。':'错误自动重试，最多 8 次修复、24 次模型调用；总时限采用所选预算；通过后停止。重复失败稿、取消或预算耗尽时结束。'}><input type="checkbox" checked={renderMode==='web'||extendedGeneration||buildMode==='deep'||debugGeneration} disabled={streaming||renderMode==='web'||extendedGeneration||buildMode==='deep'} onChange={e=>{setDebugGeneration(e.target.checked);try{localStorage.setItem('cardspec-debug-generation',e.target.checked?'1':'0')}catch{}}}/>生成期调试与修复{extendedGeneration?'（持续）':'（最多 8 次）'}</label>}
           {format==='cardspec'&&<label className="chip" title="不设任务总时限、模型调用和修复总次数；扩大单次输出容量，保留网关/上下文上限、无进展停止及沙箱保护。可随时停止；可能增加 API 用量。"><input type="checkbox" aria-label="扩展构建" checked={extendedGeneration} disabled={streaming} onChange={e=>{setExtendedGeneration(e.target.checked);try{localStorage.setItem('cardspec-extended-generation',e.target.checked?'1':'0')}catch{}}}/>扩展构建 · 不设总时限</label>}
+          {format==='cardspec'&&<label className="chip" title="总请求时间预算，含生成与调试；到时保留已验证候选，未覆盖路径明确标注。不是保证完成所有功能的时限。">时间预算 <select aria-label="生成时间预算" disabled={streaming||extendedGeneration} value={generationMinutes} onChange={e=>{const n=Number(e.target.value);setGenerationMinutes(n);try{localStorage.setItem('cardspec-generation-minutes',String(n))}catch{}}}>{[2,5,10].map(n=><option key={n} value={n}>{n} 分钟</option>)}</select></label>}
+
           {format==='cardspec'&&extendedGeneration&&<span className="muted" role="note">持续构建至通过或停止；保留单轮容量、沙箱保护与无进展检测，可能增加 API 用量。</span>}
           {format==='cardspec'&&<label className="chip"><input type="checkbox" checked={generationProfile==='adaptive-v1'} disabled={streaming} onChange={e=>{const profile=e.target.checked?'adaptive-v1':'legacy';setGenerationProfile(profile);try{localStorage.setItem('cardspec-generation-profile',profile)}catch{}}}/>自适应体验（实验）</label>}
           {format==='cardspec'&&<label className="chip">类 JS 表达式 <select aria-label="表达式版本" value={expressionDialect} disabled={streaming} onChange={e=>{setExpressionDialect(e.target.value);try{localStorage.setItem('cardspec-expression-dialect',e.target.value)}catch{}}}><option value="legacy">原版</option><option value="js-v1">JavaScript（实验）</option></select></label>}
           {format==='cardspec'&&<label className="chip">模型 <select aria-label="生成模型" value={modelProfile} disabled={streaming} onChange={e=>{setModelProfile(e.target.value);try{localStorage.setItem('cardspec-model-profile',e.target.value)}catch{}}}>{Object.entries(MODEL_PROFILES).map(([value,p])=><option key={value} value={value}>{p.label}</option>)}</select></label>}
-          <CardSizeControl/><MotionControl/><SandboxModeControl/>{!CLOUD_NO_TOOLS&&<>{!CLOUD_DEMO_TOOLS&&<ToolConnections/>}<label className="chip"><input type="checkbox" checked={toolsEnabled} onChange={e=>setToolsEnabled(e.target.checked)}/>{CLOUD_DEMO_TOOLS?'模拟工具':'工具增强'}</label></>}
+          <CardSizeControl/><label className="chip">内容组织 <select aria-label="内容组织" value={contentMode} disabled={streaming} onChange={e=>{setContentMode(e.target.value);try{localStorage.setItem('cardspec-content-mode',e.target.value)}catch{}}}><option value="continuous">连续阅读</option><option value="concise">精简概览</option><option value="guided">逐层阅读 · 案例与证据</option></select></label><MotionControl/><SandboxModeControl/>{format==='cardspec'&&renderMode==='web'&&<label className="chip" title="仅影响新生成：允许模型编写 WebGL / WebGPU shader，Canvas 2D 始终可用；设备不支持时静态回退。严格沙箱不受影响。"><input type="checkbox" aria-label="高级图形与 Shader" checked={webGraphics} disabled={streaming} onChange={e=>{setWebGraphics(e.target.checked);try{localStorage.setItem('cardspec-web-graphics',e.target.checked?'1':'0')}catch{}}}/>高级图形 · WebGL / WebGPU / Shader</label>}{!CLOUD_NO_TOOLS&&<>{!CLOUD_DEMO_TOOLS&&<ToolConnections/>}<label className="chip"><input type="checkbox" checked={toolsEnabled} onChange={e=>setToolsEnabled(e.target.checked)}/>{CLOUD_DEMO_TOOLS?'模拟工具':'工具增强'}</label></>}
           {CLOUD_DEMO_TOOLS&&<span className="chip" title="CLI返回虚构演示样本；下一页与局部生成使用真实模型。不会连接你的桌面浏览器。">云端 · 演示数据</span>}
           {CLOUD_NO_TOOLS&&<span className="chip" title="支持模型生成及卡内本地交互；不查询实时资料，也不连接外部工具">云端 · 无工具生成</span>}
           <span className="spacer" />
@@ -479,7 +511,8 @@ export default function App() {
             ) : (
               <AssistantTurn key={m.id} turn={m} onTelemetry={recordTelemetry} busy={streaming}
                 goal={messages.slice(0,i).findLast(t=>t.role==='user')?.content || ''}
-                onRetry={()=>send(messages.slice(0,i).findLast(t=>t.role==='user')?.content,m.format,m.phases?.findLast(p=>p.message?.metadata?.resumeToken)?.message?.metadata?.resumeToken)}
+                onRetry={()=>send(messages.slice(0,i).findLast(t=>t.role==='user')?.content,m.format,m.phases?.findLast(p=>p.message?.metadata?.resumeToken)?.message?.metadata?.resumeToken,m.rsiRecordId||m.id)}
+                onDesignReference={!CLOUD_NO_TOOLS&&!streaming?job=>{setStitchReference({id:job.id});setFormat('cardspec');setDesignMode('host');setInput(messages.slice(0,i).findLast(t=>t.role==='user')?.content||'');document.querySelector('.composer textarea')?.focus()}:undefined}
                 onEdit={text=>{setInput(typeof text==='string'?text:messages.slice(0,i).findLast(t=>t.role==='user')?.content || '');document.querySelector('.composer textarea')?.focus()}}
                 onReused={(result,prompt)=>setMessages(prev=>[...prev,{id:crypto.randomUUID(),role:'user',content:'做同款：'+prompt},{id:crypto.randomUUID(),role:'assistant',format:'cardspec',status:'succeeded',startedAt:performance.now(),phases:[{id:crypto.randomUUID(),phase:'dsl',title:'同款 · '+Math.round(result.elapsedMs/1000)+' 秒',kind:'cardspec',status:'succeeded',live:false,message:{status:'succeeded',content:{parts:[result.source]},metadata:{format:'cardspec',card_spec:result.spec,validated_source:result.source,resources:result.resources}}}]}])} />
             )
@@ -494,7 +527,9 @@ export default function App() {
 
         <footer className="composer">
           {messages.length>0&&<details className="composer-examples"><summary>场景示例</summary><ExamplePrompts disabled={streaming} onChoose={prompt=>{setInput(prompt);document.querySelector('.composer-examples')?.removeAttribute('open');document.querySelector('.composer textarea')?.focus()}}/></details>}
-          <PromptComposer key={draftRevision} input={input} onChange={setInputValue} onGenerate={send} streaming={streaming} onStop={()=>abortRef.current?.abort()} modelProfile={modelProfile} cardSize={cardSize} renderMode={renderMode} toolsEnabled={toolsEnabled} designPreference={designPreference} designMode={designMode} format={format}/>
+          {stitchReference&&<div className="stitch-compare-option" role="status">下次生成参考已选 Stitch 的配色与内容结构（不复制示例数据）。<button type="button" onClick={()=>setStitchReference(null)}>取消参考</button></div>}
+          <PromptComposer key={draftRevision} input={input} onChange={setInputValue} onGenerate={send} streaming={streaming} onStop={()=>abortRef.current?.abort()} modelProfile={modelProfile} contentMode={contentMode} cardSize={cardSize} renderMode={renderMode} webGraphics={renderMode==='web'&&webGraphics} toolsEnabled={toolsEnabled} designPreference={designPreference} designMode={designMode} format={format}/>
+          {!CLOUD_NO_TOOLS&&<label className="stitch-compare-option"><input type="checkbox" checked={stitchCompare} disabled={!stitchAvailable||streaming||format!=='cardspec'} onChange={e=>{setStitchCompare(e.target.checked);try{localStorage.setItem('cardspec-stitch-compare',e.target.checked?'on':'off')}catch{}}}/>Stitch 并行设计对照（{stitchAvailable?'按题材独立设计；发送需求与工具能力':'当前后端未启用，请重启服务'}）</label>}
         </footer>
       </div>
 

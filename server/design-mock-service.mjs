@@ -9,7 +9,7 @@ export function createDesignMockService({key,storage,model=IMAGE_MODEL,fetchImpl
   const cached=await storage.read(meta).catch(()=>null)
   if(cached&&JSON.parse(Buffer.from(cached).toString()).analysisVersion===5&&await storage.read(`generated/${id}.jpg`)){signal?.throwIfAborted();return {...JSON.parse(Buffer.from(cached).toString()),cacheHit:true,elapsedMs:Date.now()-started}}
   const request=async(path,body,timeout)=>{
-   const response=await fetchImpl('https://api.openai.com/v1/'+path,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.any([...(signal?[signal]:[]),AbortSignal.timeout(timeout)]),redirect:'error'})
+   const response=await fetchImpl('https://api.openai.com/v1/'+path,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.any([...(signal?[signal]:[]),AbortSignal.timeout(timeout)]),redirect:'manual'})
    if(!response.ok)throw Error(`设计服务 ${path} HTTP ${response.status}`)
    let length=0;const chunks=[];for await(const c of response.body){length+=c.length;if(length>12*1024*1024)throw Error('design response too large');chunks.push(c)}return JSON.parse(Buffer.concat(chunks).toString())
   }

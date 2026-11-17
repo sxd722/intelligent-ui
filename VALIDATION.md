@@ -31,3 +31,13 @@ This is a buildable source snapshot, not a claim that the entire existing regres
 - Gitleaks 8.30.1 source scan: no findings. Full regression suite was not rerun for this upload.
 
 - Sanitized checkout npm ci and npm run build passed; optional private Golden portfolio skipped. Staged diff Gitleaks scan: no findings.
+
+
+## Update 2026-11-17
+
+- Refreshed the source-only snapshot with generation/debug convergence, task and CUJ handling, RSI recording infrastructure, compact layouts and filters, WebGPU/Web graphics support, and sandbox theme/contrast fixes.
+- Clean dependency installation (`npm ci --ignore-scripts --no-audit --no-fund`) and `npm run build` passed. Optional private Golden portfolio remains excluded.
+- 62 targeted tests passed, zero failed/skipped: web-sandbox, web-graphics, sandbox-graphic, debug-progress, shared-action-repair, test-oracle, persistent-state, refine-prompt, content-fit and compact-chart.
+- Gitleaks 8.30.1 found no secrets in the sanitized export. Personal paths and gateway/site/tailnet addresses were anonymized.
+- Runtime data, user feedback, generation traces, real tool snapshots, credentials, generated reports, and private Sites deployment workspaces are not published. Source modules implementing those features are included.
+- The full historical regression suite was not rerun; artifact-dependent tests may require the excluded local evidence. This upload does not claim all historical tests pass.

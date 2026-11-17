@@ -5,12 +5,13 @@ import {TOOLS,selectToolIds} from './tools.mjs'
 // Search hints only. Exact schemas, permissions and events always come from
 // the existing registries; this directory never grants execution capability.
 export const COMPONENT_ROUTES=[
- ['多来源任务组合','多来源 合并 周边 关联资料 天气与地点 联动 compose task-board',['task-board']],
+ ['高级GPU材质','WebGPU shader 珠光 玻璃 光影 流动 材质 波场 material',['gpu-material']],
+ ['多来源任务组合','多来源 合并 周边 关联资料 天气与地点 联动 当前对象 素材 图片 工具组合 共享选择 compose task-board',['task-board']],
  ['自动工具视图','工具 新闻 媒体 车次 天气 地点 详情 CLI tool results',['tool-view']],
  ['布局分区','布局 排版 容器 layout space',['region','box','stack','row','grid','grid-item','divider','spacer']],
  ['文字公式','正文 说明 代码 数学 公式 text math',['title','text','caption','strong','emphasis','code','math','badge','icon']],
  ['选择与表单','输入 勾选 筛选 选项 表单 form filter choice',['button','pressable','input','textarea','checkbox','toggle','chips','chip','segmented','select','radio-group','slider']],
- ['候选比较','候选 多选 比较 清单 搜索 推荐 片单 shortlist compare playlist',['experience','collection','choice-grid','choice-item','settings','table','list','list-item','popover']],
+ ['候选比较','候选 多选 比较 清单 搜索 推荐 片单 shortlist compare playlist',['experience','collection','choice-grid','choice-item','detail-stage','settings','table','list','list-group','list-item','popover']],
  ['滑动导航','轮播 翻页 滑动 swipe carousel navigation',['carousel','carousel-item','swipe-stack','navigation']],
  ['关系与过程','关系 原理 流程 思维导图 时序 因果 网络 阶段 步骤 process relation',['mindmap','flowchart','mermaid']],
  ['数量与矩阵','图表 热力图 折线 柱状 趋势 统计 分布 对比 数量 矩阵 激活 进度 matrix trend chart',['chart','heatmap','stats','stat','progress']],

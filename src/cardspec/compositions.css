@@ -1,4 +1,30 @@
 /* Whole-card composition owns spacing; functional children remain native. */
+.cs-stage[data-composition-version="2"] .cs-workspace{gap:8px;padding:12px;overflow:hidden}
+.cs-workspace-panels{display:grid;grid-template-columns:minmax(0,var(--reference-choice-width,42%)) minmax(0,1fr);gap:10px;flex:1 1 0;min-height:0}
+.cs-workspace-choices,.cs-workspace-focus{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:none;padding:2px}
+.cs-workspace-choices::-webkit-scrollbar,.cs-workspace-focus::-webkit-scrollbar{display:none}
+.cs-workspace-focus{border-inline-start:1px solid color-mix(in srgb,var(--cs-ink) 12%,transparent);padding-inline-start:10px}
+.cs-workspace .cs-region{background:none!important;box-shadow:none!important;padding:0!important;margin:0!important;max-height:none!important;height:auto!important}
+.cs-workspace .cs-region-body{padding:0!important;gap:6px!important;overflow:visible!important;max-height:none!important}
+.cs-workspace :is(.cs-text,.cs-caption){font-size:12px;line-height:1.45}
+.cs-workspace :is(.cs-button,.cs-chip){min-height:40px;font-size:12px;padding:6px 8px;white-space:normal}
+.cs-workspace-result{flex:none;display:flex;flex-direction:column;gap:5px;border-top:1px solid color-mix(in srgb,var(--cs-ink) 12%,transparent);padding-top:7px;max-height:32%;overflow:auto;scrollbar-width:none}
+.cs-workspace-result .cs-row{flex-wrap:wrap;gap:5px}
+.cs-workspace-filters{flex:none;max-height:22%;overflow:auto;scrollbar-width:none}
+.cs-workspace-filters .cs-row{gap:5px;flex-wrap:wrap}
+.cs-workspace .cs-composition-heading .cs-row{justify-content:space-between;align-items:baseline;gap:8px}
+.cs-workspace .cs-composition-heading .cs-title{font-size:clamp(18px,5cqw,23px)!important;text-align:start}
+.cs-workspace-filters .cs-choice-description{display:none}
+.cs-workspace-filters .cs-segmented button{padding:5px 9px!important;min-height:38px!important}
+.cs-workspace-choices .cs-button{width:100%;justify-content:flex-start;text-align:start;background:color-mix(in srgb,var(--cs-ink) 4%,transparent);border-radius:8px;box-shadow:none;line-height:1.35;transition:background-color .18s,transform .18s}
+.cs-workspace-choices .cs-button:hover{background:color-mix(in srgb,var(--cs-accent) 14%,transparent);transform:translateX(2px)}
+.cs-workspace-focus .cs-detail-stage{padding:6px!important;border-radius:8px;gap:7px}
+.cs-workspace-focus :is(.cs-detail-stage h3,.cs-title){font-size:16px!important;line-height:1.3!important}
+.cs-workspace-focus a{color:var(--cs-accent);overflow-wrap:anywhere}
+.cs-stage[data-card-size=auto] .cs-workspace{height:min(680px,calc(100dvh - 100px))!important;min-height:360px}
+.cs-stage[data-card-size=full] .cs-workspace{height:auto!important;overflow:visible}
+.cs-stage[data-card-size=full] .cs-workspace-panels{flex:auto;min-height:260px}
+.cs-stage[data-card-size=full] :is(.cs-workspace-result,.cs-workspace-filters){max-height:none}
 .cs-stage[data-composition-version="2"] > .cs-card{padding:0!important;gap:0!important;min-height:0;overflow:hidden}
 .cs-stage[data-composition-version="2"] .cs-composition{height:100%;min-height:0;display:flex;flex-direction:column;padding:clamp(12px,4cqw,20px);gap:6px;isolation:isolate}
 .cs-composition-heading{flex:none;display:flex;flex-direction:column;gap:3px;padding-right:28px}
@@ -21,6 +47,8 @@
 .cs-composition :is(.cs-chart,.cs-heatmap,.cs-collection,.cs-stat,.cs-slider){background:none!important;box-shadow:none!important;border:0!important;border-radius:0;padding:0!important}
 .cs-card [data-surface=bare],.cs-card [data-surface=bare]>:is(.cs-chart,.cs-heatmap,.cs-collection,.cs-slider){background:transparent!important;box-shadow:none!important;border:0!important;padding:0!important;margin:0!important;border-radius:0!important}
 .cs-composition .cs-chart-pan svg{height:96px}
+.cs-card .cs-stat[data-value-length=medium] strong{font-size:19px;line-height:1.3}
+.cs-card .cs-stat[data-value-length=long] strong{font-size:16px;line-height:1.4;overflow-wrap:anywhere}
 .cs-composition .cs-chart-labels button{min-height:44px;font-size:11px}
 .cs-composition .cs-heatmap{gap:3px}.cs-composition .cs-heatmap>small{font-size:10px;line-height:1.1}
 .cs-composition .cs-heatmap-scroll{padding:2px;overflow:auto}
@@ -127,3 +155,29 @@
 .cs-study-front,.cs-study-back{border-radius:34% 34% 3px 3px}
 
 .cs-stage[data-card-size=auto][data-composition-version="2"] .cs-composition{height:var(--cs-natural-max,780px)}
+
+/* Semantic workspaces own their compact chrome; preset chrome cannot displace the task. */
+.cs-stage[data-composition-version="2"] .cs-composition.cs-workspace{padding:12px!important;gap:8px!important}
+.cs-stage .cs-workspace>.cs-composition-heading{padding:0!important;gap:3px!important;text-align:start;min-height:0}
+.cs-stage .cs-workspace>.cs-composition-heading .cs-title{text-align:start!important;font-size:clamp(17px,5cqw,22px)!important;line-height:1.2!important;margin:0!important}
+.cs-stage .cs-workspace .cs-segmented-field[data-short-label=true]{display:flex;align-items:center;gap:5px}
+.cs-stage .cs-workspace .cs-segmented-field .cs-control-label{font-size:11px;flex:none;margin:0}
+.cs-stage .cs-workspace .cs-segmented-field .cs-segmented{flex:1;min-width:0}
+.cs-stage .cs-workspace .cs-stat{padding:0!important;background:none!important;box-shadow:none!important}
+.cs-stage .cs-workspace .cs-stat-value{font-size:20px!important}
+
+.cs-stage:has(.cs-workspace)>.cs-host-controls:has(>.cs-host-tools:only-child:not([open])){position:absolute;top:8px;right:8px;bottom:auto;z-index:20;padding:0;max-height:none;background:transparent;backdrop-filter:none;overflow:visible}
+.cs-stage:has(.cs-workspace)>.cs-host-controls>.cs-host-tools:not([open])>summary{font-size:0;list-style:none;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--cs-ink) 7%,var(--cs-base));color:var(--cs-ink);cursor:pointer}
+.cs-stage:has(.cs-workspace)>.cs-host-controls>.cs-host-tools:not([open])>summary::after{content:'⋯';font-size:20px}
+.cs-stage:has(.cs-workspace)>.cs-host-controls>.cs-host-tools:not([open])>summary::-webkit-details-marker{display:none}
+.cs-stage:has(.cs-workspace) .cs-composition-heading{padding-right:36px!important}
+.cs-workspace-choices .cs-pressable{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:64px;padding:9px!important}
+.cs-workspace-choices .cs-pressable[data-selected=true]{background:color-mix(in srgb,var(--cs-accent) 15%,transparent);box-shadow:inset 3px 0 var(--cs-accent)}
+
+.cs-workspace-panels:has(>.cs-workspace-choices:empty){grid-template-columns:minmax(0,1fr)}
+.cs-workspace-panels>.cs-workspace-choices:empty{display:none}
+.cs-workspace-panels:has(>.cs-workspace-choices:empty)>.cs-workspace-focus{border:0;padding:0}
+.cs-stage[data-composition-version="2"] .cs-composition.cs-workspace>.cs-composition-heading .cs-title{font-size:20px!important;line-height:1.2!important}
+.cs-embedded-image-credit{display:block;font-size:9px;line-height:1.2;opacity:.65}
+.cs-workspace-choices .cs-photo{width:100%}.cs-workspace-choices .cs-image[data-media-role=thumbnail]{width:100%;aspect-ratio:1.8;min-height:0;max-height:90px}
+@container (max-width:360px){.cs-stage[data-composition-version="2"] .cs-composition.cs-workspace>.cs-composition-heading .cs-title{font-size:17px!important}}

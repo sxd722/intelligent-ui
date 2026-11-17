@@ -5,10 +5,27 @@ import {usePageTransition} from './page-transition.jsx'
 import {useCardSize} from '../CardSize.jsx'
 import {blockBox,naturalCompositionHeight} from './layout-measure.js'
 import {graphicBudgets} from '../../shared/cardspec/sandbox-graphic.mjs'
+import {editorialPages} from '../../shared/cardspec/editorial.mjs'
 
 // Nodes stay mounted exactly once. Pagination changes visibility, never scopes,
 // IDs or state. Essential controls/actions are outside the paginated body.
 export function CompositionLayout({composition,header,items,controls,footer,page,session}){
+ if(composition.id==='workspace')return <WorkspaceLayout composition={composition} header={header} items={items} footer={footer}/>
+ return <PagedComposition composition={composition} header={header} items={items} controls={controls} footer={footer} page={page} session={session}/>
+}
+function WorkspaceLayout({composition,header,items,footer}){
+ const size=useCardSize(),choice=items.filter(i=>i.role==='choices'),focus=items.filter(i=>i.role==='focus'),filters=items.filter(i=>!['choices','focus'].includes(i.role))
+ return <div className="cs-composition cs-workspace" data-composition-kind="workspace" data-family={composition.family} data-workspace-size={size}>
+  <header className="cs-composition-heading">{header}</header>
+  {!!filters.length&&<div className="cs-workspace-filters">{filters.map(i=><React.Fragment key={i.id}>{i.content}</React.Fragment>)}</div>}
+  <div className="cs-workspace-panels">
+   <div className="cs-workspace-choices" data-layout-scroll="allow" aria-label="探索候选" tabIndex={0}>{choice.map(i=><React.Fragment key={i.id}>{i.content}</React.Fragment>)}</div>
+   <div className="cs-workspace-focus" data-layout-scroll="allow" aria-label="当前详情" tabIndex={0}>{focus.map(i=><React.Fragment key={i.id}>{i.content}</React.Fragment>)}</div>
+  </div>
+  {!!footer.length&&<footer className="cs-workspace-result" aria-label="当前结果">{footer}</footer>}
+ </div>
+}
+function PagedComposition({composition,header,items,controls,footer,page,session}){
  const root=useRef(null),body=useRef(null),[groups,setGroups]=useState([]),[index,setIndex]=useState(0)
  const anchor=useRef(page?.viewState?.compositionAnchor||'')
  const size=useCardSize(),transition=usePageTransition(body,index)
@@ -47,20 +64,23 @@ export function CompositionLayout({composition,header,items,controls,footer,page
     graphics.forEach((g,i)=>{const value=Math.floor(budgets[i])+'px';if(g.panel.style.getPropertyValue('--cs-graphic-budget')!==value)g.panel.style.setProperty('--cs-graphic-budget',value)})
     heights=nodes.map(n=>blockBox(n).outer)
    }
-   const next=[];let current=[],used=0;const limit=available
-   nodes.forEach((n,i)=>{const h=heights[i];if(!h)return;if(current.length&&used+h+gap>limit+1/64){next.push(current);current=[];used=0}current.push(n.dataset.item);used+=h+(current.length>1?gap:0)})
-   if(current.length)next.push(current);if(!next.length)next.push([])
+   const next=editorialPages(nodes.map((n,i)=>({id:n.dataset.item,height:heights[i],keepNext:n.dataset.keepNext==='true'})),available,gap)
    const selected=Math.max(0,next.findIndex(g=>g.includes(anchor.current)))
    nodes.forEach(n=>{n.hidden=!next[selected].includes(n.dataset.item)})
    el.dataset.paginated=String(next.length>1)
    setGroups(old=>JSON.stringify(old)===JSON.stringify(next)?old:next);setIndex(selected)
   }
   const schedule=()=>{if(!disposed&&!frame)frame=requestAnimationFrame(fit)}
+  // Expansion can repaginate an inline region. Keep the interacted item on
+  // screen instead of returning to page zero and hiding its newly opened body.
+  const remember=e=>{const item=e.target.closest('.cs-composition-item');if(!item||item.parentElement!==el)return;anchor.current=item.dataset.item;if(page){page.viewState.compositionAnchor=anchor.current;session?.save()}}
+  const rememberKey=e=>{if(['Enter',' '].includes(e.key))remember(e)}
+  el.addEventListener('pointerdown',remember,true);el.addEventListener('keydown',rememberKey,true)
   // Watching hidden items would create a resize loop while measuring pages.
   const observer=new ResizeObserver(schedule);observer.observe(el)
   const mutation=new MutationObserver(schedule);mutation.observe(el,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['data-composition-space','data-sandbox-graphic','data-sandbox-preferred-height']})
   el.addEventListener('load',schedule,true);document.fonts?.ready.then(schedule);window.addEventListener('resize',schedule)
-  schedule();return()=>{disposed=true;cancelAnimationFrame(frame);observer.disconnect();mutation.disconnect();el.removeEventListener('load',schedule,true);window.removeEventListener('resize',schedule)}
+  schedule();return()=>{disposed=true;cancelAnimationFrame(frame);observer.disconnect();mutation.disconnect();el.removeEventListener('pointerdown',remember,true);el.removeEventListener('keydown',rememberKey,true);el.removeEventListener('load',schedule,true);window.removeEventListener('resize',schedule)}
  },[page?.id,items.map(i=>i.id).join('|'),size])
  const move=to=>transition(to,()=>{anchor.current=groups[to]?.[0]||'';setIndex(to);if(page){page.viewState.compositionAnchor=anchor.current;session?.save()}})
  const swipe=usePageSwipe(owner?.register?0:groups.length,index,move)
@@ -68,7 +88,7 @@ export function CompositionLayout({composition,header,items,controls,footer,page
   <header className="cs-composition-heading">{header}</header>
   <section className="cs-composition-middle" {...swipe}>
    <div ref={body} className="cs-composition-body" data-paginated={groups.length>1} data-layout-scroll="none" aria-label="主体内容">
-    {items.map(item=><div key={item.id} data-item={item.id} className="cs-composition-item" data-kind={item.type} hidden={groups.length>0&&!groups[index]?.includes(item.id)}>{item.content}</div>)}
+    {items.map(item=><div key={item.id} data-item={item.id} data-keep-next={item.keepNext||undefined} className="cs-composition-item" data-kind={item.type} hidden={groups.length>0&&!groups[index]?.includes(item.id)}>{item.content}</div>)}
    </div>
    <ExternalPageDots count={groups.length} index={index} onChange={move} label="内容分步" className="cs-composition-pages"/>
   </section>

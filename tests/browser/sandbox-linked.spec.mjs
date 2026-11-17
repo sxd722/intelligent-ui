@@ -60,8 +60,11 @@ test('author CSS runs autonomously, pauses, respects reduced motion, and inherit
 test('untrusted DOM events cannot invoke exposed host actions',async({page})=>{
  const {f,calls}=await setup(page)
  await f.getByRole('button',{name:'图中查询'}).evaluate(e=>e.dispatchEvent(new MouseEvent('click',{bubbles:true})))
- await expect(page.getByRole('alert')).toContainText('current user gesture')
+ await expect(page.locator('[data-sandbox-notice]')).toContainText('请直接点击')
+ await expect(page.getByRole('alert')).toHaveCount(0)
  expect(calls.filter(p=>p.tool==='autocli.hackernews.top')).toHaveLength(0)
+ await f.getByRole('button',{name:'波形设为75'}).click()
+ await expect(page.getByRole('slider',{name:'强度'})).toHaveValue('75')
  await page.getByRole('button',{name:'归零',exact:true}).click();await expect(page.getByRole('slider',{name:'强度'})).toHaveValue('0')
 })
 

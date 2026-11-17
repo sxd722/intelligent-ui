@@ -123,6 +123,7 @@ export function diagramLayout(type, nodes, edges = [], direction = 'horizontal',
   }
   const preferredVertical=direction==='vertical'
   const best=candidates.map(measure).sort((a,b)=>
+    Number(b.width<=(viewport.width||432))-Number(a.width<=(viewport.width||432)) ||
     (a.fit>=.85&&b.fit>=.85 ? Number(b.vertical===preferredVertical)-Number(a.vertical===preferredVertical) : 0) || b.fit-a.fit)[0]
   return {nodes:nodes.map(n=>({...n,x:margin+best.positions.get(n.id).col*(best.nodeWidth+gap),y:margin+best.positions.get(n.id).row*(nodeHeight+gap)})),edges:links,nodeWidth:best.nodeWidth,nodeHeight,width:best.width,height:best.height,vertical:best.vertical}
 }

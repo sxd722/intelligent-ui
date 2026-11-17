@@ -25,7 +25,7 @@ export function logicTickMs(source,explicit){
 export function logicJson(value,{record=false}={}){
  let nodes=0
  function visit(v,depth){
-  if(++nodes>LOGIC_LIMITS.nodes||depth>LOGIC_LIMITS.depth)throw Error('逻辑数据过于复杂')
+  if(++nodes>LOGIC_LIMITS.nodes||depth>LOGIC_LIMITS.depth)throw Object.assign(Error('逻辑数据过于复杂'),{code:'STATE_CAPACITY',dimension:depth>LOGIC_LIMITS.depth?'depth':'nodes',actual:depth>LOGIC_LIMITS.depth?depth:nodes})
   if(v===null||typeof v==='boolean'||typeof v==='string')return
   if(typeof v==='number'&&Number.isFinite(v))return
   if(!v||typeof v!=='object'||(!Array.isArray(v)&&Object.getPrototypeOf(v)!==Object.prototype&&Object.getPrototypeOf(v)!==null))throw Error('逻辑状态必须为有限的 JSON 数据')
@@ -39,6 +39,6 @@ export function logicJson(value,{record=false}={}){
  }
  if(record&&(!value||Array.isArray(value)||typeof value!=='object'))throw Error('逻辑状态必须返回对象')
  visit(value,0);const raw=JSON.stringify(value)
- if(raw.length>LOGIC_LIMITS.json)throw Error('逻辑数据超过 64 KiB 字符上限')
+ if(raw.length>LOGIC_LIMITS.json)throw Object.assign(Error('逻辑数据超过 64 KiB 字符上限'),{code:'STATE_CAPACITY',dimension:'characters',actual:raw.length})
  return raw
 }

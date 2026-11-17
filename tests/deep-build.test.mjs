@@ -26,7 +26,7 @@ test('single operation aliases are safe; ambiguous batches remain rejected',()=>
 test('claims are not proof, static checks cannot fulfill an interaction, blocked remains partial',()=>{
  const r=[{id:'R1',kind:'interaction',quote:'交互'}],claim=[{id:'R1',modules:['main.cardspec']}]
  assert.equal(requirementAudit(r,claim,{actions:[]}).status,'partial')
- const action={step:{op:'check',requirement:'R1'},ok:true,assertion:{passed:true}}
+ const action={step:{op:'check',requirement:'R1',expect:{state:{result:1}}},ok:true,assertion:{passed:true}}
  assert.equal(requirementAudit(r,claim,{actions:[action]}).status,'partial')
  assert.equal(requirementAudit(r,claim,{actions:[{...action,step:{...action.step,op:'click'},changed:true}]}).status,'checked')
  assert.equal(requirementAudit(r,[{id:'R1',blocked:'未核实'}],{}).items[0].status,'unverified')

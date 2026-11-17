@@ -1,11 +1,25 @@
 import {expressionPath as path,visitExpression as visit,expressionReads,referencePaths,businessIdField} from './dataflow.mjs'
 import {collectionRowBindings} from './tool-collection-state.mjs'
+import {CONTRACTS} from './contracts.mjs'
 
 // Conservative checks for observable dataflow mistakes, not domain rules.
 export function interactionDiagnostics(spec){
   const errors=[],seen=new Set(),rowStates=new Set(),rowArgs=new Set(),tableActions=new Set(),snapshots=new Map(),toolSnapshots=new Map(),entityActions=new Map(),entityStates=new Set(),entitySources=new Map()
   const error=(code,message)=>{if(!seen.has(message)){seen.add(message);errors.push({severity:'error',code,message})}}
   const nodes=[];function walk(list,toolRows=[]){for(const n of list||[]){nodes.push(n);const fromTool=n.type==='each'?collectionRowBindings(spec,n.props.items):toolRows;if(fromTool.length)for(const [key,value] of Object.entries(n.props||{}))if(key.startsWith('on'))entityActions.set(value.value,[...new Set([...(entityActions.get(value.value)||[]),...fromTool])]);walk(n.children,fromTool)}}walk(spec.children)
+  // Validate the actual producer's event schema before a click. This applies
+  // to all native controls, including list-item; logic has a separate scope.
+  function checkEvents(list,local=false){for(const n of list||[]){
+    const inside=local||n.type==='logic'
+    if(!inside)for(const [eventName,fields]of Object.entries(CONTRACTS[n.type]?.events||{})){
+      const action=n.props?.[eventName]?.value
+      for(const step of spec.actions?.[action]||[]){
+        const p=path(step.value)
+        if(!step.when&&p?.length===2&&p[0]==='event'&&p[1]!=='args'&&!Object.hasOwn(fields,p[1]))error('event_field_missing',`${n.type}.${eventName} supplies [${Object.keys(fields).join(', ')}], not event.${p[1]}; action ${action} assigns it to ${step.target}. ${n.props?.args?'Explicit payload is args; read args.' : 'Use a field supplied by this control, or pass explicit args.'}`)
+      }
+    }
+    checkEvents(n.children,inside)
+  }}checkEvents(spec.children)
   // A visual projection is the event.item/event.row payload, not the original
   // tool record. Check identity reads even when live data is initially empty.
   function projectedKeys(ast,seen=new Set()){

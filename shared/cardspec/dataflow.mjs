@@ -18,6 +18,7 @@ export function referencePaths(ast){
 export function expressionReads(spec,ast,root,seen=new Set()){
   const reads=new Set()
   visitExpression(ast,node=>{
+    if(root==='bindings'&&node.type==='call'&&['compose','helper:compose'].includes(node.name)&&node.args?.[0]?.type==='object')for(const [,v]of node.args[0].entries||[])if(v?.type==='literal'&&typeof v.value==='string'&&Object.hasOwn(spec.bindings||{},v.value))reads.add(v.value)
     const p=expressionPath(node)
     if(p?.[0]===root&&p.length>=2)reads.add(p[1])
     if(['derived','data'].includes(p?.[0])&&!seen.has(p.slice(0,2).join('.'))){

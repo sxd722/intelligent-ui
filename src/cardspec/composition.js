@@ -14,7 +14,7 @@ export function attachComposition(stage) {
   if(primary&&enabled&&primary.dataset.visualPrimary!=='true')primary.dataset.visualPrimary='true'
   const composition=enabled?(primary?'visual':'utility'):'legacy'
   if(stage.dataset.composition!==composition)stage.dataset.composition=composition
-  for(const child of card.children){
+  for(const child of (card.querySelector(':scope > .cs-destination-home:not([hidden])')||card).children){
    const role=primary&&(child===primary||child.contains(primary))?'subject':child.matches('.cs-title')?'heading':child.matches('[data-role=actions]')?'actions':child.matches('.cs-caption,[data-role=summary]')?'support':'content'
    if(enabled){if(child.dataset.composeRole!==role)child.dataset.composeRole=role}else delete child.dataset.composeRole
   }

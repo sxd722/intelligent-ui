@@ -1,3 +1,4 @@
+import {FilterDisclosure} from './CompactFilters.jsx'
 import {StudyCollection} from './StudyCollection.jsx'
 import React,{useEffect,useState} from 'react'
 import {useViewState} from './view-state.jsx'
@@ -7,6 +8,15 @@ import {fieldLabels,displayValue,detailPresentation} from '../../shared/cardspec
 import {DetailFacts} from './DetailFacts.jsx'
 import {useCompositionSpace} from './useCompositionSpace.js'
 function Cover({row}){const [failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[row.assetRef]);return row.assetRef&&!failed?<img src={'/api/tools/assets/'+encodeURIComponent(row.assetRef)} alt="来源图片" onError={()=>setFailed(true)} loading="lazy"/>:<span className="cs-collection-mark" aria-hidden="true">{collectionTitle(row).slice(0,1)}</span>}
+function TimelineContent({row,p,fields}){
+ const time=row[p.timeKey||'time'],summary=p.subtitleKey?row[p.subtitleKey]:row.note
+ // Honor explicitly bound narrative slots; other fields remain in DetailFacts.
+ return <><time className="cs-collection-time">{time==null?'—':displayValue(time)}</time><span><strong>{collectionTitle(row,p.titleKey)}</strong>{summary!=null?<span className="cs-collection-summary">{displayValue(summary)}</span>:<span className="cs-collection-facts">{collectionFacts(row,fields,fieldLabels).slice(0,3).map(f=><span key={f.key}><small>{f.label}</small>{f.text}</span>)}</span>}</span></>
+}
+function CompactSummary({row,p,fields}){
+ const summary=p.subtitleKey?row[p.subtitleKey]:null
+ return summary!=null?<span className="cs-collection-summary">{displayValue(summary)}</span>:<span className="cs-collection-facts">{collectionFacts(row,fields,fieldLabels).slice(0,3).map(f=><span key={f.key} data-slot={f.key} data-slot-status={f.status}><small>{f.label}</small>{f.text}</span>)}</span>
+}
 export function Collection({p,fire}){const size=useCardSize();return size!=='full'&&["folio","spread"].includes(p.presentation)?<StudyCollection p={p} fire={fire}/>:<StandardCollection p={p} fire={fire}/>}
 function StandardCollection({p,fire}){
  const [root,height]=useCompositionSpace()
@@ -21,9 +31,9 @@ function StandardCollection({p,fire}){
  const filters=<><label className="cs-field"><span>筛选已获取结果</span><input value={view.query} onChange={e=>patch({query:e.target.value,page:0,pageStart:0})}/></label>{!!groups.length&&<select aria-label="结果分组" value={view.group} onChange={e=>patch({group:e.target.value,page:0,pageStart:0})}><option value="">全部分组</option>{groups.map(g=><option key={g}>{g}</option>)}</select>}</>
  return <section ref={root} className="cs-collection" aria-label={p.label||'候选集合'}>
   <header><strong>{p.label||'候选'}</strong><small>{rows.length} / {items.length} 项{p.partial?' · 部分结果':''}</small></header>
-  {hasFilter&&(size==='square'?<details className="cs-collection-filter" open={!!view.filtersOpen} onToggle={e=>{if(e.currentTarget.open!==!!view.filtersOpen)patch({filtersOpen:e.currentTarget.open})}}><summary>筛选{view.query||view.group?' · '+[view.query,view.group].filter(Boolean).join(' / '):'已获取结果'}</summary>{filters}</details>:filters)}
+  {hasFilter&&<FilterDisclosure summary={[view.query,view.group].filter(Boolean).join(' · ')} open={!!view.filtersOpen} onChange={filtersOpen=>patch({filtersOpen})} onClear={()=>patch({query:'',group:'',page:0,pageStart:0})}>{filters}</FilterDisclosure>}
   <div className={'cs-collection-items '+(p.presentation||'compact')}>
-   {rows.slice(start,end).map(r=><button type="button" className="cs-collection-item" aria-pressed={String(selectedId)===String(r.rowKey??r.id)} key={r.rowKey??r.id} onClick={()=>{if(fire('onSelect',collectionEvent(r))!==false)patch({selected:String(r.rowKey??r.id),selectedItem:r})}}>{p.presentation==="poster"&&r[p.timeKey||"time"]!=null?<time className="cs-collection-time">{String(r[p.timeKey||"time"])}</time>:<Cover row={r}/>}<span><strong>{collectionTitle(r,p.titleKey)}</strong>{p.presentation==="poster"?<span className="cs-collection-tag">{r.$display?collectionFacts(r,fields,fieldLabels).slice(0,3).map(f=>f.label+' '+f.text).join(' · '):displayValue(r[p.subtitleKey||"note"])}</span>:<span className="cs-collection-facts">{collectionFacts(r,fields,fieldLabels).slice(0,3).map(f=><span key={f.key} data-slot={f.key} data-slot-status={f.status}><small>{f.label}</small>{f.text}</span>)}</span>}</span></button>)}
+   {rows.slice(start,end).map(r=><button type="button" className="cs-collection-item" aria-label={collectionTitle(r,p.titleKey)} aria-pressed={String(selectedId)===String(r.rowKey??r.id)} key={r.rowKey??r.id} onClick={()=>{if(fire('onSelect',collectionEvent(r))!==false)patch({selected:String(r.rowKey??r.id),selectedItem:r})}}>{p.presentation==='timeline'?<TimelineContent row={r} p={p} fields={fields}/>:<>{p.presentation==="poster"&&r[p.timeKey||"time"]!=null?<time className="cs-collection-time">{String(r[p.timeKey||"time"])}</time>:<Cover row={r}/>}<span><strong>{collectionTitle(r,p.titleKey)}</strong>{p.presentation==="poster"?<span className="cs-collection-tag">{r.$display?collectionFacts(r,fields,fieldLabels).slice(0,3).map(f=>f.label+' '+f.text).join(' · '):displayValue(r[p.subtitleKey||"note"])}</span>:<CompactSummary row={r} p={p} fields={fields}/>}</span></>}</button>)}
   </div>
   {!rows.length&&<p>当前筛选没有匹配项{p.partial?'（来源数据不完整）':''}</p>}
   {count>1&&<nav className="cs-row" aria-label="集合分页"><button className="cs-button" disabled={!page} onClick={()=>patch({pageStart:(page-1)*pageSize})}>上一组</button><span>{page+1} / {count}</span><button className="cs-button" disabled={page===count-1} onClick={()=>patch({pageStart:(page+1)*pageSize})}>下一组</button></nav>}

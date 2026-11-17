@@ -10,18 +10,16 @@ import { visualStyleReference, VISUAL_STYLE_IDS } from '../../shared/cardspec/st
 import { designReference } from '../../shared/cardspec/designs.mjs'
 import { experiencePreference } from '../../shared/cardspec/experience-prompt.mjs'
 import {componentIndex} from '../../shared/cardspec/capability-index.mjs'
+import {componentSelection,componentSelectionReference,compactComponentIndex} from '../../shared/cardspec/component-selection.mjs'
 
 // Production uses compact presentation and registry disclosure while preserving
 // the proven expression/action examples. Legacy exports remain for staged/DIL QA.
-export function cardGenerationPrompt(experiencePlan,{compact=false,adaptive=false,goal='',expressionDialect='legacy'}={}){
+function baseCardGenerationPrompt(experiencePlan,{compact=false,adaptive=false,goal='',expressionDialect='legacy',renderMode='native',toolsEnabled=false}={}){
   const core=(expressionDialect==='js-v1'?CARD_JS_LANGUAGE_CORE:CARD_LANGUAGE_CORE)+'\n'+INTEGRITY_PROMPT
+  const selection=componentSelection(goal,{renderMode,toolsEnabled})
   if(adaptive)return COMPACT_CARD_PROMPT.split('【完整组件契约】')[0]+'\n'+core+
-    '\n'+componentIndex()+'\n【按需组件】不知道选什么时用capability_find按任务查组件和工具，再用component_describe/cli_describe读取精确契约。先输出完整可用核心，细节用slot或后续页；下面是常用契约，不是能力上限。\n'+
-    BOARD_DESIGN_GUIDE+'\n'+registryReference({compact:true,names:[...new Set(['task-board','settings','choice-grid','choice-item','tool-view','experience','collection','table','title','text','caption','strong','button','row','region','stat','stats','input','slider','segmented','image','chart','map','slot','if','each','checkbox','toggle','progress','icon','box','stack','grid','badge','list','list-group','list-item','select','link',
-     ...(/日历|月历|calendar/i.test(goal)?['calendar']:[]),...(/轮播|左右滑|carousel/i.test(goal)?['carousel','carousel-item']:[]),
-     ...(/导图|mindmap/i.test(goal)?['mindmap']:[]),...(/流程|flowchart/i.test(goal)?['flowchart']:[]),
-     ...(/模拟|回合|矩阵|MLP|FFN|transformer|simulat/i.test(goal)?['logic','heatmap']:[]),
-     ...(/倒计时|countdown/i.test(goal)?['countdown']:[])])]})+
+    '\n'+compactComponentIndex()+'\n'+componentSelectionReference(selection)+'\n'+
+    BOARD_DESIGN_GUIDE+'\n'+registryReference({compact:true,names:selection.names})+
     '\nrange(n)返回0至n-1；不限制正文行数时省略clamp。'+
     '\n仅提交时使用的偏好放settings；图片多选可用choice-grid/choice-item，与map.selectedIds共用选中ID。短摘要+真实价格/评分，缺失不编造。来源、示意和长说明放intro/outro或详情；保留影响选择的关键未知信息。工具原文按需展开；图/筛选引用同一数据集，不把样本伪装成全量。'
   if(compact)return COMPACT_CARD_PROMPT.replace('【完整组件契约】',componentIndex()+'\n用途不确定时可用capability_find，再用component_describe/cli_describe读取精确契约。\n'+core+'\n【完整组件契约】')
@@ -29,6 +27,11 @@ export function cardGenerationPrompt(experiencePlan,{compact=false,adaptive=fals
   return CARD_DSL_PROMPT.replace(experiencePreference(),
     '【落实体验】采用宿主提供的体验骨架及短例；一个主视觉主体、一个核心联动，后续入口按需0–2个，可为0，不默认添加A/B保存；交互应帮助理解内容或完成任务。slot只完成当前任务。正文保留一句结论、当前解释和可达的详情；真实图片用assetRef，示意用query，背景不算内容可视化。只表达证据支持的关系和数值，不强加图表或游戏。')
     .replace(/^【内容体验[^\n]*\n?/m,'')
+}
+
+export function cardGenerationPrompt(plan,options={}){
+ const value=baseCardGenerationPrompt(plan,options)
+ return options.contentRelations==='off'?value.replaceAll('plain|magazine|compare|sequence|apply','plain|magazine'):value
 }
 
 // Shared by planning and direct generation: describe the experience without a

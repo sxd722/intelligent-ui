@@ -1,3 +1,4 @@
+import {needsTerminalJourneys} from './terminal-journeys.mjs'
 import {planningPolicy} from './compact-prompt.mjs'
 import {randomUUID} from 'node:crypto'
 const leases=new Map()
@@ -8,7 +9,9 @@ export function leaseBudget(budget){
 }
 export function inheritedBudget(id){const b=leases.get(id);if(!b)throw Object.assign(Error('增强生成预算已过期，原生卡可继续使用'),{code:'GENERATION_BUDGET'});b.check();return b}
 
-export function generationPolicy(goal,{profile,mode,debugGeneration=false,buildMode,extendedGeneration=false}={}){
+export function generationPolicy(goal,{profile,mode,debugGeneration=false,buildMode,extendedGeneration=false,generationMinutes}={}){
+ if(needsTerminalJourneys(goal))debugGeneration=true
+ if([2,5,10].includes(generationMinutes)){const base=generationPolicy(goal,{profile,mode,debugGeneration,buildMode,extendedGeneration:false});return {...base,generationMinutes,timeoutMs:generationMinutes*60000,validationReserveMs:Math.min(45000,generationMinutes*10000)}}
  if(extendedGeneration===true)return {extendedGeneration:true,buildMode:buildMode==='deep'?'deep':'quick',debugGeneration:true,repairs:Infinity,profile:'adaptive-v1',complex:true,timeoutMs:Infinity,modelCalls:Infinity,reads:Infinity,plan:buildMode==='deep'?false:planningPolicy(goal).allowPlanning,mode:'direct'}
  if(buildMode==='deep')return {buildMode:'deep',debugGeneration:true,repairs:8,profile:'adaptive-v1',complex:true,timeoutMs:600000,modelCalls:18,reads:6,plan:false,mode:'direct'}
  const text=String(goal||''),active=profile==='adaptive-v1',plan=planningPolicy(goal).allowPlanning
@@ -25,6 +28,7 @@ export function createGenerationBudget(policy,{now=Date.now}={}){
   policy,deadline,remaining:()=>Math.max(0,deadline-now()),
   model(kind='generate'){
    check()
+   if(models>0&&policy.validationReserveMs&&deadline-now()<policy.validationReserveMs)throw failure('剩余时间保留给验证和交付；停止新增模型调用，保留已验证候选')
    if(Number.isFinite(policy.modelCalls)&&['plan','analyze','dataset-analyze'].includes(kind)&&models>=policy.modelCalls-(1+Math.max(0,(policy.repairs||1)-repairs)))throw failure('已为完整生成和校验修复预留预算；跳过本次可选规划/分析，保留现有资料')
    if(models>=policy.modelCalls)throw failure('本次模型调用预算已用完')
    models++;events.push({kind,atMs:now()-started})
@@ -35,6 +39,6 @@ export function createGenerationBudget(policy,{now=Date.now}={}){
   repair(){check();if(repairs>=(policy.repairs||1))throw failure('本次修复预算已用完');repairs++;},
   usable(){if(firstUsableMs==null)firstUsableMs=now()-started},
   check,
-  snapshot:()=>({profile:policy.profile,extendedGeneration:policy.extendedGeneration===true,complex:policy.complex,modelCalls:models,reads,repairs,firstUsableMs,elapsedMs:now()-started,deadline:Number.isFinite(deadline)?new Date(deadline).toISOString():null,events:[...events]})
+  snapshot:()=>({profile:policy.profile,generationMinutes:policy.generationMinutes,validationReserveMs:policy.validationReserveMs,extendedGeneration:policy.extendedGeneration===true,complex:policy.complex,modelCalls:models,reads,repairs,firstUsableMs,elapsedMs:now()-started,deadline:Number.isFinite(deadline)?new Date(deadline).toISOString():null,events:[...events]})
  }
 }

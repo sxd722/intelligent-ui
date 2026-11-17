@@ -1,4 +1,7 @@
+import {needsTerminalJourneys,TERMINAL_JOURNEY_GUIDANCE} from './terminal-journeys.mjs'
 import {moduleContract} from "./module-contract.mjs"
+import {EXPRESSION_DESIGN,editorialRecipe} from '../../shared/cardspec/editorial.mjs'
+import {designBriefInstruction} from '../../shared/cardspec/design-brief.mjs'
 import {mkdir,writeFile} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {createBuildWorkspace,normalizeBuildOperation} from './build-workspace.mjs'
@@ -6,7 +9,7 @@ import {requirementAudit} from './requirements.mjs'
 import {requirementSeeds,inspectRequirementPlan,mergeRequirementPatch,REQUIREMENT_PATCH_PROMPT} from './requirement-plan.mjs'
 import {registryReference,REGISTRY} from '../../shared/cardspec/registry.mjs'
 import {CARD_JS_LANGUAGE_CORE,CARD_LANGUAGE_CORE} from './language-core.mjs'
-import {WEB_PROMPT,WEB_RUNTIME_PROMPT} from '../../shared/cardspec/web-policy.mjs'
+import {WEB_PROMPT,WEB_RUNTIME_PROMPT,webGraphicsPrompt} from '../../shared/cardspec/web-policy.mjs'
 import {NATIVE_CAPABILITY} from '../../shared/cardspec/sandbox-policy.mjs'
 import {REACT_SURFACE_PROMPT} from '../../shared/cardspec/react-surface-prompt.mjs'
 import {generationLayout} from '../../shared/cardspec/generation-layout.mjs'
@@ -45,14 +48,14 @@ const BUILD_PROTOCOL=`你是实现编写器，可先调用已提供的API工具�
 export async function buildDeepCard({streamUpstream,input,context,debug,research,budget,signal,emit=()=>{},cardId,resume,toolContract='',planningTools=[]}){
  const root=resolve('artifacts/deep-build',cardId),workspace=createBuildWorkspace({extendedGeneration:context.extendedGeneration===true||context.renderMode==='web'}),trace=[],rejected=new Map(),committedUnits=new Set(),started=Date.now()
  let plan,feedback=null,claims=[],steps=[],tested=null,focused=[],contract='',stalls=0,failedCalls=0,lastKey='',lastAudit,phase='implementation',testAttempts=0,extraFile,redirects=0,dataReadiness=[]
- const convergence=createBuildConvergence(),ledger=createBuildEvidenceLedger()
- let bestCandidate=null,lastObservation
+ const convergence=createBuildConvergence({patience:4}),ledger=createBuildEvidenceLedger()
+ let bestCandidate=null,bestUsable=null,lastObservation
  const inputText=JSON.stringify(context.input||{}),explicitInput=inputText.length<=6000?context.input:{truncated:true,originalCharacters:inputText.length,preview:inputText.slice(0,6000)}
  const record=async()=>{await mkdir(root,{recursive:true});await writeFile(resolve(root,'trace.json'),JSON.stringify({goal:input.prompt,context:{renderMode:context.renderMode,expressionDialect:context.expressionDialect,cardSize:context.cardSize,extendedGeneration:context.extendedGeneration},plan,claims,steps,trace,feedback,coverage:lastAudit,harness:{convergence:convergence.snapshot(),evidence:ledger.summary(),bestCandidate},committedUnits:[...committedUnits],workspace:workspace.snapshot(),pending:workspace.pending(),elapsedMs:Date.now()-started},null,2))}
  const finish=async()=>{const committed=debug.commit({version:tested.feedback.version});await record();return {...committed,feedback:tested.feedback,coverage:tested.audit,build:{mode:'deep',modules:workspace.manifest(),calls:trace.length,elapsedMs:Date.now()-started,inputCharacters:trace.map(t=>t.inputCharacters||0),artifactPath:'artifacts/deep-build/'+cardId}}}
  async function call(system,body,{planning=false,testing=false,unitFile,isolated=false}={}){
   signal?.throwIfAborted();budget?.check();let raw='',reasoningCharacters=0,usage;const at=Date.now(),buildPhase=planning?'plan':testing?'test':unitFile?'unit':'implementation'
-  const messages=[{role:'system',content:system},{role:'user',content:JSON.stringify(body)}]
+  const messages=[{role:'system',content:system+(context.renderMode==='web'?'\n'+webGraphicsPrompt(context):'')+(!testing&&context.renderMode!=='web'?'\n'+EXPRESSION_DESIGN+'\n'+editorialRecipe(input.prompt).hint+'\n'+designBriefInstruction(context.visualReference):'')},{role:'user',content:JSON.stringify(body)}]
   try{const returned=await streamUpstream(messages,{budget,buildPhase,requireToolUse:false,...(!testing&&!unitFile&&!isolated?{research}:{}),stage:planning?'plan':'generate',temperature:planning?.65:.25,maxTokens:planning||testing?6144:10000,reasoningEffort:'low',thinking:{type:'disabled'},...(!unitFile?{responseFormat:{type:'json_object'}}:{}),signal,onUsage:u=>{if(u)usage=u},onPiece:p=>{if(p.content)raw+=p.content;if(p.reasoning)reasoningCharacters+=p.reasoning.length}});if(typeof returned==='string'&&returned.trim())raw=returned
    const content=raw.trim().replace(/^```[a-zA-Z]*\s*\n/,'').replace(/\n```\s*$/,'')
    if(unitFile&&!content)throw Error('unit returned no source; previous commits retained')
@@ -129,7 +132,16 @@ export async function buildDeepCard({streamUpstream,input,context,debug,research
   for(let turn=0;turn<(context.extendedGeneration?Infinity:20);turn++){
    // Editing a hash, locator, or error wording is not measurable progress.
    lastObservation=convergence.observe({units:committedUnits.size,audit:lastAudit,feedback:feedback||{}})
-   if(lastObservation.stop){emit({type:'build_progress',stage:'paused',message:lastObservation.reason});throw Object.assign(Error(lastObservation.reason),{code:'BUILD_STALLED',artifactPath:root,bestCandidate})}
+   if(lastObservation.stop){
+    emit({type:'build_progress',stage:'paused',message:lastObservation.reason})
+    if(bestUsable){
+     const remainingTasks=bestUsable.audit.items.filter(r=>r.status!=='checked').map((r,i)=>({id:'T'+(i+1),requirement:r.id,lane:r.kind==='interaction'?'interaction':'review',target:r.modules||'main.cardspec',reason:r.acceptance||r.quote||r.reason||'未验证',status:'pending',baseVersion:bestUsable.feedback.version}))
+     remainingTasks.push({id:'T'+(remainingTasks.length+1),lane:feedback?.phase==='test'?'test':'implementation',target:feedback?.module||'main.cardspec',reason:feedback?.error||'当前停滞问题见构建trace；保留已验证路径并局部补齐',status:'pending',baseVersion:bestUsable.feedback.version})
+     await record()
+     return {source:bestUsable.source,feedback:{...bestUsable.feedback,status:'partial'},coverage:{...bestUsable.audit,status:'partial'},build:{mode:'deep',retained:true,reason:'no_effective_progress',remainingTasks,modules:bestUsable.modules,calls:trace.length,elapsedMs:Date.now()-started,inputCharacters:trace.map(t=>t.inputCharacters||0),artifactPath:'artifacts/deep-build/'+cardId}}
+    }
+    throw Object.assign(Error(lastObservation.reason),{code:'BUILD_STALLED',artifactPath:root,bestCandidate})
+   }
    const manifest=workspace.manifest(),missing=plan.modules.find(m=>!manifest.some(f=>f.name===m.name))
    const unit=phase==='implementation'?nextBuildUnit(units,committedUnits):null
    const repairModule=feedback?.module||feedback?.diagnostics?.find(d=>d.severity==='error'&&d.module)?.module
@@ -158,7 +170,7 @@ export async function buildDeepCard({streamUpstream,input,context,debug,research
     const repairProtocol=context.renderMode==='web'?BUILD_PROTOCOL.split('一次只修改目标模块。')[0]+'一次只修改目标文件；main仅挂载JSX，全部业务状态和按钮归JSX。目标源码已提供，只有缺少依赖时read其他文件。':BUILD_PROTOCOL
     const repairSystem=`只修复当前文件的已观察错误，不重写应用规划，不删需求；优先最小patch。布局错误用分区/局部滚动/渐进披露解决，不能缩小字号、触控目标或裁掉内容来通过；合理大小的overflow:auto列表/日志允许滚动，根容器裁切仍是错误。${repairProtocol}\n${localCore}\n${componentContract}${web}${contract}`
     const repairBody={...requestBody,request:undefined,plan:undefined,requirements:plan.requirements.map(({id,acceptance,quote})=>({id,acceptance,quote})),data:research?.context?.({compact:true})}
-    action=normalizeBuildOperation(await call(sourceOnly?unitSystem:phase==='test'?TEST_BUILD_PROTOCOL:repairing?repairSystem:(fragment?fragmentSystem:base)+'\n'+componentContract+web+contract,sourceOnly?unitBody:repairing?repairBody:requestBody,{testing:phase==='test',isolated:repairing,...(sourceOnly?{unitFile:{name:target,version:manifest.find(f=>f.name===target)?.version}}:{})}))
+    action=normalizeBuildOperation(await call(sourceOnly?unitSystem:phase==='test'?TEST_BUILD_PROTOCOL+(needsTerminalJourneys(input.prompt)?'\n'+TERMINAL_JOURNEY_GUIDANCE:''):repairing?repairSystem:(fragment?fragmentSystem:base)+'\n'+componentContract+web+contract,sourceOnly?unitBody:repairing?repairBody:requestBody,{testing:phase==='test',isolated:repairing,...(sourceOnly?{unitFile:{name:target,version:manifest.find(f=>f.name===target)?.version}}:{})}))
     if(sourceOnly)action.claims=unit.requirements.map(id=>({id,modules:[target]})) // claims still require observed assertions at the final gate
     if(sourceOnly&&target.endsWith('.cardspec')&&manifest.some(f=>f.name===target))assertUnitRetention(workspace.read(target).content,action.files[0].content)
     failedCalls=0
@@ -241,6 +253,7 @@ export async function buildDeepCard({streamUpstream,input,context,debug,research
      if(feedback.phase==='implementation'||feedback.testRepair?.length){steps=replay;break}
     }
     lastAudit=requirementAudit(plan.requirements,claims,{actions:ledger.actions()})
+    if(['passed','partial'].includes(rawFeedback.status)&&!feedback.diagnostics.some(d=>d.severity==='error')&&lastAudit.items.some(r=>r.status==='checked')&&(!bestUsable||lastAudit.items.filter(r=>r.status==='checked').length>bestUsable.audit.items.filter(r=>r.status==='checked').length))bestUsable={source:assembled.source,feedback:rawFeedback,audit:structuredClone(lastAudit),modules:workspace.manifest()}
     // Keep the strongest observed candidate, separately from the latest draft.
     // It is an inspection checkpoint, never permission to skip acceptance.
     const score=[lastAudit.items.filter(r=>['checked','limited'].includes(r.status)).length,-feedback.diagnostics.filter(d=>d.severity==='error').length,-feedback.layout.length,-feedback.layout.reduce((s,i)=>s+(i.overflow||0),0)]

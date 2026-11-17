@@ -21,5 +21,13 @@ export function readDesignEnvironment(root) {
   probe.remove()
   const defaults={'--cs-motion-ease':'cubic-bezier(.22,1,.36,1)','--cs-motion-fast':'140ms','--cs-motion-duration':'280ms','--cs-radius':'12px','--cs-space-normal':'8px','--cs-title-size':'20px','--cs-title-weight':'650','--cs-title-tracking':'normal','--cs-stat-size':'24px','--font-title':style.fontFamily}
   for (const [key,fallback] of Object.entries(defaults)) theme[key]=style.getPropertyValue(key).trim() || (key==='--cs-radius' ? style.getPropertyValue('--cs-control-radius').trim() : '') || fallback
-  return {...theme,color:style.color,font:style.fontFamily}
+  return {...theme,color:style.color,font:style.fontFamily,colorScheme:style.colorScheme==='dark'?'dark':'light'}
+}
+
+// Theme-only changes must reach an already mounted iframe without restarting it.
+export function observeDesignEnvironment(root,notify){
+ const observer=new MutationObserver(notify)
+ for(let el=root;el;el=el.parentElement)observer.observe(el,{attributes:true,attributeFilter:['class','style','data-design','data-visual-style','data-theme','data-palette']})
+ const media=matchMedia('(prefers-color-scheme: dark)');media.addEventListener('change',notify)
+ return()=>{observer.disconnect();media.removeEventListener('change',notify)}
 }

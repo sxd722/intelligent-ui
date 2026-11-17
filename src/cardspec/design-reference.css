@@ -1,0 +1,21 @@
+/* Explicit reference owns colors, while the preset still owns composition.
+   Do not inherit hardcoded family surfaces underneath a different foreground. */
+.cs-stage[data-visual-reference],.cs-stage[data-visual-reference] .cs-composition {
+ --cs-base:var(--reference-base);--cs-ink:var(--reference-ink);--cs-muted:var(--reference-muted);--cs-accent:var(--reference-accent);
+ --cs-surface-solid:var(--reference-panel);--cs-surface:var(--reference-panel);
+ --color-bg:var(--reference-base);--color-text-prose:var(--reference-ink);--color-text-default:var(--reference-ink);--color-text-emphasis:var(--reference-ink);--color-primary:var(--reference-accent);
+ --cs-panel-mask:var(--reference-panel);--cs-group-mask:color-mix(in srgb,var(--reference-ink) 6%,var(--reference-base));--cs-field-mask:var(--cs-group-mask);--cs-control-mask:var(--cs-group-mask);
+ background:var(--reference-base);color:var(--reference-ink);
+}
+.cs-stage[data-visual-reference] .cs-card{background:transparent!important}
+.cs-stage[data-visual-reference] .cs-card :is(.cs-diagram-pan,.cs-detail-stage){background:var(--reference-panel)!important;box-shadow:none!important;backdrop-filter:none}
+.cs-stage[data-visual-reference] .cs-card .cs-diagram-node{background:var(--cs-group-mask)!important;color:var(--reference-ink)!important;box-shadow:none!important}
+.cs-stage[data-visual-reference] .cs-card .cs-diagram-node[data-selected=true]{background:var(--reference-accent)!important;color:var(--cs-selected-ink)!important}
+.cs-stage[data-visual-reference] .cs-detail-heading :is(h3,p,small){color:var(--reference-ink);text-shadow:none}
+.cs-stage[data-visual-reference] .cs-title{color:var(--reference-ink);font-family:var(--reference-font)!important;text-shadow:none!important;transform:none!important}
+.cs-stage[data-visual-reference] .cs-card :is(.cs-text,.cs-caption,.cs-facts,.cs-checklist){color:var(--reference-ink)}
+.cs-stage[data-visual-reference] .cs-card [data-tone=muted]{color:var(--reference-muted)}
+.cs-stage[data-visual-reference] .cs-card :is(.cs-inline-details>button,.cs-button[data-variant=quiet]){background:transparent!important;color:var(--reference-accent)!important;box-shadow:none!important}
+.cs-stage[data-visual-reference] .cs-card .cs-button[data-variant=primary]{background:var(--reference-accent)!important;color:var(--cs-selected-ink)!important}
+.cs-stage[data-visual-reference] .cs-card .cs-composition-heading .cs-title{font-size:var(--cs-title-size)!important}
+@media(forced-colors:active){.cs-stage[data-visual-reference],.cs-stage[data-visual-reference] .cs-composition{background:Canvas;color:CanvasText;--reference-ink:CanvasText;--reference-muted:CanvasText;--reference-accent:LinkText;--reference-base:Canvas;--reference-panel:Canvas}}

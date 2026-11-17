@@ -12,28 +12,29 @@ export function MathNode({p,attrs={}}) { return <Suspense fallback={<code {...at
 export function ChoiceGroup({p,fire,kind}) {
   const track=useRef(null),thumb=useRef(null),name=useId()
   const options=p.options.map(o=>o&&typeof o==='object'?o:{value:o,label:String(o)})
+  const compact=options.length>4&&!['icons','cards','chapters'].includes(p.variant)
   useLayoutEffect(()=>{
-    if(kind!=='segmented'||p.variant==='icons') return
+    if(compact||kind!=='segmented'||['icons','cards','chapters'].includes(p.variant)) return
     const el=track.current
     const place=()=>{const active=el.querySelector('[aria-checked="true"]');if(!active||!thumb.current)return
       thumb.current.style.width=`${active.offsetWidth}px`;thumb.current.style.height=`${active.offsetHeight}px`;thumb.current.style.transform=`translate(${active.offsetLeft}px,${active.offsetTop}px)`
     }
     const observer=new ResizeObserver(place);observer.observe(el);[...el.querySelectorAll('button')].forEach(n=>observer.observe(n));place()
     return()=>observer.disconnect()
-  },[kind,p.variant,p.value,JSON.stringify(options)])
-  if(kind==='select') return <label className="cs-field cs-select"><span>{p.label}</span><select aria-label={p.label} value={p.value??''} disabled={p.disabled} onChange={e=>fire('onChange',{value:e.target.value})}>
+  },[kind,compact,p.variant,p.value,JSON.stringify(options)])
+  if(kind==='select'||compact) return <label className="cs-field cs-select"><span>{p.label}</span><select aria-label={p.label} value={p.value??''} disabled={p.disabled} onChange={e=>fire('onChange',{value:options.find(o=>String(o.value)===e.target.value)?.value??e.target.value})}>
     {!options.some(o=>o.value===p.value)&&<option value="" disabled>请选择</option>}{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
   </select></label>
-  return <div data-choice-variant={p.variant} style={p.variant==='icons'?{'--choice-columns':Math.min(6,options.length)}:undefined} className={kind==='segmented'?'cs-segmented-field':'cs-radio-field'} data-short-label={[...String(p.label||'')].length<=8||undefined}><span className="cs-control-label">{p.label}</span>
+  return <div data-fit-choices={kind==='segmented'&&!['icons','cards','chapters'].includes(p.variant)&&options.length<=5&&options.every(o=>[...String(o.label)].length<=8)||undefined} data-choice-variant={p.variant} style={p.variant==='icons'?{'--choice-columns':Math.min(6,options.length)}:undefined} className={kind==='segmented'?'cs-segmented-field':'cs-radio-field'} data-short-label={[...String(p.label||'')].length<=8||undefined}><span className="cs-control-label">{p.label}</span>
     <div className={kind==='segmented'?'cs-segmented':'cs-radio-group'} ref={track} role="radiogroup" aria-label={p.label}>
-      {kind==='segmented'&&p.variant!=='icons'&&<i ref={thumb} className="cs-segmented-thumb" hidden={!options.some(o=>o.value===p.value)} aria-hidden="true"/>}
+      {kind==='segmented'&&!['icons','cards','chapters'].includes(p.variant)&&<i ref={thumb} className="cs-segmented-thumb" hidden={!options.some(o=>o.value===p.value)} aria-hidden="true"/>}
       {options.map((o,i)=>kind==='radio-group'?<label className="cs-radio-option" key={o.value} data-selected={p.value===o.value||undefined}><input type="radio" name={name} value={o.value} checked={p.value===o.value} disabled={p.disabled} onChange={()=>fire('onChange',{value:o.value})}/><span>{o.label}</span></label>:
-        <button type="button" key={o.value} role="radio" disabled={p.disabled} aria-checked={p.value===o.value} data-selected={p.value===o.value||undefined} tabIndex={p.value===o.value||(!options.some(o=>o.value===p.value)&&i===0)?0:-1} onClick={()=>{if(!p.disabled)fire('onChange',{value:o.value})}} onKeyDown={e=>{
+        <button type="button" key={o.value} role="radio" aria-label={o.label} disabled={p.disabled} aria-checked={p.value===o.value} data-selected={p.value===o.value||undefined} tabIndex={p.value===o.value||(!options.some(o=>o.value===p.value)&&i===0)?0:-1} onClick={()=>{if(!p.disabled)fire('onChange',{value:o.value})}} onKeyDown={e=>{
           if(p.disabled)return
           const delta=['ArrowRight','ArrowDown'].includes(e.key)?1:['ArrowLeft','ArrowUp'].includes(e.key)?-1:0
           const next=e.key==='Home'?0:e.key==='End'?options.length-1:delta?(i+delta+options.length)%options.length:null
           if(next==null)return;e.preventDefault();fire('onChange',{value:options[next].value});const b=track.current.querySelectorAll('button')[next];b.focus();b.scrollIntoView({block:'nearest',inline:'nearest'})
-        }}>{p.variant==='icons'&&<Icon name={o.icon||'circle'}/>}<span>{o.label}</span></button>)}
+        }}>{p.variant==='icons'&&<Icon name={o.icon||'circle'}/>} {p.variant==='chapters'&&<i aria-hidden="true">{String(i+1).padStart(2,'0')}</i>}<span>{o.label}</span>{p.variant==='cards'&&o.description&&<small>{o.description}</small>}</button>)}
     </div>
   </div>
 }

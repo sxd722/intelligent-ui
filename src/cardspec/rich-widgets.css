@@ -6,6 +6,7 @@
 .cs-segmented-field .cs-segmented { display:flex; position:relative; isolation:isolate; flex-wrap:nowrap; overflow-x:auto; padding:4px; gap:4px; border-radius:14px; background:var(--cs-group-mask); scrollbar-width:thin; }
 .cs-stage .cs-card .cs-segmented-field .cs-segmented button { position:relative; flex:1 0 auto; white-space:nowrap; background:transparent; box-shadow:none; z-index:1; min-height:36px; }
 .cs-segmented-thumb { position:absolute; left:0; top:0; border-radius:10px; background:var(--cs-selected-mask); transition:transform 200ms ease,width 200ms ease; pointer-events:none; }
+.cs-stage .cs-card .cs-segmented-field[data-fit-choices] .cs-segmented button { flex:1 1 0;min-width:44px;min-height:44px;padding-inline:5px;white-space:normal;overflow-wrap:anywhere; }
 /* Dense square cards keep short labels beside their choices. No label, option
    or touch target is removed. Overflow remains swipe/keyboard accessible with
    the existing edge fades instead of a height-consuming horizontal rail. */

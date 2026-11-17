@@ -1,0 +1,12 @@
+.cs-filter-bar{display:flex;align-items:flex-start;gap:6px;min-width:0;width:100%;font-size:12px}
+.cs-filter-bar>details{min-width:0;flex:1}.cs-filter-bar summary{display:flex;align-items:center;gap:8px;min-height:40px;cursor:pointer;list-style:none;white-space:nowrap;padding:2px 6px;border-radius:9px;background:color-mix(in srgb,var(--cs-accent,#356775) 6%,transparent)}
+.cs-filter-bar summary::-webkit-details-marker{display:none}.cs-filter-bar summary>small{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--cs-muted,#667)}
+.cs-filter-clear{flex:none;min-height:40px;border:0;background:transparent;color:inherit;cursor:pointer}
+.cs-filter-options{padding:8px 4px;max-height:200px;overflow:auto;display:flex;flex-direction:column;gap:8px;overscroll-behavior:contain}
+.cs-filter-bar details:not([open])>.cs-filter-options{display:none}.cs-filter-options .cs-row,.cs-filter-options .tv-facets{flex-wrap:wrap!important}
+.cs-chip-strip{display:flex;gap:6px;align-items:center;flex-wrap:nowrap!important;overflow-x:auto;max-width:100%;min-width:0;scrollbar-width:none}
+.cs-chip-strip>.cs-button{flex:0 0 auto!important;min-height:40px;white-space:nowrap}
+.cs-compact-chips[data-many=true] .cs-chip-strip{flex-wrap:wrap!important;overflow:visible}
+.cs-compact-chips[data-many=false] .cs-filter-bar summary,.cs-compact-chips[data-many=false] .cs-filter-options>.cs-button{display:none}
+.cs-compact-chips[data-many=false] .cs-filter-options{padding:0;max-height:none;overflow:visible}
+.cs-stage .cs-select{display:flex;flex-direction:row;align-items:center;gap:8px;min-width:0}.cs-select>span{flex:none;max-width:35%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cs-select select{flex:1;min-width:0;min-height:40px}

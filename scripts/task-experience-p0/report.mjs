@@ -1,0 +1,42 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
+const root='artifacts/task-experience-p0',out='public/task-experience-p0'
+const names={traffic:'交通 · 按时到站',travel:'旅行 · 一周编排',news:'新闻 · 时间覆盖',appointment:'预约 · 到达估算',schedule:'课表 · 整条替换',reviews:'反馈 · 分组探索'}
+const assessment={
+ traffic:{status:'关键路径通过 / 估算边界',passed:'改出发时间→到达与余量重算；切方式；改地址→失效提示；详情返回与刷新恢复。',gap:'路线与首班车未实查，只能按估算使用；较窄卡片仍有内部溢出。'},
+ travel:{status:'未通过',passed:'保留了可检查的中间候选与失败链。',gap:'纯表达式中写语句块、改用 logic 后作用域与初始化继续出错；最终未交付完整卡。中间候选不能替代最终通过。'},
+ news:{status:'未通过 / 空数据',passed:'历史20条Google News返回的10月日期已被coverage审计识别，不会用获取日期替代。',gap:'最终这一轮零取数、events/geo为空，却声称已检索。维度切换与刷新恢复能操作，但没有新闻可探索，不能算完成。'},
+ appointment:{status:'部分通过',passed:'08:50出发的步行/骑车到达计算、地址变更提示、展开收起及恢复通过。',gap:'预约时刻固定09:00，遗漏可编辑需求；“重新估算”仅复制地址并清除失效标记，预设失败断言捕获。'},
+ schedule:{status:'核心操作通过 / 范围缺失',passed:'物理→化学同时更新名称、时间、教室，数学不变；排序、撤销、刷新恢复通过。',gap:'只能替换物理，不能任意选一门替换；原始需求范围仍未全部覆盖。'},
+ reviews:{status:'核心操作通过 / 保真不足',passed:'来源与态度筛选、图表选组、缺失日期、原话入口、返回与恢复通过。',gap:'图表统计全量而列表是筛选后口径，说明不充分；模型扩写样本“原话”，不能算信息保真通过。'}
+}
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+await fs.mkdir(out,{recursive:true})
+const read=async p=>JSON.parse(await fs.readFile(p,'utf8'))
+const copy=async(from,to)=>{await fs.mkdir(path.dirname(to),{recursive:true});await fs.copyFile(from,to).catch(()=>{})}
+const rows=[]
+for(const [id,label]of Object.entries(names)){
+ const r=await read(`${root}/generated/${id}.json`),base=await read(`${root}/${id}-baseline.json`).catch(()=>null),rounds=[]
+ for(const round of ['round1','round2','round3','generated']){const x=await read(`${root}/${round}/${id}.json`).catch(()=>null);if(x)rounds.push({round,status:x.status,seconds:x.elapsedMs/1000,modelCalls:x.spec?.generationBudget?.modelCalls,reads:x.spec?.generationBudget?.reads,repairs:x.spec?.generationBudget?.repairs})}
+ const interaction=await read(`${root}/interactions/${id}/browser.json`).catch(()=>null),layouts=[]
+ for(const size of ['full','square']){
+  const b=await read(`${root}/browser/generated/${id}/${size}/browser.json`).catch(()=>null)
+  if(b)layouts.push({size,status:b.status,reason:b.reason,runs:b.runs.map(v=>({width:v.width,screenshot:v.screenshot,issues:v.final?.layout?.issues,errors:v.final?.errors}))})
+  for(const width of [432,360,320])if(b?.runs.some(r=>r.width===width&&r.screenshot))await copy(`${root}/browser/generated/${id}/${size}/normal-${width}.png`,`${out}/images/${id}-${size}-${width}.png`)
+ }
+ const imageDir=`${root}/interactions/${id}`
+ for(const file of await fs.readdir(imageDir).catch(()=>[]))if(file.endsWith('.png'))await copy(`${imageDir}/${file}`,`${out}/images/${id}-${file}`)
+ const events=r.events.filter(e=>['debug','diagnostics','tool_disclosure','research','tool_call','tool_result','research_tool','research_model','stream_error','message_stream_complete'].includes(e.event.type)).map(e=>({ms:e.ms,...e.event}))
+ // Deliberately no response envelope, resume token, service config or headers.
+ const trace={id,label,prompt:r.prompt,status:r.status,elapsedMs:r.elapsedMs,assessment:assessment[id],budget:r.spec?.generationBudget,verification:r.spec?.verificationStatus,requirementCoverage:r.spec?.requirementCoverage,debug:r.spec?.generationDebug,toolDiscovery:r.spec?.toolDiscovery,records:(r.spec?.prefetched||[]).map(x=>({id:x.id,tool:x.tool,input:x.input,count:x.value?.items?.length})),events,interaction,layouts,rounds}
+ await fs.mkdir(`${out}/traces`,{recursive:true});await fs.writeFile(`${out}/traces/${id}.json`,JSON.stringify(trace,null,2));await fs.writeFile(`${out}/traces/${id}.cardspec`,r.source)
+ const old=base?.budget?.elapsedMs??({traffic:27318,travel:63633,news:108030}[id])
+ rows.push({id,label,status:r.status,seconds:r.elapsedMs/1000,baselineSeconds:old?old/1000:null,...assessment[id],apiStatus:r.status,layouts,rounds,interaction})
+}
+await fs.writeFile(`${root}/summary.json`,JSON.stringify(rows,null,2))
+const table=rows.map(r=>`<tr><td><a href="#${r.id}">${r.label}</a></td><td>${r.baselineSeconds?.toFixed(1)||'—'}</td><td>${r.seconds.toFixed(1)}</td><td>${r.apiStatus}</td><td>${r.status}</td><td>${esc(r.passed)}</td><td>${esc(r.gap)}</td></tr>`).join('')
+const cards=rows.map(r=>`<section id="${r.id}"><h2>${r.label}</h2><p class="badge">${r.status}</p><div class="case"><a href="images/${r.id}-full-432.png"><img loading="lazy" src="images/${r.id}-full-432.png" alt="${r.label} 模型原产物；旅行是失败时保留候选"></a><div><p><b>实测：</b>${r.passed}</p><p><b>未通过或限制：</b>${r.gap}</p><p><a href="traces/${r.id}.cardspec">未经人工修改的模型 source</a> · <a href="traces/${r.id}.json">调用/修复/交互 trace</a></p><h3>尺寸回放</h3><p>${['full','square'].map(size=>[432,360,320].map(w=>r.layouts.some(l=>l.size===size&&l.runs.some(v=>v.width===w&&v.screenshot))?`<a href="images/${r.id}-${size}-${w}.png">${size} ${w}</a>`:`${size} ${w} 未验证`).join(' · ')).join('<br>')}</p><h3>保留所有轮次，未择优隐藏失败</h3><table><tr><th>轮次</th><th>API结果</th><th>秒</th><th>调用 / 读取 / 修复</th></tr>${r.rounds.map(v=>`<tr><td>${v.round}</td><td>${v.status}</td><td>${v.seconds.toFixed(1)}</td><td>${v.modelCalls??'—'} / ${v.reads??'—'} / ${v.repairs??'—'}</td></tr>`).join('')}</table><h3>浏览器动作（432px）</h3><ol>${(r.interaction?.runs?.find(v=>v.width===432)?.actions||[]).map(a=>`<li>${esc(a.step.name||a.step.op)}：${a.ok?(a.assertion?.passed===false?'断言未通过':a.restored===false?'恢复不一致':'操作通过'):'未执行'}${a.assertion?.failures?.length?' — '+esc(a.assertion.failures.join('; ')):''} ${a.ok?`<a href="images/${r.id}-normal-432-step-${r.interaction.runs.find(v=>v.width===432).actions.indexOf(a)+1}.png">截图</a>`:''}</li>`).join('')||'<li>无完整通过的动作回放</li>'}</ol></div></div></section>`).join('')
+const html=`<!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>P0 任务体验 · 实施与验证</title><style>body{margin:0;background:#f4f3ef;color:#172525;font:16px/1.6 system-ui,sans-serif}main{max-width:1280px;margin:auto;padding:36px 24px}h1{font-size:34px;letter-spacing:-1px}h2{margin-top:0}h3{font-size:17px}a{color:#176960}section,.overview{background:white;border-radius:20px;padding:24px;margin:24px 0}.lead{max-width:940px}.badge{display:inline-block;background:#edf2e9;padding:5px 13px;border-radius:20px}.warning{background:#fff0cf;padding:16px;border-radius:14px}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:12px;text-align:left;border-bottom:1px solid #e6e6df;vertical-align:top}th{background:#edf1ec}.case{display:grid;grid-template-columns:minmax(240px,432px) 1fr;gap:26px}.case img{width:100%;max-height:780px;object-fit:contain;object-position:top;background:#edf1f4;border-radius:16px}li{padding:4px}small{color:#52615c}@media(max-width:760px){main{padding:16px}.case{grid-template-columns:1fr}h1{font-size:27px}td{min-width:100px}}</style><main><small>LOCAL ONLY · 2026-11-06 · DeepSeek Flash · 正常 /api/chat 入口</small><h1>P0：从“能生成”到“有证据的任务完成”</h1><p class="lead">新增宿主时间/集合操作、数据覆盖记录、显式选择关联校验、结果断言与失败路径保留；修复语义选择器被宿主搬走的问题。此次没有发布 GPT Site，OpenCLI/Owl 会话与 daemon 保持不变。</p><p class="warning"><b>结论：</b>基础机制已接入，但未达到六例完整 CUJ 全通过。最终一轮 API 5/6 成功，并不等于功能 5/6 通过；旅行失败、新闻空壳均明确判为未通过。专项54项通过；全量894项中876通过、18失败，不能宣布全仓回归通过。</p><div class="overview"><h2>改了什么</h2><ul><li>复用原有表达式和状态事务：稳定排序、分类保留未知、整对象替换、时间位移与余量；JS sort/toSorted返回副本，reduce支持常见写法。</li><li>日期覆盖区分发布时间与获取时间；只识别可证明的元数据，RFC2822也可审计，缺失日期不变成1970。</li><li>图表选组与记录ID关联校验；编辑事件中的失效标记也算依赖。纯记录型表单不因缺少下游计算而被误拒绝。</li><li>调试可断言实际结果与派生值；已执行但失败的行为测试在最终提交重跑，不能删测试“过关”。缺少关键行为证据标partial。</li><li>同根因两轮无进展停止；宿主未验证与代码失败分开，保留候选。选择器保留源码顺序。</li></ul></div><h2>最终一轮与历史基线</h2><p>秒数为端到端观察值；历史旧版仅各一次，新版为迭代中的多轮，不是随机对照实验。检索差异、缓存、模型波动和能力缩水都会影响耗时，不能用新闻15秒的空卡宣称提速。</p><div class="scroll"><table><tr><th>场景</th><th>旧版秒</th><th>本轮秒</th><th>API状态</th><th>任务判定</th><th>已验证</th><th>仍缺失</th></tr>${table}</table></div>${cards}<section><h2>方法与边界</h2><p>保存四轮共24次正常入口生成记录，三例历史基线回放。截图回放覆盖432/360/320 × full/square；关键动作在432/320检查，时间计算、分组记录集、替换完整对象与刷新恢复使用独立预期断言。仅有数据与按钮存在不计任务完成。</p><p>截图使用独立调试Chrome，CLI在回放中不再执行；仅精确匹配参数的历史结果才可注入。图片/地图外网在隔离回放中被阻止，图像截图展示失败占位而非真实图片效果验收。生成阶段的真实检索由trace单列；旅行首轮曾读取weather、websearch等，最终一轮三例未重用这些历史返回冒充新调用。</p><p>未新增固定审稿调用，未全面开放任意JS。当前未完成：按覆盖缺口自动补取、任意替换关系的事务化验收、独立于模型的完整需求测试生成、复杂语句块到分模块实现的稳定引导。P1整卡构图与Stitch视觉转译也未包含于此次P0。</p><p>下一步先收敛“空数据仍声称已检索、漏掉必需控件、把取消过期当重新计算”这类需求证据门控，再扩大自动业务生成。不要用更多预算或更多装饰掩盖它们。</p></section></main></html>`
+await fs.writeFile(out+'/report.html',html)
+await fs.cp(out,'dist/task-experience-p0',{recursive:true})
+console.log('Local report: http://127.0.0.1:8787/task-experience-p0/report.html')

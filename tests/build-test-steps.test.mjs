@@ -16,7 +16,13 @@ test('conflicting values, changed checks and different scenarios remain separate
 test('deep checks do not consume interaction slots or silently lose assertions',()=>{
  const actions=Array.from({length:12},()=>({op:'click',name:'Next'})),checks=Array.from({length:8},()=>({op:'check',expect:{changed:false,text:'Result'}}))
  assert.equal(validateDebugInput({source:'<card/>',steps:[...actions,...checks]},48000).steps.length,20)
- assert.throws(()=>validateDebugInput({source:'<card/>',steps:Array.from({length:17},()=>({op:'click',name:'Next'}))},48000),/16 interaction/)
- assert.throws(()=>validateDebugInput({source:'<card/>',steps:Array.from({length:33},()=>({op:'check'}))},48000),/32 steps/)
- assert.throws(()=>validateDebugInput({source:'<card/>',steps:checks.concat({op:'check'})}),/8 steps/)
+ assert.equal(validateDebugInput({source:'<card/>',steps:Array.from({length:17},()=>({op:'click',name:'Next'}))},48000).steps.length,17)
+ assert.throws(()=>validateDebugInput({source:'<card/>',steps:Array.from({length:65},()=>({op:'check'}))},48000),/64 steps/)
+ assert.throws(()=>validateDebugInput({source:'<card/>',steps:Array.from({length:6},()=>({op:'click',name:'Next',repeat:30}))}),/160 expanded/)
+})
+
+test('terminal assertions and independent paths never fold into another path',()=>{
+ const action={op:'click',name:'Finish',path:'win',expect:{changed:true}}
+ assert.equal(compactBuildTestSteps([action,{op:'check',path:'loss',expect:{text:'Loss'}}]).length,2)
+ assert.equal(compactBuildTestSteps([action,{op:'check',path:'win',expect:{terminal:{outcome:'win',key:'ending',value:'win'}}}]).length,2)
 })

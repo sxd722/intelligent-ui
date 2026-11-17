@@ -1,5 +1,6 @@
 // Reviewed OpenCLI 1.8.6 field mappings. Nulls stay missing; no runtime fuzzy matching.
 export const TOOL_PRESENTATIONS={
+  "opencli.weread.book-search": {version:1,kind:'detail',allowUntitled:true,fields:{title:['chapter_title','book_title'],subtitle:'author',summary:'snippet',url:'url'}},
   "opencli.hackernews.top": {
     "version": 1,
     "kind": "feed",

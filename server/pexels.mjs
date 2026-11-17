@@ -9,7 +9,7 @@ export function createPexelsService({ key, cacheDir, fetchImpl = fetch }) {
   async function download(url, filename, signal) {
     const file = path.join(cacheDir, filename)
     try { if ((await stat(file)).size > 0) return } catch {}
-    const response = await fetchImpl(safeImage(url), { signal, redirect:'error' })
+    const response = await fetchImpl(safeImage(url), { signal, redirect:'manual' })
     if (!response.ok || !/^image\/(jpeg|png|webp)/i.test(response.headers.get('content-type') || '')) throw new Error('image download failed')
     const chunks = []; let size = 0
     for await (const chunk of response.body) {

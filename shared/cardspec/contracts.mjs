@@ -1,16 +1,21 @@
 import { validateMermaidSource } from './mermaid-policy.mjs'
+import {validateMaterial} from './gpu-material.mjs'
 import {validateTask} from './task-operations.mjs'
 import {TASK_REFERENCE} from './task-reference.mjs'
+import {validateEditorial,checklistChange} from './editorial.mjs'
 
 const selection={onChange:{value:'string'}}
 const options='strings or {value:string,label:string}[], unique values, 1–40 options'
 const selectExample='<select label="时段" value={state.slot} options={["上午","下午"]} onChange="choose"/>; choose动作set slot={event.value}'
 export const CONTRACTS = {
+  facts:{required:['items'],shape:'items=[{label,value,unit?}]；变化记录用{label,before,after,unit?}自动摘要/展开；最多12项，缺值null',purpose:'同一行短事实；宿主排版，避免用多段文字解释简单属性'},
+  checklist:{required:['label','items'],shape:'items=[{id:string,label:string,group?:string,description?:string}],最多100项；value为已勾选id数组',events:{onChange:{value:'array',id:'string',checked:'boolean'}},purpose:'分组清单与进度，value={state.done}，onChange动作set done={event.value}；保留暂时隐藏项的选择'},
+  'gpu-material':{required:['source','label'],purpose:'局部WebGPU原创高级材质、珠光、波场；宿主运行，无需React或额外模型调用。原生控件负责交互。',shape:'source固定WGSL片段函数体字符串；可用uv:vec2f(0–1)、time:f32、aspect:f32、params:vec4f。必须return vec4f颜色。params=[四个数字]可绑定state。height=96–360。',behavior:'只写let/var/if和数学运算；不写fn、@、循环、纹理、数组、imports。内置sin/cos/mix/smoothstep/length/dot等。无网络；宿主管帧率/尺寸/暂停/静态回退。只有视觉需要高级材质时用，不把文字/按钮画进GPU。',example:'<gpu-material id="glow" label="动态材质" params={[state.amount,0,0,0]} source={"let c=0.5+0.5*sin(uv.x*6.0+time+params.x); return vec4f(c,0.4,0.8,1.0);"}/>'},
   "detail-stage":{purpose:"当前选择的图文详情舞台，title/description/eyebrow/icon；子节点保持原生行为，放示例、题目或操作。宿主控制视觉和切换动效。"},
   list:{purpose:'可分栏的内容清单；columns=1–3，presentation=plain/timeline/tiles。普通list-item按行排布；独立分组用list-group整组占一列，不做CSS文字分栏。',shape:'<list columns={2} presentation="timeline"><list-group label="第一组"><list-item>…</list-item></list-group><list-group label="第二组"><list-item>…</list-item></list-group></list>',behavior:'分组保留原始顺序和动作；窄屏换行而非缩小字体。无需再套grid。分栏组不按6项拆成另一套分页。'},
   'list-item':{purpose:'紧凑列表项，沿用onPress/args或内部checkbox等控件；在timeline/tiles列表中自动提供轻量材质和层次。imageQuery为缩略素材；mockTile为当前设计图插画索引。'},
   'list-group':{purpose:'list内独立分组列，label为组标题，子项list-item/each；适合日期、阶段、类别或并排对照，不局限旅游。'},
-  'task-board':{purpose:'items静态数组或view二选一。items行：id/title/summary/detail/category/imageQuery，可选metrics:[{label,value,unit}]。Stitch宿主复合构图：大图候选、地图、证据、详情与对比；单一或多个来源均可',shape:'view={compose({main:"bindingId",related:"otherBindingId"},{primary:"main"})}；也可引用derive。layout/skin默认auto，互相独立。',events:{onSelect:{id:'string',entityId:'scalar',item:'object',value:'string'},onRefresh:{role:'string'},onDateChange:{date:'string',value:'string'},onApply:{ids:'array',items:'array',scope:'string',date:'scalar'}},behavior:'宿主自带选择、筛选、详情和返回，不要求onSelect；onSelect表示打开详情而非勾选；需要补取时使用event.item。onApply确认返回event.items/ids。skin只改变材质，不改变业务绑定。未知坐标不放地图，相关搜索不冒充同一实体。'},
+  'task-board':{purpose:'items静态数组或view二选一。items行：id/title/summary/detail/category/imageQuery，可选metrics:[{label,value,unit}]。Stitch宿主复合构图：大图候选、地图、证据、详情与对比；单一或多个来源均可',shape:'view={compose({main:"bindingId",related:"otherBindingId"},{primary:"main"})}；围绕当前对象则第二参数subject:{id,title,summary?}、media:[{assetRef或query,alt?}]，同view可传sandbox.input。宿主整合角色摘要、素材、完整结果入口；subject不自动验证来源实体关系。layout/skin默认auto。',events:{onSelect:{id:'string',entityId:'scalar',item:'object',value:'string',role:'string',input:'object'},onRefresh:{role:'string'},onDateChange:{date:'string',value:'string'},onApply:{ids:'array',items:'array',scope:'string',date:'scalar'}},behavior:'宿主自带选择、筛选、详情和返回，不要求onSelect；onSelect表示打开详情而非勾选；需要补取时使用event.item。onApply确认返回event.items/ids。证据分类用compose第二参数annotations:"分类bindingId"（或ID数组），分类/来源/详情/原文共用记录；只认dataset.analyze的匹配原文，不另写一套筛选。skin只改变材质，不改变业务绑定。未知坐标不放地图，相关搜索不冒充同一实体。'},
   settings:{purpose:'低频偏好/参数收纳在卡片右上设置按钮；子控件保持状态，打开不调用模型',behavior:'把仅在提交/规划时使用的输入放这里；影响当前筛选的常用chips留在主体。'},
   'choice-grid':{purpose:'图片候选的紧凑多列网格，适合地点、商品、活动；宽度自适应2–3列',behavior:'子项choice-item；每项第一子节点为image，其余为短标题与摘要。不要再套分页region。'},
   'choice-item':{required:['label','onPress'],purpose:'点方形图片选择，selected绑定选中态；正文只展示一句简介与真实价格/评分',behavior:'onPress/args复用普通动作；将同一选中ID数组给map.selectedIds，焦点selectedId与多选分开。无真实评分时省略，来源和长说明放intro/outro或详情。'},
@@ -28,7 +33,7 @@ export const CONTRACTS = {
   collection:{required:['items'],purpose:'长候选集合的渐进披露；宿主提供搜索、按尺寸分组（方形每页2项/自然4项）、选择和完整详情',shape:'items为含稳定id或rowKey的对象数组；fields可选1–3个字段名，groupBy可选真实分组字段。titleKey可选标题字段，presentation=compact/gallery/timeline/poster/folio/spread；folio为章节插画，spread为三牌选择，revealed可绑定布尔状态；subtitleKey绑定短解释；poster用timeKey/subtitleKey指定时间和短标签字段，partial声明部分数据。真实图片自动读取assetRef。已映射工具结果的标签、单位和显示字段由宿主提供，可省略fields。',events:{onSelect:{id:'string',value:'string',item:'object'}},behavior:'selectedId可受控，detailMode="external"隐藏内置详情；onSelect可省略；声明时event.item为完整选中行，event.id为rowKey或id。不要再加分页按钮。',example:'<collection label="候选" items={bindings.result.value.items} fields={["rating","year"]} onSelect="pick"/>'},
   logic:{required:['initial','source'],purpose:'复杂本地模拟/多步规则；普通表单仍用action',behavior:'initial为局部JSON对象；source为仅包含function update(state,event,input){...;return state}的JS字符串，可直接修改独立state草稿。内部UI用local.xxx；onPress/onChange等为局部事件名，无需action声明；函数读event.type/event.value/event.args。input显式传数据，默认{}。不能访问DOM/网络/工具/定时器，必须同步返回JSON对象。可直接用numeric.matmul(a,b)、numeric.softmax(vector)、numeric.norm(vector)（LayerNorm，减均值后除以标准差，ε=1e-5）、numeric.gelu(vector)；优先复用这些纯数值函数；矩阵/向量最多64维，有限数字，矩阵维度必须匹配。reactive={true}在完整卡可见时发送init及input变化事件，函数统一重算；恢复时保留用户选择。actions={{局部事件名:"宿主actionId"}}只在该用户事件计算成功后调用宿主，event.result为局部结果、event.input为本次输入；自动init/input/tick绝不调用宿主。宿主原子提交、恢复状态、局部报错。处理event.type==="tick"或switch(event.type)的tick分支时，宿主默认500ms提供播放/暂停/单步，可选tickMs=250–2000覆盖；event.dt为固定步长，离页暂停。不嵌套logic/slot，最多4个；图片仅assetRef，外链和图片查询放容器外。',example:'<logic id="heat" initial={{temp:20}} source={"function update(state,event,input){ if(event.type===\'heat\') state.temp+=5; return state; }"}><stat label="温度" value={local.temp} motion="emphasis"/><button onPress="heat">加热</button></logic>'},
   clock:{required:['timeZone'],purpose:'实时世界时钟；宿主自动走时与夏令时，按设备时间显示',behavior:'timeZone用IANA名称，例如Europe/Dublin、Europe/Helsinki、Asia/Shanghai；format默认HH:mm，可HH:mm:ss，showDate默认true。不可用硬编码时间、UTC偏移或手动推进模拟实时钟；天气独立binding refresh={3600}每小时刷新。',example:'<clock label="都柏林" timeZone="Europe/Dublin"/>'},
-  region:{purpose:'语义区域；内容、摘要或操作',behavior:'scroll/paginate填剩余空间；details模态展开；magazine长文分片'},
+  region:{purpose:'语义区域；内容、摘要或操作。overflow=inline就地展开补充内容，destination同卡具名详情/返回，details才是模态',behavior:'scroll/paginate填剩余空间；inline原地展开并恢复开合状态；destination卡内进入目的地，宿主管返回与恢复，不另写导航；details模态展开；magazine长文分片'},
   box:{purpose:'纵向组合容器；横向请用row'}, stack:{purpose:'纵向容器，不是滑动卡堆'}, row:{purpose:'横向排列；wrap允许换行'},
   grid:{purpose:'等分网格，columns默认2，范围1–12'},'grid-item':{purpose:'真实容器，可span/rowSpan；不是透明格'},
   title:{purpose:'主标题'},text:{purpose:'正文，允许strong/emphasis/code行内组合'},caption:{purpose:'次要说明'},strong:{purpose:'行内粗体'},emphasis:{purpose:'行内斜体'},
@@ -40,7 +45,7 @@ export const CONTRACTS = {
   input:{required:['label'],events:{onChange:{value:'string; inputType=number时number',text:'string'}},purpose:'单行输入；date可选择日期'},
   textarea:{required:['label'],events:{onChange:{value:'string'}},purpose:'多行文本'},
   checkbox:{required:['label'],events:{onChange:{checked:'boolean',value:'boolean'}},purpose:'独立勾选'},toggle:{required:['label'],events:{onChange:{checked:'boolean',value:'boolean'}},purpose:'开关'},
-  segmented:{required:['label','options'],events:selection,shape:options,purpose:'少量短选项分段器；variant=icons时options可带icon，均分图标格，沿用event.value'},
+  segmented:{required:['label','options'],events:selection,shape:options+'; variant=cards时可附description:string',purpose:'variant=plain短选项；icons图标；cards并排对比选项；chapters编号章节。所有变体仍使用value/onChange/event.value'},
   select:{required:['label','options'],events:selection,shape:options,purpose:'紧凑下拉单选',example:selectExample},
   'radio-group':{required:['label','options'],events:selection,shape:options,purpose:'纵向单选，适合长选项；value为稳定字符串'},
   table:{required:['label','columns','rows'],events:{onSelect:{id:'string',row:'object'}},shape:'columns=[{key:string,label:string,format?:text|number|currency}], rows=[{id:string,...cells}]，1–8列/最多100行，单元格为标量',purpose:'比较和明细；宿主横向滚动/表头/行选择',example:'<table label="价格" columns={[{key:"name",label:"商品"},{key:"price",label:"元",format:"number"}]} rows={[{id:"a",name:"苹果",price:3}]}/>'},
@@ -63,6 +68,8 @@ export function capabilityReference() {
   return '【组件能力目录】\n'+Object.entries(CONTRACTS).map(([name,c])=>`${name}: ${c.purpose||c.behavior||''}`).join('\n')
 }
 export function validateContract(type,p) {
+  validateEditorial(type,p)
+  if(type==='gpu-material')validateMaterial(p)
   if(type==='task-board'&&!Array.isArray(p.items)&&(p.view?.version!==1||!Array.isArray(p.view.items)))throw Error('task-board.view requires compose result')
   if(type==='tool-view'&&p.task!==undefined)validateTask(p.task)
   if(type==='chart'&&p.kind==='comparison'){
@@ -83,6 +90,7 @@ export function validateContract(type,p) {
   if(['segmented','select','radio-group'].includes(type)) {
     if(!Array.isArray(p.options)||!p.options.length||p.options.length>40) throw new Error(`${type}.options requires 1–40 options`)
     const values=p.options.map(o=>o&&typeof o==='object'?o.value:o)
+    if(p.options.some(o=>o&&typeof o==='object'&&o.description!=null&&typeof o.description!=='string'))throw Error(`${type}.options description must be a string`)
     const valueTypes=type==='segmented'?['string','number','boolean']:['string']
     if(values.some((v,i)=>!valueTypes.includes(typeof v)||(typeof p.options[i]==='object'&&(!p.options[i]||typeof p.options[i].label!=='string')))||new Set(values).size!==values.length) throw new Error(`${type}.options requires unique strings or {value:string,label:string}; not id/label`)
   }
@@ -102,6 +110,7 @@ export function validateContract(type,p) {
 export function eventSamples(type,p,context={}) {
   const first=p.options?.[0], item=p.items?.[p.index||0], node=p.nodes?.[0], point=p.data?.[0]
   const values={
+    checklist:item?{onChange:{value:checklistChange(p.items,p.value,item.id,!(p.value||[]).includes(item.id)),id:item.id,checked:!(p.value||[]).includes(item.id)}}:{},
     calendar:{onSelect:{date:p.selectedDate||context.localDate,value:p.selectedDate||context.localDate},onMonthChange:{month:p.month||context.localDate?.slice(0,7),date:p.selectedDate||context.localDate}},
     slider:{onChange:{value:p.value??p.min??0}},
     mindmap:{onSelect:{id:node?.id,value:node?.id}},flowchart:{onSelect:{id:node?.id,value:node?.id}},

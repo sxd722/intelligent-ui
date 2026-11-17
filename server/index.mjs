@@ -1,5 +1,7 @@
+import {createRsiJournal,rsiContext} from './rsi-journal.mjs'
 import {createDesignMockService} from './design-mock-service.mjs'
-import {handleRefineRequest} from './cardspec/refine-prompt.mjs'
+import {createStitchComparison} from './stitch-comparison.mjs'
+import {handleRefineRequest,recordRefinement} from './cardspec/refine-prompt.mjs'
 import {createSameKindService} from './cardspec/same-kind.mjs'
 import {generationModelOptions} from '../shared/cardspec/generation-settings.mjs'
 import {createDatasetAnalyzer} from './cardspec/model-analysis.mjs'
@@ -84,12 +86,18 @@ const openAIImages=loadOpenAIImageKey()
 const imageService=createImageService({key:openAIImages.value,model:process.env.OPENAI_IMAGE_MODEL,storage:diskImageStorage(path.join(__dirname,'..','.cache','images')),pexels:photoService.photo})
 const pexelsPhoto = imageService.photo
 pexelsPhoto.designMock=createDesignMockService({key:openAIImages.value,model:process.env.OPENAI_IMAGE_MODEL,storage:diskImageStorage(path.join(__dirname,'..','.cache','images'))})
-const modelRound=createModelClient({base:MODEL_BASE,key:keyInfo.value,model:MODEL_NAME,openaiKey:openAIImages.value})
+const rawModelRound=createModelClient({base:MODEL_BASE,key:keyInfo.value,model:MODEL_NAME,openaiKey:openAIImages.value})
+const rsiJournal=createRsiJournal({round:rawModelRound})
+await rsiJournal.recoverInterrupted()
+const modelRound=(messages,options)=>rsiJournal.model(rawModelRound,messages,options)
 const researchProviders=createResearchProviders({base:MODEL_BASE,key:keyInfo.value,model:MODEL_NAME})
 const researchSession=(onEvent,options={})=>createResearchSession({providers:process.env.RESEARCH_DISABLED==='1'||options.enabled===false?null:researchProviders,onEvent,maxRounds:options.budget?.policy.extendedGeneration?Infinity:options.budget?5:3,maxSearches:options.budget?.policy.extendedGeneration?Infinity:2,maxCalls:options.budget?.policy.reads||10,maxContextChars:options.budget?.policy.extendedGeneration?64000:18000,timeoutMs:options.budget?.remaining()||options.timeoutMs||240000,budget:options.budget,extensions:createGenerationTools({...options,
  analyze:createDatasetAnalyzer((messages,params)=>modelRound(messages,{...params,...generationModelOptions(options.modelProfile)}),options.budget),invoke:options.invoke||((...args)=>toolService.invoke(...args))})})
 const toolService=createToolService({streamUpstream,researchSession,keyLoaded:keyInfo.ok,photo:pexelsPhoto,recordGeneration:recordAdaptiveGeneration,opencli:createOpenCli({restoreHandoff:PORT===8787})})
+const journalToolInvoke=toolService.invoke.bind(toolService)
+toolService.invoke=async(...args)=>{const current=rsiContext.getStore(),started=Date.now(),tool=typeof args[0]==='object'?args[0].tool:args[0],input=typeof args[0]==='object'?args[0].input:args[1];try{const result=await journalToolInvoke(...args);if(current)await rsiJournal.append(current.id,'frames',{frame:{type:'tool_execution',tool,input,elapsedMs:Date.now()-started,result}});return result}catch(e){if(current)await rsiJournal.append(current.id,'frames',{frame:{type:'tool_execution',tool,input,elapsedMs:Date.now()-started,error:e.message}});throw e}}
 const discoveryLab=createDiscoveryLab({catalog:toolService.catalog,round:modelRound,invoke:(...args)=>toolService.invoke(...args),model:MODEL_NAME})
+const stitchComparisons=createStitchComparison({catalog:toolService.catalog})
 // Warm only local vectors; this neither starts nor changes the browser bridge.
 if(process.env.TOOL_SEMANTIC_DISABLED!=='1')void toolDiscovery.warm(Object.values(TOOLS)).catch(e=>console.warn('[tool-discovery] keyword fallback:',e.message))
 const toolMedia=createToolMediaService()
@@ -253,6 +261,7 @@ async function handleChat(req, res) {
   let payload
   try {
     payload = JSON.parse(body)
+    await rsiJournal.describe(payload)
   } catch {
     res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) })
     res.end(JSON.stringify({ error: 'invalid json' }))
@@ -273,7 +282,7 @@ async function handleChat(req, res) {
     // The chat route also serves nonlocal clients; generation-time CLI must
     // enforce the same origin/host/loopback boundary as /api/tools/invoke.
     const scopedPayload=localToolRequest(req,PORT)?payload:{...payload,toolsEnabled:false}
-    return handleCardSpec(req, res, scopedPayload, { streamUpstream, photo: pexelsPhoto, model: MODEL_NAME, keyLoaded: keyInfo.ok,toolCatalog:toolService.catalog,researchSession,recordGeneration:recordAdaptiveGeneration })
+    return handleCardSpec(req, res, scopedPayload, { streamUpstream, photo: pexelsPhoto, model: MODEL_NAME, keyLoaded: keyInfo.ok,toolCatalog:toolService.catalog,researchSession,recordGeneration:recordAdaptiveGeneration,designReference:stitchComparisons.reference })
   }
   const {ANALYSIS_PROMPT,PLAN_PROMPT,DSL_PROMPT}=legacyPrompts(payload.cardSize)
   const history = payload.messages
@@ -925,6 +934,24 @@ async function serveStatic(req, res) {
 const server = http.createServer(async (req, res) => {
   // Opaque generated frames have no direct authority over application APIs.
   if(req.headers.origin==='null'&&req.url.startsWith('/api/')){res.writeHead(403).end('Opaque frames cannot access host APIs');return}
+  if(req.url.split('?')[0].startsWith('/api/rsi-journal')){
+    if(!localToolRequest(req,PORT)){res.writeHead(403).end('local archive only');return}
+    try{
+      const u=new URL(req.url,'http://localhost'),m=u.pathname.match(/^\/api\/rsi-journal(?:\/([\w-]+)(?:\/(feedback|interactions|analyze|frames|models|results))?)?$/)
+      if(!m){res.writeHead(404).end();return}
+      const [,id,op]=m;let value
+      if(req.method==='GET')value=!id?await rsiJournal.list():op?await rsiJournal.events(id,op):{...await rsiJournal.get(id),feedback:await rsiJournal.events(id,'feedback'),interactions:await rsiJournal.events(id,'interactions')}
+      else if(req.method==='POST'&&id){
+        const b=JSON.parse(await readBody(req,262144))
+        if(op==='feedback')value=await rsiJournal.feedback(id,b.comment)
+        else if(op==='interactions')value=await rsiJournal.interactions(id,b.events)
+        else if(op==='analyze'){void rsiJournal.analyze(id).catch(()=>{});value={status:'queued'}}
+        else throw Error('Unknown operation')
+      }else{res.writeHead(405).end();return}
+      res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify(value))
+    }catch(e){res.writeHead(400,{'Content-Type':'application/json'}).end(JSON.stringify({error:e.message}))}
+    return
+  }
   if(req.url.split('?')[0].startsWith('/api/workbench/')){
     if(!localToolRequest(req,PORT)){res.writeHead(403).end('local workbench only');return}
     try{
@@ -968,7 +995,7 @@ const server = http.createServer(async (req, res) => {
       }
       if(req.url==='/api/tools/invoke'&&req.method==='POST'){
         if(!req.headers['content-type']?.startsWith('application/json')){res.writeHead(415).end();return}
-        await toolService.handle(req,res,JSON.parse(await readBody(req,65536)));return
+        const payload=JSON.parse(await readBody(req,65536));await rsiJournal.capture(req,res,{kind:payload.tool==='glm.generate'?'followup':'tool',tool:payload.tool,pageId:payload.pageId},async()=>{await rsiJournal.describe(payload);await toolService.handle(req,res,payload)});return
       }
       res.writeHead(404).end();return
     }catch(e){if(!res.headersSent)res.writeHead(e.statusCode||400,{'Content-Type':'application/json'}).end(JSON.stringify({error:e.message}));return}
@@ -986,7 +1013,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/health') {
       res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) })
-      res.end(JSON.stringify({ ok: true, model: MODEL_NAME, keyLoaded: keyInfo.ok, upstream: MODEL_BASE, formats: ['dil', 'cardspec'],cardSandbox:sandboxEnabled(),cardWebSandbox:sandboxEnabled(),generationDebug:'experimental-mock-browser-v1',photosEnabled:pexelsInfo.ok||openAIImages.ok,imageGenerationEnabled:openAIImages.ok,imageModel:process.env.OPENAI_IMAGE_MODEL||'gpt-image-2.5-flare',imageCache:'disk' }))
+      res.end(JSON.stringify({ ok: true, stitchComparison:true, model: MODEL_NAME, keyLoaded: keyInfo.ok, upstream: MODEL_BASE, formats: ['dil', 'cardspec'],cardSandbox:sandboxEnabled(),cardWebSandbox:sandboxEnabled(),generationDebug:'experimental-mock-browser-v1',photosEnabled:pexelsInfo.ok||openAIImages.ok,imageGenerationEnabled:openAIImages.ok,imageModel:process.env.OPENAI_IMAGE_MODEL||'gpt-image-2.5-flare',imageCache:'disk' }))
       return
     }
     if (url.pathname === '/api/photo') {
@@ -1021,9 +1048,19 @@ const server = http.createServer(async (req, res) => {
       res.end(svg)
       return
     }
+    if(url.pathname.startsWith('/api/stitch-comparisons')){
+      if(!localToolRequest(req,PORT)){res.writeHead(403).end();return}
+      const match=url.pathname.match(/^\/api\/stitch-comparisons(?:\/([a-f0-9-]{36})(\/image)?)?$/)
+      if(!match){res.writeHead(404).end();return}
+      const id=match[1]
+      if(req.method==='POST'&&!id){const job=await stitchComparisons.start(JSON.parse(await readBody(req,65536)));res.writeHead(202,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify(job));return}
+      if(req.method==='GET'&&id&&match[2]){const bytes=await stitchComparisons.image(id,url.searchParams.get('original')==='1');if(!bytes){res.writeHead(404).end();return}res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'private, max-age=86400','X-Content-Type-Options':'nosniff'}).end(bytes);return}
+      if(id&&['GET','DELETE'].includes(req.method)&&!match[2]){const job=await stitchComparisons[req.method==='DELETE'?'cancel':'get'](id);res.writeHead(job?200:404,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify(job||{error:'Comparison not found'}));return}
+      res.writeHead(405).end();return
+    }
     if(url.pathname==='/api/refine-prompt'){
       if(req.headers.origin && req.headers.origin !== `${req.headers['x-forwarded-proto']||'http'}://${req.headers.host}`){res.writeHead(403).end();return}
-      await handleRefineRequest(req,res,{readBody,streamUpstream});return
+      await rsiJournal.capture(req,res,{kind:'refinement'},()=>handleRefineRequest(req,res,{readBody:async request=>{const raw=await readBody(request);try{await rsiJournal.describe(JSON.parse(raw))}catch{}return raw},streamUpstream,providers:process.env.RESEARCH_DISABLED==='1'?null:researchProviders,record:recordRefinement}));return
     }
     if(['/api/cards/same-kind/prepare','/api/cards/same-kind/generate'].includes(url.pathname)){
       if(req.method!=='POST'){res.writeHead(405).end();return}
@@ -1031,13 +1068,12 @@ const server = http.createServer(async (req, res) => {
       const controller=new AbortController();res.once('close',()=>{if(!res.writableEnded)controller.abort()})
       try{
         const payload=JSON.parse(await readBody(req)),signal=AbortSignal.any([controller.signal,AbortSignal.timeout(120000)])
-        const result=await sameKind[url.pathname.endsWith('/prepare')?'prepare':'generate'](payload,signal)
-        if(!res.destroyed)res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify(result))
+        const execute=async()=>{await rsiJournal.describe(payload);const result=await sameKind[url.pathname.endsWith('/prepare')?'prepare':'generate'](payload,signal);if(result.spec&&rsiContext.getStore())result.spec.context={...result.spec.context,rsiRecordId:rsiContext.getStore().id};if(!res.destroyed)res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify(result))};if(url.pathname.endsWith('/generate'))await rsiJournal.capture(req,res,{kind:'same-kind'},execute);else await execute()
       }catch(e){if(!res.destroyed)res.writeHead(e.statusCode||502,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify({error:e.message,code:e.code||'REUSE_FAILED'}))}
       return
     }
     if (url.pathname === '/api/chat' && req.method === 'POST') {
-      await handleChat(req, res)
+      await rsiJournal.capture(req,res,{kind:'generation'},()=>handleChat(req,res))
       return
     }
     if (url.pathname.startsWith('/api/')) {

@@ -32,7 +32,7 @@ test('layout warnings finish a usable candidate with explicit partial audit, wit
 test('debug step contract forbids script, selectors and unbounded inputs',()=>{
  assert.throws(()=>validateDebugInput({source:good,steps:[{op:'eval',value:'fetch()'}]}))
  assert.throws(()=>validateDebugInput({source:good,steps:[{op:'click',name:'增加',selector:'body'}]}))
- assert.throws(()=>validateDebugInput({source:good,steps:Array(9).fill({op:'reload'})}))
+ assert.throws(()=>validateDebugInput({source:good,steps:Array(65).fill({op:'reload'})}))
  assert.equal(validateDebugInput({source:good,steps:[{op:'reload'}]}).steps.length,1)
 })
 test('mock transport validates arguments and never executes write, GLM or unknown tools',async()=>{
@@ -68,7 +68,7 @@ test('generation repairs renderer errors, retains production state and leaves mo
   streamUpstream:async(m,o)=>{models++;o.onPiece({content:good+(models>1?'\n':'')})},
   debugRunner:async spec=>{tests++;specs.push(spec);return tested(tests===1?['bad widget transition']:[])}})
  assert.equal(models,2);assert.equal(result.repairCount,1);assert.equal(result.spec.state.n.initial.value,0)
- assert.equal(result.spec.generationDebug.tests.at(-1).status,'passed')
+ assert.equal(result.spec.generationDebug.tests.at(-1).status,'partial');assert.equal(result.spec.requirementCoverage.status,'unverified')
  assert.equal(JSON.stringify(result.spec).includes('DEBUG_MOCK_NOT_EVIDENCE'),false)
 })
 test('repeated failed final candidate stops, infrastructure failure does not trigger another model',async()=>{
@@ -86,7 +86,7 @@ test('research offers debug without CLI and preserves no fake evidence or datase
  streamUpstream:(messages,options)=>research.run(async(m,o)=>{
   count++
   if(count===1){assert.ok(o.tools.some(t=>t.function.name==='card_test'));return {message:{role:'assistant',tool_calls:[{id:'test',function:{name:'card_test',arguments:JSON.stringify({source:good,steps:[{op:'click',name:'增加'}]})}}]}}}
-  assert.ok(m.some(x=>x.role==='tool'&&JSON.parse(x.content).status==='passed'));return {message:{content:good}}
+  assert.ok(m.some(x=>x.role==='tool'&&JSON.parse(x.content).status==='partial'&&JSON.parse(x.content).cuj?.status==='unverified'));return {message:{content:good}}
  },messages,options)})
  assert.equal(result.spec.research.modelCalls,2);assert.equal(result.spec.research.calls,0)
  assert.deepEqual(result.spec.research.evidence,[]);assert.deepEqual(result.spec.prefetched,[])
@@ -182,11 +182,19 @@ test('a different tested path cannot replace the retained successful flow on fin
  assert.equal(paths.length,3);assert.deepEqual(paths[2],flow)
 })
 
-test('debug can repair four distinct failing candidates before succeeding',async()=>{
+test('renaming the same missing action is not effective progress in final validation',async()=>{
  let models=0;const prompts=[]
  const budget=createGenerationBudget(generationPolicy('counter',{debugGeneration:true}))
- const result=await generateCard({budget,input:{prompt:'counter'},view:{debugGeneration:true},signal,debugRunner:async()=>tested(),
-  streamUpstream:async(m,o)=>{prompts.push(structuredClone(m));models++;o.onPiece({content:models<5?`<card>\n<button onPress="absent${models}">增加</button>\n</card>`:good})}})
- assert.equal(models,5);assert.equal(result.repairCount,4);assert.equal(result.source,good)
- assert.match(prompts[1].at(-1).content,/context/);assert.match(prompts[1].at(-1).content,/onPress/);assert.equal(prompts[4].length,prompts[1].length);assert.equal(prompts[4].filter(m=>m.role==='assistant').length,1)
+ await assert.rejects(generateCard({budget,input:{prompt:'counter'},view:{debugGeneration:true},signal,debugRunner:async()=>tested(),
+  streamUpstream:async(m,o)=>{prompts.push(structuredClone(m));models++;o.onPiece({content:models<5?`<card>\n<button onPress="absent${models}">增加</button>\n</card>`:good})}}),{code:'DEBUG_NO_PROGRESS'})
+ assert.equal(models,4)
+ assert.match(prompts[1].at(-1).content,/context/);assert.match(prompts[1].at(-1).content,/onPress/);assert.equal(prompts[3].length,prompts[1].length);assert.equal(prompts[3].filter(m=>m.role==='assistant').length,1)
+})
+test('last tested source remains available for repair after a prose-only final',async()=>{const d=createDebugSession({runner:async()=>tested()});await d.test({source:good});await d.test({source:'Will fix this now'},{final:true});assert.equal(d.latestCandidate(),good)});
+test('unresponsive browser cannot promote a candidate or trigger model rewrite',async()=>{let models=0;await assert.rejects(generateCard({input:{prompt:'counter'},view:{debugGeneration:true,generationMode:'direct'},signal,streamUpstream:async(m,o)=>{models++;o.onPiece({content:good})},debugRunner:async()=>({status:'unverified',phase:'visible-logic',observation:null,classification:'host_unverified',reason:'timeout',runs:[]})}),{code:'HOST_VERIFICATION_BLOCKED'});assert.equal(models,1)});
+
+test('deadline delivers previously verified source without another model call',async()=>{
+ const runner=async()=>({status:'tested',runs:[{scenario:'normal',initial:{state:{n:0},errors:[]},final:{state:{n:1},errors:[],controls:[],coverage:[]},actions:[{ok:true,changed:true,assertion:{passed:true},step:{op:'click',name:'增加',expect:{state:{n:1}}}}],pageErrors:[]}]})
+ const result=await generateCard({signal,catalog:[],input:{prompt:'计数器'},view:{debugGeneration:true},debugRunner:runner,streamUpstream:async(_m,o)=>{await o.debugSession.test({source:good,steps:[{op:'click',name:'增加',expect:{state:{n:1}}}]});throw Object.assign(Error('budget ended'),{code:'GENERATION_BUDGET'})}})
+ assert.equal(result.source,good);assert.equal(result.spec.verificationStatus,'partial');assert.ok(result.spec.remainingTasks.length);assert.equal(result.spec.generationDebug.retained.reason,'time_budget')
 })

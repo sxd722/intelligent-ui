@@ -37,3 +37,18 @@ test('new generation stores the materialized invocation in the same contract as 
  const saved=tools.records().at(-1);assert.equal(saved.tool,'dataset.analyze');assert.deepEqual(saved.input,{items:rows,instruction})
  assert.equal(newPage(spec(tools.records())).bindings.analysis.value.items[0].analysisLabel,'正面')
 })
+
+test('large analysis snapshots keep counts and samples without echoing all source rows in binding DSL',async()=>{
+ const many=Array.from({length:20},(_,i)=>({id:String(i),rowKey:String(i),title:'喜欢这个设计',content:'long '.repeat(200)}))
+ const r={...raw,value:{...raw.value,items:many}}
+ const tools=createGenerationTools({initialRecords:[r],budget:{policy:{profile:'adaptive-v1'}},analyze:async()=>({annotations:many.map(x=>({id:x.id,label:'正面',quote:x.title}))})})
+ const summary=await tools.execute('dataset_analyze',{dataset:'D1',instruction},AbortSignal.timeout(5000))
+ assert.equal(summary.totalObserved,20)
+ assert.ok(summary.sampleCount>0)
+ assert.ok(JSON.stringify(summary).length<6000)
+ assert.match(summary.bindingRecipe.declaration,/context.datasets.D1.items/)
+ assert.ok(!summary.bindingRecipe.declaration.includes('long long'))
+ assert.deepEqual(summary.classificationCounts,[{label:'正面',value:20}])
+ const compiled=compileCard('<card>'+summary.bindingRecipe.declaration+'<text>样本</text></card>',{final:true,context:{datasets:{D1:r.value}}})
+ assert.equal(compiled.complete,true,JSON.stringify(compiled.diagnostics))
+})

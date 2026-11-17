@@ -15,10 +15,21 @@ export function validateSandboxEffects(effects=[]){
  }
  return effects
 }
-export function dispatchSandboxEffects(effects,{actions,spec,fire,active,trusted}){
+// Lifecycle denials are not model/runtime failures. Check before running an
+// event and again before committing effects (the page may change meanwhile).
+export function sandboxInteractionBlock({active,trusted,streaming=false,current=true}){
+ if(!current)return {code:'sandbox_page_stale',message:'页面已切换，本次操作未执行。'}
+ if(streaming)return {code:'sandbox_preview',message:'当前为生成预览，完成后可交互。'}
+ if(!active)return {code:'sandbox_inactive',message:'视图暂未激活，请返回视图后重试。'}
+ if(!trusted)return {code:'sandbox_untrusted_event',message:'本次操作未执行，请直接点击或使用键盘操作。'}
+ return null
+}
+export function isSandboxInteractionBlocked(error){return error?.name==='SandboxInteractionBlocked'}
+export function dispatchSandboxEffects(effects,{actions,spec,fire,...context}){
  validateSandboxEffects(effects)
  if(!effects.length)return
- if(!active||!trusted)throw Error('Sandbox bridge requires a current user gesture')
+ const block=sandboxInteractionBlock(context)
+ if(block)throw Object.assign(new Error(block.message),{name:'SandboxInteractionBlocked',code:block.code})
  sandboxActions(actions,spec)
  // Validate the whole buffer before invoking the existing transactional action.
  for(const e of effects)if(!Object.hasOwn(actions,e.name))throw Error('Sandbox action is not exposed: '+e.name)

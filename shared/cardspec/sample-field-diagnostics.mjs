@@ -3,14 +3,15 @@ import {expressionPath,visitExpression} from './dataflow.mjs'
 
 // Observed samples are evidence, not a closed schema. Warn without rejecting a
 // valid optional field, guessing aliases, modifying data, or executing effects.
-export function sampleFieldDiagnostics(spec,scope){
- const result=[],seen=new Set(),collections=new Set(['map','filter','find','some','every','count','sum'])
+export function sampleFieldDiagnostics(spec,scope,{observedRows}={}){
+ const result=[],seen=new Set(),reportedObserved=new Set(),collections=new Set(['map','filter','find','some','every','count','sum'])
  let budget=128
  function check(ast,label){visitExpression(ast,call=>{
   if(budget<=0||result.length>=8||call.type!=='call'||!collections.has(call.name))return
   budget--
   let rows;try{rows=evaluate(call.args[0],scope)}catch{return}
   if(!Array.isArray(rows)||!rows.length)return
+  const allRows=rows,completeObservation=rows.length<=2000
   rows=rows.slice(0,64)
   if(rows.some(row=>!row||typeof row!=='object'||Array.isArray(row)))return
   const alias=call.params?.[0]||'item',fields=new Set()
@@ -26,9 +27,21 @@ export function sampleFieldDiagnostics(spec,scope){
   read(call.args[1])
   const available=[...new Set(rows.flatMap(row=>Object.keys(row)))].sort()
   for(const field of fields){
-   if(rows.some(row=>Object.hasOwn(row,field))||seen.has(label+':'+field)||result.length>=8)continue
+   if((completeObservation?allRows:rows).some(row=>row&&Object.hasOwn(row,field))||seen.has(label+':'+field)||result.length>=8)continue
    seen.add(label+':'+field)
-   result.push({severity:'warning',code:'sample_field_unobserved',message:`${label}: ${alias}.${field} is absent from all ${rows.length} inspected rows; observed fields: ${available.slice(0,20).join(', ')}. Verify the actual returned fields before filtering or displaying them; samples are not a closed schema.`})
+   // Promote only unguarded decision fields on exact, real tool snapshots.
+   // Optional/absent checks and display fallbacks remain advisory. Never guess
+   // aliases or manufacture classifications from missing values.
+   let guarded=false
+   visitExpression(call.args[1],node=>{
+    if(node.type==='binary'&&['??','==','===','!=','!=='].includes(node.op)){
+     for(const [a,b]of [[node.left,node.right],[node.right,node.left]])if(expressionPath(a)?.join('.')===`${alias}.${field}`&&(node.op==='??'||b?.type==='literal'&&b.value==null))guarded=true
+    }
+    if(node.type==='unary'&&node.op==='!'&&expressionPath(node.value||node.argument)?.join('.')===`${alias}.${field}`)guarded=true
+   })
+   const decision=completeObservation&&['filter','find','some','every','count','sum'].includes(call.name)&&!guarded&&observedRows&&allRows.every(r=>observedRows.has(r))
+   const evidenceKey=JSON.stringify([field,available]);if(decision&&reportedObserved.has(evidenceKey))continue;if(decision)reportedObserved.add(evidenceKey)
+   result.push({severity:decision?'error':'warning',code:decision?'tool_field_missing':'sample_field_unobserved',message:`${label}: ${alias}.${field} is absent from all ${rows.length} inspected rows; observed fields: ${available.slice(0,20).join(', ')}. ${decision?'This predicate/aggregate cannot answer its intended query on the actual response. Use a returned field or explicitly derive/enrich it before filtering; classification requires an analysis result, not a guessed property. Preserve the requested interaction.':'Verify the actual returned fields before filtering or displaying them; samples are not a closed schema.'}`})
   }
  })}
  for(const [name,ast] of Object.entries(spec.data||{}))check(ast,`data.${name}`)

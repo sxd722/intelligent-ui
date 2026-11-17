@@ -9,7 +9,7 @@ import {TOOLS} from './tools.mjs'
 export function toolResultDiagnostics(spec,records=spec.prefetched||[]){
  const paths=[],seen=new Set()
  function read(ast){
-  visitExpression(ast,node=>{if(node.type==='call'&&['compose','helper:compose'].includes(node.name)){const source=node.args?.[0];if(source?.type==='object')for(const entry of source.entries||[]){const value=Array.isArray(entry)?entry[1]:entry.value;if(value?.type==='literal'&&typeof value.value==='string')paths.push(['bindings',value.value,'value'])}}});
+  visitExpression(ast,node=>{if(node.type==='call'&&['compose','helper:compose'].includes(node.name)){const source=node.args?.[0];if(source?.type==='object')for(const entry of source.entries||[]){const value=Array.isArray(entry)?entry[1]:entry.value;if(value?.type==='literal'&&typeof value.value==='string')paths.push(['bindings',value.value,'value'])} const opts=node.args?.[1];if(opts?.type==='object')for(const [key,value] of opts.entries||[])if(key==='annotations')visitExpression(value,v=>{if(v.type==='literal'&&typeof v.value==='string')paths.push(['bindings',v.value,'value'])})}});
   for(const p of referencePaths(ast)){
   paths.push(p)
   if(['data','derived'].includes(p[0])&&p[1]&&!seen.has(p.slice(0,2).join('.'))){
@@ -27,7 +27,11 @@ export function toolResultDiagnostics(spec,records=spec.prefetched||[]){
   const calls=invokes.filter(s=>s.binding===id)
   if(!TOOLS[b.tool]?.readOnly||b.tool==='glm.generate'||(!calls.length&&b.load!=='visible'&&!b.refresh))continue
   if(calls.some(s=>s.target&&s.target!=='binding'))continue
-  if(paths.some(p=>p[0]==='bindings'&&p[1]===id&&(p.length===2||p[2]==='value')))continue
+  const contentPaths=paths.filter(p=>p[0]==='bindings'&&p[1]===id&&(p.length===2||p[2]==='value'))
+  if(contentPaths.length){
+   if(contentPaths.every(p=>p.slice(3).join('.')==='items.length'))issues.push({severity:'warning',code:'tool_result_cardinality_only',message:`${id}: only item count is visible. A count is valid for a tally, but does not verify sourced details, filtering or comparisons; use the actual rows for those journeys.`})
+   continue
+  }
   // Explicit response transactions are legitimate consumers, including stored
   // results that will only be shown after a later user action.
   if(calls.some(s=>s.onSuccess&&referencePaths(spec.actions?.[s.onSuccess]).some(p=>p[0]==='event'&&p[1]==='result')))continue

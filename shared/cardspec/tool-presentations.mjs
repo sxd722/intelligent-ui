@@ -10,7 +10,7 @@ export {TOOL_PRESENTATIONS}
 const read=(row,keys)=>{for(const key of [keys].flat()){if(key&&Object.hasOwn(row,key)&&row[key]!=null&&row[key]!=='')return row[key]}return null}
 const scalar=v=>typeof v==='string'||typeof v==='number'||typeof v==='boolean'
 const text=v=>v==null?null:scalar(v)?String(v):Array.isArray(v)&&v.every(scalar)?v.join(' · '):null
-export function presentationFor(tool){return TOOL_PRESENTATIONS[tool]||null}
+export function presentationFor(tool){return Object.hasOwn(TOOL_PRESENTATIONS,tool)?TOOL_PRESENTATIONS[tool]:null}
 export function mapToolPresentation(tool,value){
  const mapping=presentationFor(tool)
  const fail=(code,message)=>({ok:false,error:{code,message,tool},fallback:'existing-tool-results'})

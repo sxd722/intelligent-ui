@@ -1,0 +1,49 @@
+.cs-card .cs-grid[data-adaptive-columns],.cs-card .cs-relation[data-relation=compare][data-adaptive-columns]{grid-template-columns:repeat(var(--cs-fit-columns),minmax(0,1fr))!important;align-items:start}
+.cs-grid > *{min-width:0}
+.cs-card .cs-stat>strong[data-value-fit=line]{white-space:nowrap;overflow-wrap:normal;word-break:normal;max-width:100%;line-height:1.18}
+/* Preserve complete unusual values when even the readable minimum cannot fit. */
+.cs-card .cs-stat>strong[data-value-fit=wrap]{white-space:normal;overflow-wrap:anywhere}
+.cs-relation[data-relation=compare][data-adaptive-columns="1"]>.cs-relation-part:nth-child(-n+2){align-self:start;padding:10px 0;border-radius:0;background:transparent}
+.cs-relation[data-relation=compare][data-adaptive-columns="1"]>.cs-relation-part:nth-child(2){padding:12px;background:color-mix(in srgb,var(--cs-accent,currentColor) 8%,transparent);border-radius:10px}
+.cs-card .cs-collection-items.timeline{gap:4px}
+.cs-card .cs-collection-items.timeline .cs-collection-item{display:grid;grid-template-columns:52px minmax(0,1fr);gap:10px;align-items:start;padding:12px 8px;box-shadow:none;background:color-mix(in srgb,var(--cs-ink,currentColor) 3%,transparent);border-radius:10px}
+.cs-card .cs-collection-items.timeline .cs-collection-item[aria-pressed=true]{background:color-mix(in srgb,var(--cs-accent,currentColor) 15%,transparent)}
+.cs-card .cs-collection-items.timeline .cs-collection-time{font:600 11px/1.6 system-ui;min-width:0;letter-spacing:normal;font-variant-numeric:tabular-nums;color:inherit;opacity:.8;padding-top:1px;overflow-wrap:anywhere}
+.cs-card .cs-collection-items.timeline strong{font-size:14px;line-height:1.4}
+.cs-card .cs-collection-summary{display:block;font-size:12px;line-height:1.55;margin-top:5px;opacity:.85}
+
+/* One owner for spacing. Long-form prose retains its reading rhythm. */
+.cs-card .cs-magazine .cs-title{margin:0;font-size:clamp(18px,var(--cs-title-size,22px),22px);line-height:1.25}
+.cs-card .cs-magazine .cs-prose[data-compact-copy=true]{gap:6px 12px}
+.cs-card .cs-magazine .cs-prose[data-compact-copy=true] p{line-height:1.55}
+.cs-card .cs-magazine .cs-prose[data-compact-copy=true] > p::first-letter{float:none;font:inherit;padding:0;color:inherit}
+.cs-card .cs-magazine .cs-facts{padding-block:2px;gap:6px 14px}
+/* Keep title, trade-off and action together without clipping or reordering. */
+.cs-card .cs-grid:has(> [data-decision-layout]){align-items:stretch}
+.cs-card [data-decision-layout]{gap:4px!important;min-width:0;justify-content:start}
+.cs-card [data-decision-layout] > :first-child,
+.cs-card [data-decision-layout] > :first-child strong{margin:0;font-size:16px;line-height:1.3}
+.cs-card [data-decision-layout] > .cs-prose{gap:4px}
+.cs-card [data-decision-layout] > .cs-prose p{font-size:14px;line-height:1.5}
+.cs-card [data-decision-layout] > .cs-button{min-height:44px;margin-top:auto;padding:6px 10px;white-space:normal}
+.cs-card [data-decision-layout=row]{display:grid;grid-template-columns:minmax(0,1fr) minmax(112px,32%);column-gap:12px!important;align-items:start}
+.cs-card [data-decision-layout=row] > :not(.cs-button){grid-column:1}
+.cs-card [data-decision-layout=row] > .cs-button{grid-column:2;grid-row:1 / span 3;align-self:center;margin:0}
+
+.cs-stage .cs-card .cs-segmented-field[data-choice-variant=cards] .cs-segmented[data-adaptive-columns]{grid-template-columns:repeat(var(--cs-fit-columns),minmax(0,1fr))}
+.cs-card .cs-grid > button[data-compact-choice=true]{min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:normal}
+.cs-card .cs-grid > button[data-compact-choice=true] > strong{font-size:14px;margin:0;line-height:1.3}
+.cs-card .cs-grid > button[data-compact-choice=true] > .cs-text{font-size:12px;line-height:1.3;font-variant-numeric:tabular-nums}
+.cs-card .cs-region-body[data-local-composition]{display:grid;grid-template-columns:var(--cs-local-columns);gap:8px 12px!important;align-items:start}
+.cs-card .cs-region-body[data-local-composition] > *{grid-column:var(--cs-local-column);grid-row:var(--cs-local-row);min-width:0;margin-block-start:0}
+.cs-card .cs-region-body[data-local-composition=visual-facts] .cs-segmented-field[data-choice-variant=cards] .cs-segmented{grid-template-columns:1fr}
+.cs-card [data-local-detail=true]{gap:4px!important;padding:8px!important}
+.cs-card [data-local-detail=true] .cs-title{font-size:18px;line-height:1.3;margin:0}
+.cs-card .cs-stat[data-stat-presentation=meta]{flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:4px 8px;padding:4px 0}
+.cs-card .cs-stat[data-stat-presentation=meta] > strong{font-size:16px!important;line-height:1.35}
+.cs-card .cs-stat[data-stat-presentation=meta] > span{font-size:12px}
+.cs-facts-history{min-width:0}.cs-facts-history .cs-facts{gap:6px 12px;padding:4px 0}
+.cs-facts-history>details>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:12px;opacity:.8}
+.cs-facts-history>details .cs-facts{font-variant-numeric:tabular-nums}.cs-facts-history small{font-size:12px}
+
+.cs-stage .cs-card .cs-region-body[data-local-composition=visual-facts] .cs-segmented-field[data-choice-variant=cards] .cs-segmented[data-adaptive-columns]{grid-template-columns:1fr}

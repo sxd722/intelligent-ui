@@ -1,3 +1,5 @@
+import {recordRsi} from '../rsi-client.mjs'
+import {normalizeToolNarratives} from '../../shared/cardspec/tool-text.mjs'
 import {createDecisionSession} from './decision-session.mjs'
 import {followupEntries} from '../../shared/cardspec/followups.mjs'
 import {canonicalInput,prefetchedInvocation} from '../../shared/cardspec/prefetch.mjs'
@@ -15,7 +17,7 @@ import {auditDetailEvidence} from '../../shared/cardspec/task-gates.mjs'
 export async function toolTransport(payload,signal,onProgress){
   const cloud=typeof import.meta.env!=='undefined'&&(import.meta.env.VITE_CLOUD_NO_TOOLS==='1'||import.meta.env.VITE_CLOUD_DEMO_TOOLS==='1')
   const endpoint=cloud&&payload.tool==='glm.generate'&&payload.target?.startsWith('sandbox:')?'/api/sandbox/generate':'/api/tools/invoke'
-  const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal})
+  const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',...(payload.view?.rsiParentId?{'X-RSI-Parent-Id':payload.view.rsiParentId}:{})},body:JSON.stringify(payload),signal})
   if(!response.ok||!response.body)throw new Error(`工具服务 HTTP ${response.status}`)
   let buffer='',result,done=false,error;const decoder=new TextDecoder()
   // Safari can expose getReader() without ReadableStream async iteration.
@@ -41,6 +43,7 @@ export async function toolTransport(payload,signal,onProgress){
   }
   if(error)throw error
   if(!done||!result)throw new Error('工具连接提前结束')
+  if(payload.tool?.startsWith('opencli.')&&result.kind==='json')result={...result,value:normalizeToolNarratives(result.value)}
   return result
 }
 const clone=x=>structuredClone(x)
@@ -58,13 +61,13 @@ export function seedPrefetched(page){
  for(const [id,def] of definitions){
   if(page.bindings[id]?.updatedAt||page.bindings[id]?.status==='loading')continue
   try{const input=evaluate(def.input,makeScope(page.spec,page.store,{bindings:page.bindings})),match=page.spec.prefetched?.find(r=>{const invocation=prefetchedInvocation(r,page.spec.prefetched);return invocation?.tool===def.tool&&canonicalInput(invocation.input)===canonicalInput(input)})
-   if(match){page.bindings[id]={value:clone(match.value),valueInputKey:canonicalInput(input),status:'success',error:'',updatedAt:match.updatedAt,inputKey:key(input),definitionKey:key(input),dependencyKey:'{}',version:1,target:'binding'};changed=true}
+   if(match){page.bindings[id]={value:normalizeToolNarratives(clone(match.value)),valueInputKey:canonicalInput(input),status:'success',error:'',updatedAt:match.updatedAt,inputKey:key(input),definitionKey:key(input),dependencyKey:'{}',version:1,target:'binding'};changed=true}
   }catch{}
  }
  if(!changed)break
  }
 }
-export function createCardSession(spec,{transport=toolTransport,getRenderMode=()=> 'native',getCardSize=()=>spec.context?.cardSize,authorizeWrite=async()=>{throw new Error('写操作需要宿主确认')},storage=null,persistenceKey=null,now=()=>Date.now(),id=()=>crypto.randomUUID()}={}){
+export function createCardSession(spec,{transport=toolTransport,getRenderMode=()=> 'native',getCardSize=()=>spec.context?.cardSize,authorizeWrite=async()=>{throw new Error('写操作需要宿主确认')},storage=null,persistenceKey=null,deckState=null,now=()=>Date.now(),id=()=>crypto.randomUUID()}={}){
   const storageEpoch=conversationEpoch(storage)
   let pages=[newPage(spec)],index=0,version=0,epoch=0,enabled=true,visible=false,complete=false,disposed=false,glm=null,persistTimer
   const listeners=new Set(),running=new Map()
@@ -73,12 +76,15 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
   if(storage&&persistenceKey)try{
     const saved=JSON.parse(storage.getItem(persistenceKey)||'null')
     if(saved?.version===1&&saved.rootId===spec.cardId&&Array.isArray(saved.pages)&&saved.pages.length&&saved.pages.length<=20&&Number.isInteger(saved.index)&&saved.index>=0&&saved.index<saved.pages.length){
-      pages=saved.pages;index=saved.index;favorites=saved.favorites||{};media=saved.media||{}
+      pages=saved.pages;for(const p of pages)for(const b of Object.values(p.bindings||{}))if(b.value)b.value=normalizeToolNarratives(b.value);index=saved.index;favorites=saved.favorites||{};media=saved.media||{}
       for(const p of pages)if(p.resultView?.loading){p.resultView.loading=false;p.resultView.error='上次详情请求已中断'}
       for(const p of pages)for(const b of Object.values(p.bindings||{}))if(b.status==='error'&&!b.errorInfo)b.errorInfo=toolErrorInfo(new Error(b.error||'工具执行失败'),{now:now()})
       for(const p of pages){makeScope(p.spec,p.store,{bindings:p.bindings});p.error='';for(const b of Object.values(p.bindings))if(b.status==='loading'){b.status='cancelled';b.error=b.writeSubmitted?'外部操作结果未知，请到原站点核对，不能直接重试':'上次请求已中断';b.blockedRetry=!!b.writeSubmitted} }
     }
   }catch{storageError='页面历史无法恢复，已打开原始卡片'}
+  const syncDeck=()=>{for(const p of pages)deckState?.hydrate(p)}
+  syncDeck()
+  const unsubscribeDeck=deckState?.subscribe(()=>{syncDeck();emit()})
   const current=()=>pages[index]
   function persist(){
     if(!storage||!persistenceKey||conversationEpoch(storage)!==storageEpoch)return
@@ -92,12 +98,16 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
   }
   function cancelAll(){epoch++;for(const r of running.values())r.controller.abort();running.clear();glm=null;for(const p of pages)for(const b of Object.values(p.bindings))if(b.status==='loading'){b.status='cancelled';b.error=b.writeSubmitted?'已停止等待；外部操作可能继续，请到原站点核对':'已中断';b.blockedRetry=!!b.writeSubmitted}}
   function fire(action,extra={},cause='user',depth=0,page=current()){
-    const effects=[],before=key(page.store.values)
+    deckState?.hydrate(page)
+    const beforeValues=clone(page.store.values),effects=[],before=key(page.store.values)
     assertSourcesCurrent(extra.sourceLeases,page)
-    executeAction(page.spec,page.store,action,{...extra,bindings:page.bindings,effects})
+    try{executeAction(page.spec,page.store,action,{...extra,bindings:page.bindings,effects})}catch(e){recordRsi(page.spec.context?.rsiRecordId,{kind:'action-error',pageId:page.id,action,cause,error:e.message});throw e}
+    deckState?.publish(page,beforeValues)
     // Observed effects, not a semantic quality score. Retain no arguments or
     // user input and never invoke an extra model for diagnostics.
     page.experienceActivity={...page.experienceActivity,actions:[...(page.experienceActivity?.actions||[]),{action,cause,stateChanged:before!==key(page.store.values),effects:effects.length,at:now()}].slice(-24)}
+    const changed=Object.fromEntries(Object.entries(page.store.values).filter(([k,v])=>JSON.stringify(v)!==JSON.stringify(beforeValues[k])))
+    recordRsi(page.spec.context?.rsiRecordId,{kind:'action-result',pageId:page.id,action,cause,stateChanged:before!==key(page.store.values),changed:JSON.stringify(changed).length<12000?changed:{truncated:true,keys:Object.keys(changed)},effects:effects.map(e=>({type:e.type,binding:e.binding,target:e.target}))})
     page.error='';emit()
     for(const effect of effects)void invoke(effect,{extra,cause,depth,page})
   }
@@ -166,7 +176,7 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
     const release=()=>{if(running.get(requestKey)===task){running.delete(requestKey);if(glm===requestKey)glm=null}}
     task.promise=(async()=>{
       try{
-        const payload={tool,input,target,requestId,pageId:page.id,sessionId:spec.cardId,cause,view:{designPreference:page.spec.context?.designPreference,buildMode:page.spec.context?.buildMode,extendedGeneration:page.spec.context?.extendedGeneration,debugGeneration:page.spec.context?.debugGeneration,expressionDialect:page.spec.context?.expressionDialect,modelProfile:page.spec.context?.modelProfile,generationProfile:page.spec.context?.generationProfile,renderMode:getRenderMode(),generationMode:page.spec.context?.generationMode,cardSize:normalizeCardSize(getCardSize()),goal:spec.context?.userGoal||'',summary:(page.spec.intro||page.spec.children.filter(n=>n.type==='title').flatMap(n=>n.children.filter(c=>c.type==='run'&&c.value.type==='literal').map(c=>c.value.value)).join(' ')).slice(0,1000),width:page.viewState.width||432,height:page.viewState.height||432}}
+        const payload={tool,input,target,requestId,pageId:page.id,sessionId:spec.cardId,cause,view:{rsiParentId:page.spec.context?.rsiRecordId,webGraphics:page.spec.context?.webGraphics,contentRelations:page.spec.context?.contentRelations,designPreference:page.spec.context?.designPreference,buildMode:page.spec.context?.buildMode,extendedGeneration:page.spec.context?.extendedGeneration,debugGeneration:page.spec.context?.debugGeneration,expressionDialect:page.spec.context?.expressionDialect,modelProfile:page.spec.context?.modelProfile,generationProfile:page.spec.context?.generationProfile,renderMode:getRenderMode(),generationMode:page.spec.context?.generationMode,cardSize:normalizeCardSize(getCardSize()),goal:spec.context?.userGoal||'',summary:(page.spec.intro||page.spec.children.filter(n=>n.type==='title').flatMap(n=>n.children.filter(c=>c.type==='run'&&c.value.type==='literal').map(c=>c.value.value)).join(' ')).slice(0,1000),width:page.viewState.width||432,height:page.viewState.height||432}}
         // A generated page/slot is the answer to this explicit user action,
         // not a new entry screen asking the user to request the answer again.
         if(tool==='glm.generate'&&(target==='page'||target.startsWith('slot:')))payload.view.taskPhase='result'
@@ -207,8 +217,10 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
         if(result.kind==='json')validateJson(result.value,tool==='glm.generate'?input.schema:TOOLS[tool].outputSchema)
         else if(!(result.kind==='slot'&&target.startsWith('slot:')||result.kind==='page'&&target==='page'))throw new Error('工具结果与目标不匹配')
         Object.assign(b,{...(result.kind==='json'?{value:clone(result.value),valueInputKey:canonicalInput(input)}:{}),status:'success',error:'',errorCount:0,cache:result.cache,updatedAt:result.cache?.fetchedAt||new Date(now()).toISOString(),definitionKey,dependencyKey:key(dependencies),version:(b.version||0)+1})
+        const beforeResponse=clone(page.store.values)
         try{if(effect.onSuccess)executeAction(page.spec,page.store,effect.onSuccess,{bindings:page.bindings,event:responseEvent,effects:responseEffects})}
         catch(e){Object.assign(b,previous,{valueInputKey:previous.valueInputKey});throw e}
+        deckState?.publish(page,beforeResponse)
         if(result.kind==='json'){
           // Value and callback writes have committed as one response transaction.
         }else if(result.kind==='slot'&&target.startsWith('slot:')){
@@ -217,7 +229,7 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
           cancelAll();pages=pages.slice(0,index+1);pages.push(newPage(result.spec,result.resources));index=pages.length-1
           if(pages.length>20){pages.shift();index--;notice='已保留最近 20 页'}
         }else throw new Error('工具结果与目标不匹配')
-        release();emit()
+        syncDeck();release();emit()
         // Leaving a page cancels its callback chain, just like a user navigation.
         if(current()===page)for(const nextEffect of responseEffects)void invoke(nextEffect,{extra:{event:responseEvent},cause,depth:depth+1,page})
       }catch(e){
@@ -258,7 +270,7 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
       }
     }
   }
-  function push(page){cancelAll();pages=pages.slice(0,index+1);pages.push(page);index=pages.length-1;if(pages.length>20){pages.shift();index--;notice='已保留最近 20 页'}emit()}
+  function push(page){deckState?.hydrate(page);cancelAll();pages=pages.slice(0,index+1);pages.push(page);index=pages.length-1;if(pages.length>20){pages.shift();index--;notice='已保留最近 20 页'}emit()}
   async function readTaskDetails(binding,row){
     const page=current(),b=page.bindings[binding],tool=page.spec.bindings[binding]?.tool
     if(disposed||!enabled||!visible||!complete||b?.status!=='success'||b.definitionKey!==key(inputFor(page,binding)))throw Error('TASK_SOURCE_NOT_READY')
@@ -317,7 +329,7 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
     glm=requestKey;running.set(requestKey,{controller,cause:'user'});page.error='';emit()
     try{
       const input={prompt:`根据实际工具结果重新组织内容，呈现方式：${['list','gallery','table','editorial'].includes(layout)?layout:'list'}。仅使用给定样本事实，注明样本覆盖范围，不编造缺失数据，不重复查询失败来源。直接展示结果。`,context:resultContext(tool,b.value)}
-      const result=await transport({tool:'glm.generate',input,target:'page',requestId:id(),pageId:page.id,sessionId:spec.cardId,cause:'user',view:{designPreference:page.spec.context?.designPreference,buildMode:page.spec.context?.buildMode,extendedGeneration:page.spec.context?.extendedGeneration,debugGeneration:page.spec.context?.debugGeneration,expressionDialect:page.spec.context?.expressionDialect,modelProfile:page.spec.context?.modelProfile,generationProfile:page.spec.context?.generationProfile,renderMode:getRenderMode(),generationMode:page.spec.context?.generationMode,cardSize:normalizeCardSize(getCardSize()),goal:spec.context?.userGoal||page.spec.intro||'',width:page.viewState.width||432,height:page.viewState.height||432}},controller.signal)
+      const result=await transport({tool:'glm.generate',input,target:'page',requestId:id(),pageId:page.id,sessionId:spec.cardId,cause:'user',view:{rsiParentId:page.spec.context?.rsiRecordId,webGraphics:page.spec.context?.webGraphics,contentRelations:page.spec.context?.contentRelations,designPreference:page.spec.context?.designPreference,buildMode:page.spec.context?.buildMode,extendedGeneration:page.spec.context?.extendedGeneration,debugGeneration:page.spec.context?.debugGeneration,expressionDialect:page.spec.context?.expressionDialect,modelProfile:page.spec.context?.modelProfile,generationProfile:page.spec.context?.generationProfile,renderMode:getRenderMode(),generationMode:page.spec.context?.generationMode,cardSize:normalizeCardSize(getCardSize()),goal:spec.context?.userGoal||page.spec.intro||'',width:page.viewState.width||432,height:page.viewState.height||432}},controller.signal)
       if(disposed||controller.signal.aborted||epoch!==activation||current()!==page||stamp!==key({input:b.inputKey,value:b.value}))return
       if(result.kind!=='page')throw new Error('生成结果不是页面')
       push(newPage(result.spec,result.resources))
@@ -334,7 +346,7 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
     if(JSON.stringify(context).length>14000){page.error='当前选择过多，请缩小范围后再生成';emit();return}
     glm=requestKey;running.set(requestKey,{controller,cause:'user'});page.error='';emit()
     try{
-      const result=await transport({tool:'glm.generate',input:{prompt:intent,context},target:'page',requestId:id(),pageId:page.id,sessionId:spec.cardId,cause:'user',view:{designPreference:page.spec.context?.designPreference,buildMode:page.spec.context?.buildMode,extendedGeneration:page.spec.context?.extendedGeneration,debugGeneration:page.spec.context?.debugGeneration,expressionDialect:page.spec.context?.expressionDialect,modelProfile:page.spec.context?.modelProfile,generationProfile:page.spec.context?.generationProfile,renderMode:getRenderMode(),goal:spec.context?.userGoal,summary:String(page.spec.intro||'').slice(0,1000),taskPhase:'result',cardSize:normalizeCardSize(getCardSize()),generationMode:'direct'}},controller.signal)
+      const result=await transport({tool:'glm.generate',input:{prompt:intent,context},target:'page',requestId:id(),pageId:page.id,sessionId:spec.cardId,cause:'user',view:{rsiParentId:page.spec.context?.rsiRecordId,webGraphics:page.spec.context?.webGraphics,contentRelations:page.spec.context?.contentRelations,designPreference:page.spec.context?.designPreference,buildMode:page.spec.context?.buildMode,extendedGeneration:page.spec.context?.extendedGeneration,debugGeneration:page.spec.context?.debugGeneration,expressionDialect:page.spec.context?.expressionDialect,modelProfile:page.spec.context?.modelProfile,generationProfile:page.spec.context?.generationProfile,renderMode:getRenderMode(),goal:spec.context?.userGoal,summary:String(page.spec.intro||'').slice(0,1000),taskPhase:'result',cardSize:normalizeCardSize(getCardSize()),generationMode:'direct'}},controller.signal)
       if(disposed||controller.signal.aborted||epoch!==activation||current()!==page)return
       if(stamp!==key(inputs())){page.error='输入已改变，请按当前选择重新生成';emit();return}
       if(result.kind!=='page')throw Error('生成结果不是页面')
@@ -355,12 +367,12 @@ export function createCardSession(spec,{transport=toolTransport,getRenderMode=()
     setActivity(options){const nextVisible=options.visible??visible,nextEnabled=options.enabled??enabled,wasComplete=complete,activityChanged=nextVisible!==visible||nextEnabled!==enabled;complete=options.complete??complete;if((visible&&!nextVisible)||(enabled&&!nextEnabled))cancelAll();visible=nextVisible;enabled=nextEnabled;if(wasComplete!==complete||activityChanged)emit();tick()},
     get active(){return enabled&&visible&&complete&&!disposed},
     setRegionVisibility(id,open,page=current()){const values=regionActivity.get(page)||{};if(values[id]===open)return;values[id]=open;regionActivity.set(page,values);if(page===current())tick()},
-    updateRoot(next,resources){if(next.cardId!==spec.cardId)return;const p=pages.find(p=>p.id===next.cardId);if(p){p.spec=next;p.resources=resources||p.resources;makeScope(p.spec,p.store,{bindings:p.bindings});seedPrefetched(p);emit()}},
-    navigate(offset){const next=index+offset;if(next<0||next>=pages.length)return;cancelAll();index=next;emit();tick()},
+    updateRoot(next,resources){if(next.cardId!==spec.cardId)return;const p=pages.find(p=>p.id===next.cardId);if(p){p.spec=next;p.resources=resources||p.resources;makeScope(p.spec,p.store,{bindings:p.bindings});seedPrefetched(p);deckState?.hydrate(p);emit()}},
+    navigate(offset){const next=index+offset;if(next<0||next>=pages.length)return;recordRsi(current().spec.context?.rsiRecordId,{kind:'page-navigation',from:current().id,to:pages[next].id,offset});cancelAll();index=next;emit();tick()},
     cancel(){cancelAll();for(const b of Object.values(current().bindings))if(b.status==='cancelled')b.paused=true;emit()},saveView(view){current().viewState={...current().viewState,...view};persist()},save:persist,
     acknowledgeWrite(binding){const b=current().bindings[binding];if(b?.blockedRetry){b.blockedRetry=false;b.writeSubmitted=false;b.status='idle';b.error='';current().error='';emit()}},
     updateSlot(slotId,action,extra){const page=current().slots[slotId];if(!page)return;executeAction(page.spec,page.store,action,extra);emit()},
     retry(binding){const b=record(current(),binding);if(b.blockedRetry){current().error='外部操作可能已经生效，请先到原站点核对，不能直接重试';emit();return}const r=b.retry||{binding,target:b.target};if(r.watchInputKey){try{const input=r.inputExpression?evaluate(r.inputExpression,scope(current(),r.extra||{})):inputFor(current(),binding,r.extra||{});if(key(input)!==r.watchInputKey)throw Error('输入已改变，请使用卡片按钮发起新请求')}catch(e){current().error=e.message;emit();return}}return invoke(r,{extra:r.extra||{},cause:'user'})},
-    dispose(){disposed=true;cancelAll();clearTimeout(persistTimer);persist();listeners.clear()}
+    dispose(){disposed=true;unsubscribeDeck?.();deckState?.save();cancelAll();clearTimeout(persistTimer);persist();listeners.clear()}
   }
 }

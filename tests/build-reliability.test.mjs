@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {generationCallOptions} from '../server/cardspec/build-policy.mjs'
 import {buildDataflowDiagnostics} from '../server/cardspec/build-dataflow.mjs'
+import {compileCard} from '../shared/cardspec/compiler.mjs'
 import {createBuildWorkspace,normalizeBuildOperation} from '../server/cardspec/build-workspace.mjs'
 import {createModelClient} from '../server/research/model-client.mjs'
 import {buildDeepCard} from '../server/cardspec/deep-build.mjs'
@@ -63,7 +64,7 @@ test('dead data paths fail without confusing mutable empty lists or a visible em
 
 test('hidden-view buttons cannot directly assign absent event fields; valid controls and explicit fallback remain valid',()=>{
  const make=value=>'<card><state id="view" type="string" initial="main"/><segmented label="视图" options={["main","detail"]} value={state.view} onChange="nav"/><if test={state.view=="detail"}><button onPress="nav" args="main">返回</button></if><action id="nav"><set target="view" value={'+value+'}/></action></card>'
- assert.ok(buildDataflowDiagnostics(make('event.value')).some(d=>d.code==='build_event_field_missing'))
+ assert.ok([...compileCard(make('event.value'),{final:true}).diagnostics,...buildDataflowDiagnostics(make('event.value'))].some(d=>['build_event_field_missing','event_field_missing'].includes(d.code)))
  assert.ok(!buildDataflowDiagnostics(make('event.value ?? args')).some(d=>d.code==='build_event_field_missing'))
 })
 

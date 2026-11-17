@@ -1,0 +1,6 @@
+import {build} from 'esbuild'
+import {mkdir,writeFile,readFile,readdir} from 'node:fs/promises'
+const dest='public/core-task-routing';await mkdir(dest,{recursive:true})
+await build({entryPoints:['scripts/core-task-viewer.jsx'],bundle:true,jsx:'automatic',format:'esm',platform:'browser',outfile:dest+'/viewer.js',define:{'process.env.NODE_ENV':'"production"'},loader:{'.woff2':'file','.ttf':'file','.woff':'file','.png':'file'},logLevel:'error'})
+let bundle=await readFile(dest+'/viewer.js','utf8');for(const name of ['sandbox-worker','logic-worker']){const asset=(await readdir('dist/assets')).find(x=>x.startsWith(name+'-')&&x.endsWith('.js'));if(asset)bundle=bundle.replaceAll('./'+name+'.js','/assets/'+asset)}await writeFile(dest+'/viewer.js',bundle)
+await writeFile(dest+'/viewer.html','<!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>核心任务路由 · 真实生成验收</title><link rel="stylesheet" href="viewer.css"><style>body{margin:0;background:#edf0f3;color:#172635;font-family:system-ui}header{display:flex;gap:20px;padding:20px;flex-wrap:wrap;align-items:center}body>#root>p,details{max-width:900px;margin:16px auto;padding:12px}pre{max-height:400px;overflow:auto;white-space:pre-wrap;font-size:12px}</style><div id="root"></div><script type="module" src="viewer.js"></script></html>')

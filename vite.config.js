@@ -22,6 +22,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
+        rsiJournal: resolve(__dirname, 'rsi-journal.html'),
         taskComposition: resolve(__dirname, 'task-composition-qa.html'),
         toolDiscovery: resolve(__dirname, 'tool-discovery-lab.html'),
         cardDebug: resolve(__dirname, 'card-debug.html'),

@@ -65,7 +65,7 @@ test('markup boundary supports nested templates, comments and escaped entities',
  assert.equal(logic.complete,true,JSON.stringify(logic.diagnostics))
 })
 test('pure subset denies host access, mutation, unsafe keys and disguised calls',()=>{
- for(const s of ['fetch("https://example.com")','Date.now()','Math.random()','state.n++','state.n = 2','new Date()','(()=>1)()','data.rows.sort()','data.rows.map(x => { return x })','data.rows.map(async x => x)','data.rows.map(({x}) => x)','data.constructor','({__proto__: {}})','Object.getPrototypeOf(data)','data["constructor"]','data.rows[method](x => x)'])assert.throws(()=>parse(s),undefined,s)
+ for(const s of ['fetch("https://example.com")','Date.now()','Math.random()','state.n++','state.n = 2','new Date()','(()=>1)()','data.rows.reverse()','data.rows.map(x => { return x })','data.rows.map(async x => x)','data.rows.map(({x}) => x)','data.constructor','({__proto__: {}})','Object.getPrototypeOf(data)','data["constructor"]','data.rows[method](x => x)'])assert.throws(()=>parse(s),undefined,s)
  assert.throws(()=>run('data[key]',{data:{},key:'constructor'}),/forbidden/)
  assert.throws(()=>run('Object.fromEntries([["__proto__", {}]])'),/safe key/)
  assert.throws(()=>run('({[key]:1})',{key:'constructor'}),/forbidden/)

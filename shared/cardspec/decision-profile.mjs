@@ -9,7 +9,7 @@ export const decisionProfile=tool=>DECISION_PROFILES[tool]||null;
 // Only deduplicate an identical literal link owned by an unconditional native view.
 // Conditional, custom-action and parameterized links keep their original semantics.
 export function projectDecisionActions(nodes,bindings={}){
- const urls=new Set(nodes.filter(n=>n.type==='tool-view'&&!n.props.task&&!n.props.onSelect).map(n=>decisionProfile(bindings[n.props.binding?.value]?.tool)?.officialUrl).filter(Boolean));
+  const urls=new Set(nodes.filter(n=>n.type==='tool-view'&&!n.props.task&&!n.props.onSelect&&(!n.props.presentation||['auto','decision'].includes(n.props.presentation.value))).map(n=>decisionProfile(bindings[n.props.binding?.value]?.tool)?.officialUrl).filter(Boolean));
  return nodes.filter(n=>!(n.type==='link'&&n.props.url?.type==='literal'&&urls.has(n.props.url.value)&&!Object.keys(n.props).some(k=>k.startsWith('on'))));
 }
 export const decisionBindings=p=>p.bindings?Object.entries(p.bindings).map(([label,binding])=>({label,binding})):[{label:p.task?.pin||p.label||'候选',binding:p.binding}];
@@ -35,4 +35,4 @@ export function decisionRequest(tool,row,input,kind='facts'){
  }
  throw Error('TASK_DETAIL_UNAVAILABLE');
 }
-export const DECISION_REFERENCE='【原生决策配方】这是当前工具能力的优先构图；单来源及同类多程用tool-view（不是task-board或手写each），直接作为卡片主体，不外加重复title/caption/详情/收藏/刷新。已适配的影音tool-view自动采用海报舞台，宿主管理类型/片长筛选、收藏、详情补齐、最多两项比较与恢复，无需自写列表和详情action。票务tool-view采用紧凑票券；多程用 <tool-view bindings={{去程:"out",回程:"back"}}/> 引用2–4个同类已声明binding，宿主统一切换、每程固定、票价/经停与返回。输入控件仍用原生state/action，binding load="visible"随参数自动更新；不要再添加查询/刷新按钮。style只选视觉家族，不改变数据语义。普通点击不调用模型，原始字段与来源由宿主处理。';
+export const DECISION_REFERENCE='【工具呈现按任务】tool-view presentation="summary"用于了解/探索的当前对象摘要（完整结果按需可达），presentation="collection"用于普通集合，presentation="decision"才是购票/选电影的完整工作台；auto保留旧默认。不能仅凭工具ID把了解任务变成购买任务。需要多工具+素材围绕同一对象，component_describe("task-board")读取compose短契约。decision已适配影音海报、详情/对比/收藏，票务固定/票价/经停/返回；不要重写同套UI。同类多程可bindings={{去程:"out",回程:"back"}}。绑定参数读取宿主state，load="visible"自动更新，不重复查询按钮；样式只改变视觉，不改变语义。';

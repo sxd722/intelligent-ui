@@ -175,19 +175,16 @@
 .cs-diagram-measure { position:absolute; inset-inline:0; top:0; visibility:hidden; pointer-events:none; }
 .cs-diagram-measure > div { position:absolute; inset-inline:0; top:0; }
 /* Magazine is an explicit content presentation, independent of the material. */
-.cs-magazine > .cs-region-body { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); align-content:start; gap:18px 16px!important; padding:12px 14px; }
-.cs-fragment { grid-column:1/-1; min-width:0; padding-block:4px 12px; }
+.cs-magazine > .cs-region-body { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:8px 16px!important; padding:10px 14px; }
+.cs-fragment { grid-column:1/-1; min-width:0; padding-block:0; display:flex;flex-direction:column;gap:8px; }
+.cs-fragment + .cs-fragment {padding-top:12px;box-shadow:0 -1px color-mix(in srgb,currentColor 10%,transparent)}
+.cs-fragment > .cs-title {padding-inline-start:10px;border-inline-start:3px solid var(--cs-accent,currentColor);}
 .cs-fragment [data-surface] { background:transparent!important; border:0!important; box-shadow:none!important; padding:0!important; }
-.cs-fragment strong { display:block; font-family:var(--font-title,serif); font-size:18px; line-height:1.3; margin-bottom:8px; }
-.cs-prose { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:16px; }
+.cs-fragment strong { display:block; font-family:var(--font-title,serif); font-size:18px; line-height:1.3; margin-bottom:0; }
+.cs-prose { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); min-width:0; gap:12px 16px; }
 .cs-prose p { grid-column:1/-1; margin:0; font-size:14px; line-height:1.8; overflow-wrap:anywhere; }
 .cs-fragment:first-child .cs-prose:first-of-type > p:first-child::first-letter { float:left; font-family:Georgia,'Songti SC',serif; font-size:3.4em; line-height:.9; font-weight:600; padding:.06em .14em 0 0; color:var(--color-primary); }
-@container (min-width:380px) {
-  .cs-magazine > .cs-region-body > .cs-fragment:nth-child(3n+2) { grid-column:1/8; }
-  .cs-magazine > .cs-region-body > .cs-fragment:nth-child(3n+3) { grid-column:8/-1; padding-top:20px; }
-  .cs-fragment:only-child .cs-prose p:nth-child(3n+2) { grid-column:1/8; }
-  .cs-fragment:only-child .cs-prose p:nth-child(3n+3) { grid-column:8/-1; padding-top:20px; }
-}
+.cs-magazine > .cs-region-body > .cs-fragment[data-editorial-span="6"],.cs-prose > p[data-editorial-span="6"] { grid-column:span 1; }
 
 /* Soft masks define component boundaries. Focus remains visible for keyboard use. */
 .cs-region-body:not(:has(button,input,textarea,[data-surface],.cs-stat,.cs-image,.cs-calendar,.cs-chart,.cs-slide,.cs-diagram-pan)) { padding:10px 12px; border-radius:var(--radius-md,12px); background:var(--cs-panel-mask); }
@@ -234,3 +231,5 @@
 .cs-card .cs-row:has(>[data-cs-component=image][data-media-role=thumbnail]) .cs-caption{font-size:11px;line-height:1.4;overflow-wrap:anywhere}
 .cs-card .cs-row>[data-cs-component=image][data-media-role=thumbnail]{width:56px;flex:0 0 56px}
 .cs-card .cs-row>[data-cs-component=image][data-media-role=thumbnail] .cs-image{width:56px;height:56px;min-height:56px}
+
+.cs-diagram-focus{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}.cs-diagram-focus select{min-width:0;flex:1;padding:8px;border:0;border-radius:8px;color:inherit;background:color-mix(in srgb,currentColor 6%,transparent);font:inherit}.cs-diagram-focus button{border:0;border-radius:8px;background:color-mix(in srgb,currentColor 7%,transparent);color:inherit;min-height:36px;padding:6px 8px}.cs-diagram-focus small{font-size:11px;opacity:.7}

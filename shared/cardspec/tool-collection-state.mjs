@@ -12,7 +12,7 @@ export function collectionBindings(spec,ast,seen=new Set(),{rowsOnly=false,scope
   if(p?.[0]==='bindings'&&p[2]==='value'&&p[3]==='items')return [p[1]]
   if(['derived','data'].includes(p?.[0])&&p.length===2&&!seen.has(p.join('.')))return descend(spec[p[0]]?.[p[1]],new Set([...seen,p.join('.')]))
   if(ast.type==='chain')return descend(ast.value)
-  if(ast.type==='call'&&['filter','find','method:slice'].includes(ast.name))return descend(ast.args[0])
+  if(ast.type==='call'&&['filter','find','method:slice','sort','toSorted','js:sortDefault'].includes(ast.name))return descend(ast.args[0])
   if(ast.type==='call'&&ast.name==='map')return !rowsOnly||preservesRowKey(ast.args[1],ast.params?.[0]||'item')?descend(ast.args[0]):[]
   if(ast.type==='conditional')return scope?descend(evaluate(ast.test,scope)?ast.yes:ast.no):alternatives(ast.yes,ast.no)
   if(ast.type==='binary'&&ast.op==='??')return scope?descend(evaluate(ast.left,scope)!=null?ast.left:ast.right):alternatives(ast.left,ast.right)

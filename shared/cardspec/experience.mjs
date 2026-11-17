@@ -36,7 +36,7 @@ export function experienceDiagnostics(spec,{plan,bindings={}}={}){
   if(n.type==='logic'){walk(n.children,{...scope,local:p.initial});continue}
   types.add(n.type)
   if(n.type==='each'){const items=p.items;if(Array.isArray(items))for(const [i,item]of items.slice(0,100).entries())walk(n.children,{...scope,item,index:i,[p.as||'item']:item});continue}
-  if(n.type==='region'&&p.overflow==='details')continue
+  if(n.type==='region'&&['details','inline'].includes(p.overflow))continue
   for(const k of ['label','description'])if(typeof p[k]==='string')texts.push(p[k])
   for(const [eventName,event]of Object.entries(eventSamples(n.type,p,spec.context)))if(!Object.hasOwn(scope,'local')&&p[eventName]&&!p.disabled&&!['carousel','navigation','calendar'].includes(n.type)){
    let probe={...event}

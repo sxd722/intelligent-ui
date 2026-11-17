@@ -43,13 +43,12 @@ test('expanded single calls and workspace retain finite resource protections',()
  assert.throws(()=>workspace.write([{name:'big.cardspec',content:'x'.repeat(48001)}]),/size/)
 })
 
-test('extended generation repairs beyond eight attempts without dropping validation',async()=>{
+test('extended generation still stops repeated equivalent defects without real progress',async()=>{
  let calls=0
  const budget=createGenerationBudget(generationPolicy('',{extendedGeneration:true}))
- const result=await generateCard({input:{prompt:'完成任务'},view:{extendedGeneration:true},budget,signal:new AbortController().signal,debugRunner:runner,
-  streamUpstream:async(m,o)=>{budget.model();calls++;assert.equal(o.extendedGeneration,true);o.onPiece({content:calls<=10?`<card><button onPress="missing${calls}">操作</button></card>`:source})}})
- assert.equal(calls,11);assert.equal(result.spec.context.extendedGeneration,true)
- assert.equal(result.spec.generationDebug.tests.at(-1).status,'passed')
+ await assert.rejects(generateCard({input:{prompt:'完成任务'},view:{extendedGeneration:true},budget,signal:new AbortController().signal,debugRunner:runner,
+  streamUpstream:async(m,o)=>{budget.model();calls++;assert.equal(o.extendedGeneration,true);o.onPiece({content:`<card><button onPress="missing${calls}">操作</button></card>`})}}),{code:'DEBUG_NO_PROGRESS'})
+ assert.ok(calls<=5);assert.equal(budget.policy.modelCalls,Infinity)
 })
 
 test('extended testing remains discoverable after old model quota and advertises matching capacity',async()=>{

@@ -21,6 +21,11 @@ test('live data through nested derives is consumed; unreachable declarations are
  assert.equal(toolResultDiagnostics(compile(body+'<text>{derived.names}</text>')).length,0)
  assert.equal(toolResultDiagnostics(compile(body+'<text>Static</text>')).length,1)
 })
+test('count-only feedback does not prove content use but never invalidates a legitimate tally',()=>{
+ const issues=toolResultDiagnostics(compile('<text>{bindings.feed.value.items.length}</text>'))
+ assert.equal(issues[0].code,'tool_result_cardinality_only');assert.equal(issues[0].severity,'warning')
+ assert.equal(toolResultDiagnostics(compile('<text>{bindings.feed.value?.items?.[0]?.title}</text>')).length,0)
+})
 test('response callback is an explicit consumer; state initialization alone is frozen',()=>{
  const s=compile('<state id="answer" type="string" initial=""/><text>{state.answer}</text><action id="save"><set target="answer" value={event.result.items[0].title}/></action>')
  s.actions.refresh[0].onSuccess='save';assert.equal(toolResultDiagnostics(s).length,0)
@@ -45,7 +50,7 @@ test('real session commits a refreshed value but literal content stays unchanged
    session.setActivity({visible:true,complete:true})
    const observe=()=>observableContent(s,session.current().store,{bindings:session.current().bindings})
    const before=observe();await session.invoke({binding:'feed'})
-   assert.equal(session.current().bindings.feed.value.items[0].title,'After')
+   assert.equal(session.current().bindings.feed.value?.items?.[0]?.title,'After')
    assert.equal(observe()!==before,live)
   }finally{session.dispose()}
  }

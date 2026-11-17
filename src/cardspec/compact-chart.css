@@ -1,0 +1,18 @@
+.cs-card .cs-chart-fit{min-width:0;max-width:100%;color:inherit}
+.cs-card .cs-chart-fit .cs-chart-viewport{width:100%;overflow:hidden;touch-action:pan-y}
+.cs-card .cs-chart-fit .cs-chart-viewport svg{display:block;width:100%;height:158px;max-width:100%;overflow:visible;cursor:crosshair}
+.cs-chart-fit .cs-chart-axis{font:10px system-ui;fill:currentColor;opacity:.65}
+.cs-chart-legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;margin-bottom:4px}
+.cs-card .cs-chart-inspect{display:flex;align-items:center;gap:4px;min-width:0;margin-top:2px}
+.cs-card .cs-chart-inspect>button{flex:none;min-width:40px;min-height:40px;padding:4px!important;background:transparent!important;box-shadow:none!important;font-size:22px;color:inherit}
+.cs-chart-inspect>label{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:1;min-width:0}
+.cs-card .cs-chart-inspect select{min-width:0;width:0;flex:1;border:0;background:transparent;color:inherit;min-height:40px;font:12px system-ui;padding:2px}
+.cs-card .cs-chart-inspect select option{background:var(--cs-base,#fff);color:var(--cs-ink,#223)}
+.cs-chart-inspect output{font-size:14px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cs-chart-a11y{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.cs-card .cs-chart-data{font-size:11px;opacity:.85;margin-top:0}
+.cs-card .cs-chart-data>summary{cursor:pointer;min-height:28px;display:flex;align-items:center;gap:5px}
+.cs-chart-data>summary:before{content:'＋'}
+.cs-chart-data[open]>summary:before{content:'−'}
+.cs-chart-data>div{display:flex;flex-direction:column;gap:2px;max-height:220px;overflow:auto}
+.cs-card .cs-chart-data button{display:flex;align-items:center;justify-content:space-between;text-align:left;gap:8px;background:transparent;padding:8px;min-height:40px;font-size:12px;box-shadow:none}

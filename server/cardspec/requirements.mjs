@@ -46,7 +46,7 @@ export function requirementAudit(requirements,claims,feedback){
  const items=requirements.map(r=>{
   const c=claims?.find(c=>c.id===r.id)
   const tests=actions.filter(a=>a.step?.requirement===r.id)
-  const operation=tests.some(a=>!['check','reload'].includes(a.step.op)&&a.changed&&a.assertion?.passed&&(a.step.expect?.text||Object.keys(a.step.expect?.state||{}).length||a.step.expect?.changedKeys?.length||a.step.expect?.tool))
+  const operation=tests.some(a=>!['check','reload'].includes(a.step.op)&&(a.changed||a.step.expect?.navigation&&a.resultChanged)&&a.assertion?.passed&&(a.step.expect?.navigation||a.step.expect?.text||Object.keys(a.step.expect?.state||{}).length||a.step.expect?.changedKeys?.length||a.step.expect?.tool))
   const verified=!!c?.modules?.length&&tests.some(a=>a.ok&&a.assertion?.passed)&&tests.every(a=>a.ok&&a.assertion?.passed!==false)&&(!['interaction','simulation'].includes(r.kind)||operation)
   const reason=!c?.modules?.length?'缺少需求对应模块的claim':!tests.length?'缺少带此requirement ID的验收步骤':tests.some(a=>!a.ok||a.assertion?.passed===false)?'已有验收步骤未执行成功或断言失败':!operation&&['interaction','simulation'].includes(r.kind)?'需要把已观察到的click/fill/select操作及变化断言关联到此需求；check/reload不计交互，不要因此重写实现':'缺少实际通过的结果断言'
   return {...r,status:c?.blocked?(verified?'limited':r.kind==='evidence'?'blocked':'unverified'):verified?'checked':'unverified',reason:c?.blocked||(!verified?reason:undefined)}
@@ -58,7 +58,11 @@ export function quickRequirementAudit(goal){return {status:'unverified',items:re
 export function behaviorFootprint(spec){
  const kinds=new Set();const visit=nodes=>{for(const n of nodes||[]){
   if(['sandbox','logic','chart','mindmap','flowchart','mermaid','calendar','image'].includes(n.type))kinds.add(n.type==='sandbox'?'custom-visual':n.type)
-  for(const k of Object.keys(n.props||{}))if(/^on[A-Z]/.test(k))kinds.add('event:'+k)
+  // Control spelling is not a capability: buttons, segmented options and
+  // native task views can implement the same selection/detail interaction.
+  // Verified paths and tool reachability are guarded separately.
+  for(const k of Object.keys(n.props||{}))if(/^on[A-Z]/.test(k))kinds.add(['onPress','onChange','onSelect'].includes(k)?'interaction':'event:'+k)
+  if(n.type==='task-board'&&(n.props?.view||n.props?.items)||n.type==='tool-view'&&(n.props?.binding||n.props?.bindings))kinds.add('interaction')
   visit(n.children)
  }};visit(spec?.children)
  for(const list of Object.values(spec?.actions||{}))for(const s of list)if(['set','increment','toggle','invoke'].includes(s.type))kinds.add('stateful-action')

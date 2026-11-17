@@ -1,3 +1,4 @@
+import {TASK_OPERATION_REFERENCE} from '../../shared/cardspec/task-evidence.mjs'
 import {FUNCTION_NAMES} from '../../shared/cardspec/expression.mjs'
 
 const JS_DECLARATIONS=`【JavaScript表达式】CardSpec标签保持不变，{...}内使用纯JavaScript表达式。宿主已选择js-v1，无需写版本属性。
@@ -10,7 +11,7 @@ columns/span等数字属性写columns={2}。集合处理使用命名回调参数
 logic的update先应用本次event，再用更新后的状态统一计算显示结果，避免输入已经改变而计算落后一拍。reactive={true}时initial只需输入/选择等种子状态，派生矩阵和显示字段在update中统一算出，不写重复的零值占位；宿主先运行init并验证视图，再显示，恢复时保留已有选择。
 复杂本地逻辑使用<logic id="counterLogic" initial={{n:0}} source={\`function update(state,event,input) { if(event.type === "add") state.n++; return state; }\`}><stat label="数量" value={local.n}/><button onPress="add">增加</button></logic>。source可用无插值的多行模板字符串，减少转义；它是隔离JS，不访问网络/DOM，只返回完整有限JSON状态；local读取该模块状态，外部action不能直接修改local。`
 
-export const CARD_LANGUAGE_CORE=`【声明与计算】声明放card最前，id唯一固定字面量。
+export const CARD_LANGUAGE_CORE=TASK_OPERATION_REFERENCE+`【声明与计算】声明放card最前，id唯一固定字面量。
 <data id="items" value={[{id:"a",label:"示例",price:3}]}/><state id="qty" type="record" initial={{}}/><derive id="total" value={sum(data.items,item.price*(state.qty[item.id]??0))}/>
 声明各自的读取空间严格对应：data.x、state.x、derived.x，不混用；action是card直接子节点，在</card>前定义所有引用的动作。state类型number|string|boolean|array|record。表达式可用data/state/next/derived/context、event/args、item/index、[]访问、算术比较、逻辑、三元、数组/对象。只允许函数：${FUNCTION_NAMES.join(', ')}。不能调用JS方法或箭头函数；复杂数值与聚合用logic中的JS，普通表单用action。
 filter/find/map/count/sum第二参数用item/index表达式，例如filter(data.items,item.price>0)、map(data.items,item.id)、count(data.items,state.qty[item.id]>0)。内层item覆盖外层item，each用as="entry"保留外层。find无匹配返回null，提供??兜底。len仅一个参数。金额用formatNumber(n,2)，round返回数字。context.localDate是当天日期，monthOf得到YYYY-MM；formatDate(value,context.timeZone,"yyyy-MM-dd")。不把context.generatedAt当实时钟。
@@ -24,7 +25,7 @@ columns/span是1–12的整数，写columns={2}。表达式相等用==或===，�
 禁止onclick或任意DOM事件处理源码。
 【可运行短例】<intro>记录进度。</intro><card actionMode="snapshot"><state id="n" type="number" initial={0}/><stat label="已记录" value={state.n}/><button onPress="add">增加</button><action id="add"><increment target="n"/></action></card><outro>点击增加。</outro>`
 
-export const CARD_JS_LANGUAGE_CORE=JS_DECLARATIONS+`
+export const CARD_JS_LANGUAGE_CORE=TASK_OPERATION_REFERENCE+'\n'+JS_DECLARATIONS+`
 【事务动作】用set提交纯JS计算结果，target是state id；key仅用于record字段。数组直接用展开/filter/map，按真实身份字段比较，不依赖隐藏的id匹配规则。
 <action id="remove"><set target="chosen" value={state.chosen.filter(row=>row.rowKey!==args.rowKey)}/></action>
 <action id="add"><set target="n" value={state.n+1} when={state.n<10}/></action>

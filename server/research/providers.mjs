@@ -51,7 +51,7 @@ export function createResearchProviders({base,key,model,fetchImpl=fetch}){
       // including private services behind DNS rebinding or the user's TUN proxy.
       let text=readCache.get(url)?.expires>Date.now()?readCache.get(url).text:null
       if(!text){
-        const response=await fetchImpl('https://r.jina.ai/'+url,{headers:{Accept:'text/plain','X-Return-Format':'markdown'},redirect:'error',signal})
+        const response=await fetchImpl('https://r.jina.ai/'+url,{headers:{Accept:'text/plain','X-Return-Format':'markdown'},redirect:'manual',signal})
         text=await limitedText(response,512*1024)
       }
       if(/Warning:.*(?:403|404|429|captcha)|(?:Access Denied|Just a moment\.\.\.)/i.test(text)||!text.includes('Markdown Content:'))throw Error('reader did not return accessible page content')

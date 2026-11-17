@@ -1,3 +1,5 @@
+import {expandJourneySteps} from './terminal-journeys.mjs'
+import {compareRestoredState} from './restore-comparison.mjs'
 import {createServer} from 'node:http'
 import {readFile,mkdir} from 'node:fs/promises'
 import {resolve,extname,sep} from 'node:path'
@@ -9,15 +11,17 @@ import {auditLayout} from '../../src/cardspec/layout-audit.js'
 import {auditVisuals} from '../../src/cardspec/visual-audit.mjs'
 import {WEB_CDNS} from '../../shared/cardspec/web-policy.mjs'
 import {installDebugRandom} from './debug-random.mjs'
+import {installDebugNavigation} from './debug-navigation.mjs'
+import {externalNavigationLabel} from '../../shared/cardspec/navigation-diagnostics.mjs'
 
 const dist=fileURLToPath(new URL('../../dist/',import.meta.url))
 let occupied=false
 const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.wasm':'application/wasm','.woff2':'font/woff2','.svg':'image/svg+xml'}
 // No production server/API proxy: only build-owned code/styles/WASM are served.
-export async function runDebugBrowser(spec,{steps=[],scenarios=['normal','empty','failure'],width=432,size='square',signal,artifactDir,seed=73129,viewports,captureSteps=false}={}){
+export async function runDebugBrowser(spec,{steps=[],scenarios=['normal','empty','failure'],width=432,size='square',signal,artifactDir,seed=73129,viewports,captureSteps=false,deck,snapshots=[]}={}){
  if(viewports!==undefined&&(!Array.isArray(viewports)||!viewports.length||viewports.length>6||viewports.some(w=>!Number.isInteger(w)||w<280||w>1440)))throw Error('invalid host QA viewports')
  if(occupied)return {status:'unverified',reason:'debug browser busy',runs:[]}
- occupied=true;let browser,server
+ occupied=true;let browser,server,activePage,phase='startup';const runs=[]
  const mockAsset=/^\/api\/media\/[a-f0-9]{64}\.jpg$/.test(spec.context?.designMock?.url||'')?spec.context.designMock.url:null
  const cancelled=()=>{void browser?.close()}
  try{
@@ -44,7 +48,8 @@ export async function runDebugBrowser(spec,{steps=[],scenarios=['normal','empty'
   signal?.throwIfAborted();signal?.addEventListener('abort',cancelled,{once:true})
   const context=await browser.newContext({viewport:{width,height:900},serviceWorkers:'block',acceptDownloads:false,reducedMotion:'reduce'})
   await context.addInitScript(installDebugRandom,seed)
-  const blocked=[],runs=[]
+  await context.addInitScript(installDebugNavigation)
+  const blocked=[]
   await context.route('**/*',route=>{
    const u=new URL(route.request().url())
    if(u.origin===origin&&(u.pathname===mockAsset||u.pathname==='/api/health'||u.pathname==='/card-debug.html'||/^\/assets\/[\w./-]+$/.test(u.pathname))&&route.request().method()==='GET')return route.continue()
@@ -54,23 +59,29 @@ export async function runDebugBrowser(spec,{steps=[],scenarios=['normal','empty'
    blocked.push(u.origin===origin?u.pathname:u.origin);return route.abort()
   })
   const checks=viewports?scenarios.flatMap(scenario=>[...new Set(viewports)].map(width=>({scenario,width}))):scenarios.map(scenario=>({scenario,width}));if(!viewports&&!checks.some(c=>c.scenario==='normal'&&c.width===320))checks.push({scenario:'normal',width:320});if(!viewports&&!checks.some(c=>c.scenario==='normal'&&c.width===432))checks.push({scenario:'normal',width:432})
-  for(const check of checks){
-   const {scenario,width}=check
+  const pathChecks=checks.flatMap(check=>{const groups=[...new Set(steps.filter(s=>(s.scenario||'normal')===check.scenario).map(s=>s.path||'default'))];return (groups.length?groups:['default']).map(path=>({...check,path}))})
+  for(const check of pathChecks){
+   const {scenario,width,path}=check
    signal?.throwIfAborted()
-   const page=await context.newPage(),pageErrors=[]
+   const page=await context.newPage(),pageErrors=[];activePage=page;phase='mount'
    await page.setViewportSize({width,height:900})
    page.setDefaultTimeout(1800);page.on('pageerror',e=>pageErrors.push(e.message))
    page.on('console',m=>{if(m.type()==='error'&&/Content Security Policy|Refused to execute inline script|Executing inline script violates/.test(m.text()))pageErrors.push(m.text().slice(0,800))})
    page.on('popup',p=>void p.close())
    await page.goto(origin+'/card-debug.html',{waitUntil:'load',timeout:8000})
    await page.waitForFunction(()=>!!window.cardDebug)
-   const options={scenario,width,size}
+   const options={snapshots,scenario,width,size,...(deck?{deck}:{})}
    await page.evaluate(({spec,options})=>window.cardDebug.mount(spec,options),{spec,options})
    await page.waitForFunction(()=>window.cardDebug.ready())
    await page.waitForTimeout(450)
    const settle=async()=>{
-    await page.waitForFunction(()=>![...document.querySelectorAll('.cs-logic')].some(el=>el.getAttribute('aria-busy')==='true'||[...el.querySelectorAll('[role=status]')].some(x=>x.textContent.includes('正在计算'))),null,{timeout:5000})
+    phase='visible-logic';
+    await page.waitForFunction(()=>![...document.querySelectorAll('.cs-logic')].some(el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight&&(el.getAttribute('aria-busy')==='true'||[...el.querySelectorAll('[role=status]')].some(x=>x.textContent.includes('正在计算')))}),null,{timeout:5000})
+    phase='visible-sandbox';
+    await page.waitForFunction(()=>[...document.querySelectorAll('.cs-gpu-material')].every(el=>{const r=el.getBoundingClientRect();return !r.height||r.bottom<=0||r.top>=innerHeight||['ready','fallback'].includes(el.dataset.gpuStatus)}),null,{timeout:11000})
     await page.waitForFunction(()=>[...document.querySelectorAll('.cs-sandbox')].every(el=>{const r=el.getBoundingClientRect();return !r.height||r.bottom<=0||r.top>=innerHeight||!el.querySelector('iframe')||el.getAttribute('data-sandbox-ready')==='true'||el.querySelector('[role=alert]')}),null,{timeout:11000})
+    phase='visible-web-graphics';
+    await page.waitForFunction(()=>[...document.querySelectorAll('.cs-web-sandbox[data-web-graphics]')].every(el=>{const r=el.getBoundingClientRect();if(!r.height||r.bottom<=0||r.top>=innerHeight)return true;try{return Object.values(JSON.parse(el.dataset.webGraphics||'{}')).every(g=>g.status!=='loading')}catch{return false}}),null,{timeout:10000})
    }
    await settle()
    // Read and operate only sandbox frames belonging to this card, using the
@@ -78,10 +89,29 @@ export async function runDebugBrowser(spec,{steps=[],scenarios=['normal','empty'
    const frameOwners=new WeakMap()
    const sandboxFrames=async()=>{const frames=[];for(const el of await page.locator('.cs-card .cs-sandbox iframe').filter({visible:true}).all()){const frame=await el.contentFrame();if(frame){frameOwners.set(frame,await el.evaluate(e=>e.closest('[data-cs-node]')?.getAttribute('data-cs-node')||''));frames.push(frame)}}return frames}
    const snapshot=async()=>{
-    const value=await page.evaluate(()=>window.cardDebug.snapshot())
-    value.visuals=[{owner:'',...await page.locator('.cs-card').evaluate(auditVisuals)}]
+    const value=await page.evaluate(()=>({...window.cardDebug.snapshot(),navigation:window.__cardNavigation||[]}));value.sandboxOutputs={}
+    value.webGraphics=await page.locator('.cs-web-sandbox[data-web-graphics]').evaluateAll(els=>els.flatMap(el=>{try{return Object.values(JSON.parse(el.dataset.webGraphics)).map(g=>({...g,owner:el.dataset.csNode}))}catch{return []}}))
+    for(const g of value.webGraphics)if(g.status==='fallback'){
+     if(g.kind==='environment'||g.kind==='disabled')value.warnings=[...(value.warnings||[]),'Graphics host unavailable; keep fallback, do not rewrite shader: '+g.message]
+     else value.errors=[...(value.errors||[]),'Shader implementation error in '+g.owner+': '+g.message]
+    }
+    value.gpuMaterials=await page.locator('.cs-gpu-material').evaluateAll(els=>els.map(el=>({status:el.dataset.gpuStatus,error:el.dataset.gpuError||'',params:el.querySelector('canvas')?.dataset.params})))
+    for(const item of value.gpuMaterials)if(item.status==='fallback'){
+     if(/不支持 WebGPU|已达上限|初始化超时|device lost/i.test(item.error))value.warnings=[...(value.warnings||[]),'GPU host unavailable; do not rewrite shader: '+item.error]
+     else value.errors=[...(value.errors||[]),'GPU material fallback: '+item.error]
+    }
+    const card=page.locator('.cs-card')
+    value.visuals=[]
+    try{if(await card.count())value.visuals=[{owner:'',...await card.evaluate(auditVisuals)}]}catch{}
+    if(!value.visuals.length){value.empty=true;value.errors=[...(value.errors||[]),'Card root missing after ready; inspect render/recovery state.']}
     for(const frame of await sandboxFrames()){
      try{
+      // locator.contentFrame() returns a FrameLocator, not a Frame. Read in
+      // its document through a locator; a navigation observer failure must
+      // never discard the sandbox's text, controls and visual evidence.
+      try{value.navigation.push(...await frame.locator('html').evaluate(el=>el.ownerDocument.defaultView.__cardNavigation||[]))}
+      catch(e){value.warnings=[...(value.warnings||[]),'Host navigation observation unavailable: '+String(e.message).slice(0,180)]}
+      const owner=frameOwners.get(frame)||'';value.sandboxOutputs[owner]=await frame.locator('body').evaluate(el=>{const graphics=[...el.querySelectorAll('svg,canvas')];return (graphics.length?graphics.map(n=>n.tagName.toLowerCase()==='canvas'?(()=>{try{return n.toDataURL()}catch{return n.outerHTML}})():n.outerHTML).join(''):el.innerHTML).replace(/data-debug-handle="[^"]*"/g,'')});
       const text=await frame.locator('body').innerText({timeout:1200});value.text=(value.text+'\n'+text).slice(0,9000)
       value.visuals.push({owner:frameOwners.get(frame)||'',...await frame.locator('html').evaluate(auditVisuals)})
       if(spec.context?.renderMode==='web'){
@@ -89,15 +119,17 @@ export async function runDebugBrowser(spec,{steps=[],scenarios=['normal','empty'
        if(value.layout)value.layout.issues.push(...layout.issues.map(issue=>({...issue,webFrame:true,element:frameOwners.get(frame)?frameOwners.get(frame)+' / iframe / '+issue.element:issue.element})))
       }
       value.visualCount+=await frame.locator('svg,canvas,progress,meter,[role=progressbar],[role=meter]').evaluateAll(nodes=>nodes.filter(n=>n.getBoundingClientRect().width&&n.getBoundingClientRect().height).length)
-      const controls=[]
-      for(const el of (await frame.locator('button,input,select,textarea,[role=button],[role=tab],[role=checkbox],[role=slider]').filter({visible:true}).all()).slice(0,16)){
-       const aria=await el.ariaSnapshot(),match=aria.match(/^- (button|tab|checkbox|radio|switch|slider|textbox|combobox)(?: ("(?:[^"\\]|\\.)*"))?/)
-       if(!match?.[2])continue
+      // Handles are snapshot-scoped. Dynamic inventories can move controls beyond
+      // the enumeration limit; clear stale attributes before assigning new handles.
+      await frame.locator('[data-debug-handle]').evaluateAll(nodes=>nodes.forEach(n=>n.removeAttribute('data-debug-handle')))
+      const controls=(await Promise.all((await frame.locator('button,a[href],input,select,textarea,[role=button],[role=tab],[role=checkbox],[role=slider]').filter({visible:true}).all()).slice(0,16).map(async(el,index)=>{
+       const aria=await el.ariaSnapshot(),match=aria.match(/^- (button|link|tab|checkbox|radio|switch|slider|textbox|combobox)(?: ("(?:[^"\\]|\\.)*"))?/)
+       if(!match?.[2])return null
        const values=await el.evaluate(n=>({disabled:!!n.disabled||n.getAttribute('aria-disabled')==='true',value:n.value,min:n.getAttribute('min'),max:n.getAttribute('max'),step:n.getAttribute('step'),checked:n.checked}))
-       const owner=frameOwners.get(frame)||'',handle='sandbox:'+encodeURIComponent(owner)+':'+controls.length
+       const owner=frameOwners.get(frame)||'',handle='sandbox:'+encodeURIComponent(owner)+':'+index
        await el.evaluate((node,handle)=>node.setAttribute('data-debug-handle',handle),handle)
-       controls.push({role:match[1],name:JSON.parse(match[2]),sandbox:true,owner,handle,...values})
-      }
+       return {role:match[1],name:JSON.parse(match[2]),sandbox:true,owner,handle,...values}
+      }))).filter(Boolean)
       value.controls.push(...controls)
       if(text.trim()||controls.length||value.visualCount)value.empty=false
      }catch{/* A removed frame will be represented by the host error/status. */}
@@ -106,21 +138,44 @@ export async function runDebugBrowser(spec,{steps=[],scenarios=['normal','empty'
    }
    const initial=await snapshot(),actions=[]
    // Model steps refer to accessible UI, never JS/expressions/arbitrary selectors.
-   const scenarioSteps=steps.filter(s=>(s.scenario||'normal')===scenario)
+   const scenarioSteps=expandJourneySteps(steps.filter(s=>(s.scenario||'normal')===scenario&&(s.path||'default')===path))
    // Selection/detail paths only apply to populated data. Empty/error views
    // get their own reachable controls unless explicitly assigned model steps.
-   const probes=scenarioSteps.length?scenarioSteps:[...initial.controls.filter(c=>c.role==='button'&&!c.disabled&&c.name&&c.name.length<100).slice(0,2).map(c=>({op:'click',handle:c.handle,name:c.name})),{op:'reload'}]
+   const sliderProbes=initial.controls.filter(c=>c.role==='slider'&&!c.disabled).slice(0,2).map(c=>({op:'fill',handle:c.handle,name:c.name,value:String(Number(c.value)===Number(c.max)?Number(c.min):Number(c.max))}));
+   const probes=scenarioSteps.length?scenarioSteps:[...sliderProbes,...initial.controls.filter(c=>c.role==='button'&&!c.disabled&&c.name&&c.name.length<100).slice(0,2).map(c=>({op:'click',handle:c.handle,name:c.name})),{op:'reload'}]
+   let lastSnapshot=initial
    for(const requestedStep of probes){
-    signal?.throwIfAborted();const before=await snapshot();const step=resolveClickStep(requestedStep,before.controls);let restoredState
+    signal?.throwIfAborted();let before=lastSnapshot;const autoNavigation=[]
+    // Host pagination is a layout choice, not a business prerequisite the
+    // model should guess. Only traverse observed host page dots; never click
+    // arbitrary controls, select business data, or enter another deck card.
+    if(!deck&&requestedStep.op==='click'&&!requestedStep.handle&&!requestedStep.name?.startsWith('卡片页面：')&&!resolveClickStep(requestedStep,before.controls).handle){
+     const pages=before.controls.filter(c=>c.role==='button'&&/^卡片页面：第 \d+ 屏，共 \d+ 屏$/.test(c.name)&&!c.disabled).slice(0,8)
+     const original=await page.locator('.cs-tool-card button[aria-current="page"]').first().getAttribute('aria-label').catch(()=>null)
+     let found=false
+     for(const nav of pages){
+      if(nav.name===original)continue
+      const el=page.locator('.cs-tool-card').getByRole('button',{name:nav.name,exact:true}).filter({visible:true})
+      if(await el.count()!==1)continue
+      await el.click();await page.waitForTimeout(180);await settle();before=await snapshot();autoNavigation.push(nav.name)
+      if(resolveClickStep(requestedStep,before.controls).handle){found=true;break}
+     }
+     if(!found&&original){const back=page.locator('.cs-tool-card').getByRole('button',{name:original,exact:true});if(await back.count()===1){await back.click();await page.waitForTimeout(180);await settle();before=await snapshot();autoNavigation.push(original)}}
+    }
+    const step=resolveClickStep(requestedStep,before.controls);let restoredState,savedState,restoreComparison
+    if(step.op==='click'&&(step.role==='link'||externalNavigationLabel(step.name)))step.expect={...step.expect,navigation:step.expect?.navigation||true}
     try{
      if(step.op==='reload'){
-      await page.evaluate(()=>window.cardDebug.save());await page.reload()
+      // One synchronous browser task: timers and iframe postMessages cannot
+      // advance state between saving and reading its comparison baseline.
+      savedState=await page.evaluate(()=>{window.cardDebug.save();const s=window.cardDebug.snapshot();return [s.state,s.componentState]});await page.reload()
       await page.waitForFunction(()=>!!window.cardDebug)
       await page.evaluate(({spec,options})=>window.cardDebug.mount(spec,{...options,restore:true}),{spec,options})
       await page.waitForFunction(()=>window.cardDebug.ready())
       // Verify the persisted host state at remount, before resumed timers are
       // allowed to advance it. waitMs later observes legitimate autonomous work.
       restoredState=await page.evaluate(()=>{const s=window.cardDebug.snapshot();return [s.state,s.componentState]})
+      restoreComparison=compareRestoredState(savedState,restoredState)
      }else if(step.op!=='check'){
       let el
       if(step.handle){
@@ -156,12 +211,13 @@ export async function runDebugBrowser(spec,{steps=[],scenarios=['normal','empty'
      }
      await page.waitForTimeout(160+(step.waitMs||0))
      await settle()
-     const after=await snapshot()
-     if(captureSteps&&artifactDir){await mkdir(artifactDir,{recursive:true});await page.locator('.cs-stage').screenshot({path:resolve(artifactDir,`${scenario}-${width}-step-${actions.length+1}.png`),timeout:3000}).catch(()=>{})}
-     actions.push({step,ok:true,visuals:after.visuals,observed:buildObservation(after),assertion:assertSnapshot(step.expect,before,after),errors:after.errors,errorDetails:after.errorDetails,layoutIssues:after.layout?.issues||[],changed:JSON.stringify([before.state,before.componentState])!==JSON.stringify([after.state,after.componentState])||before.text!==after.text||before.calls.length!==after.calls.length,stateKeysChanged:Object.keys({...before.state,...after.state}).filter(k=>JSON.stringify(before.state?.[k])!==JSON.stringify(after.state?.[k])),componentStateChanged:JSON.stringify(before.componentState)!==JSON.stringify(after.componentState),...(step.op==='reload'?{restored:JSON.stringify([before.state,before.componentState])===JSON.stringify(restoredState),resumedStateChanged:JSON.stringify(restoredState)!==JSON.stringify([after.state,after.componentState])}:{})})
+     const after=await snapshot();lastSnapshot=after
+     if(captureSteps&&artifactDir){await mkdir(artifactDir,{recursive:true});await page.locator('.cs-stage').screenshot({path:resolve(artifactDir,`${scenario}-${path}-${width}-step-${actions.length+1}.png`),timeout:3000}).catch(()=>{})}
+     const assertion=assertSnapshot(step.expect,before,after)
+     actions.push({step,autoNavigation,ok:true,...(assertion?.classification?{classification:assertion.classification}:{}),resultChanged:JSON.stringify(before.results)!==JSON.stringify(after.results)||JSON.stringify(before.sandboxOutputs)!==JSON.stringify(after.sandboxOutputs)||before.calls.length!==after.calls.length||JSON.stringify(before.navigation)!==JSON.stringify(after.navigation),visuals:after.visuals,observed:buildObservation(after),assertion,errors:after.errors,errorDetails:after.errorDetails,layoutIssues:after.layout?.issues||[],changed:JSON.stringify([before.state,before.componentState])!==JSON.stringify([after.state,after.componentState])||before.text!==after.text||before.calls.length!==after.calls.length,stateKeysChanged:Object.keys({...before.state,...after.state}).filter(k=>JSON.stringify(before.state?.[k])!==JSON.stringify(after.state?.[k])),componentStateChanged:JSON.stringify(before.componentState)!==JSON.stringify(after.componentState),...(step.op==='reload'?{restored:restoreComparison.matched,restoreComparison,resumedStateChanged:JSON.stringify(restoredState)!==JSON.stringify([after.state,after.componentState])}:{})})
     }catch(e){
      signal?.throwIfAborted()
-     actions.push({step,ok:false,classification:'test_plan',observed:buildObservation(before),error:String(e.message).slice(0,300)})
+     actions.push({step,autoNavigation,ok:false,classification:'test_plan',observed:buildObservation(before),error:String(e.message).slice(0,300)})
      // Later steps depend on the current path. Do not manufacture cascaded
      // failures such as clicking Back without ever entering a detail view.
      for(const skipped of probes.slice(actions.length))actions.push({step:skipped,ok:false,skipped:true,classification:'test_plan',error:'not run: preceding test step did not execute'})
@@ -170,11 +226,11 @@ export async function runDebugBrowser(spec,{steps=[],scenarios=['normal','empty'
    }
    const final=await snapshot()
    let screenshot
-   if(artifactDir){await mkdir(artifactDir,{recursive:true});screenshot=`${scenario}-${width}.png`;await page.locator('.cs-stage').screenshot({path:resolve(artifactDir,screenshot),timeout:3000}).catch(()=>{screenshot=undefined})}
-   runs.push({scenario,width,seed,initial,final,actions,pageErrors,screenshot})
+   if(artifactDir){await mkdir(artifactDir,{recursive:true});screenshot=`${scenario}-${path}-${width}.png`;await page.locator('.cs-stage').screenshot({path:resolve(artifactDir,screenshot),timeout:3000}).catch(()=>{screenshot=undefined})}
+   runs.push({scenario,path,width,seed,initial,final,actions,pageErrors,screenshot})
    await page.close()
   }
   return {status:'tested',seed,runs,blockedRequests:[...new Set(blocked)],scope:'seeded mock browser checks; not real data, all random paths or semantic correctness'}
- }catch(e){signal?.throwIfAborted();return {status:'unverified',reason:String(e.message).slice(0,400),runs:[]}}
+ }catch(e){signal?.throwIfAborted();let observation;try{observation=await Promise.race([activePage?.evaluate(()=>({errors:[...document.querySelectorAll('[role=alert]')].map(e=>e.textContent),pending:[...document.querySelectorAll('.cs-logic,.cs-sandbox')].map(el=>({node:el.getAttribute('data-cs-node'),busy:el.getAttribute('aria-busy'),ready:el.getAttribute('data-sandbox-ready'),top:el.getBoundingClientRect().top,height:el.getBoundingClientRect().height}))})),new Promise(r=>setTimeout(()=>r(null),1500))]);if(artifactDir&&activePage){await mkdir(artifactDir,{recursive:true});await activePage.screenshot({path:resolve(artifactDir,'timeout.png'),timeout:2000}).catch(()=>{})}}catch{}return {status:'unverified',classification:observation?.errors?.length?'runtime_error':'host_unverified',phase,observation,reason:String(e.message).slice(0,400),runs}}
  finally{signal?.removeEventListener('abort',cancelled);await browser?.close().catch(()=>{});if(server){server.closeAllConnections();await new Promise(ok=>server.close(ok))}occupied=false}
 }

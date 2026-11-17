@@ -1,3 +1,4 @@
+import {auditResultCoverage} from '../../shared/cardspec/task-evidence.mjs'
 import {PageDots,PageDotsOutlet,usePageSwipe} from './PageDots.jsx'
 import {RenderOrigin} from './RenderOrigin.jsx'
 import {usePageTransition} from './page-transition.jsx'
@@ -6,6 +7,7 @@ import {cancelNavigation} from './host-motion.js'
 import {followupEntries} from '../../shared/cardspec/followups.mjs'
 import React,{createContext,useContext,useEffect,useLayoutEffect,useRef,useSyncExternalStore,useState,useCallback} from 'react'
 import { createCardSession } from './tool-session.mjs'
+import {illustrations} from './illustration-queue.mjs'
 import { useCardSize } from '../CardSize.jsx'
 import {useSandboxMode} from '../SandboxMode.jsx'
 import { Thinking } from '../Thinking.jsx'
@@ -23,7 +25,7 @@ function restoreView(root,view){
   const elements=[...root.querySelectorAll('.cs-card,.cs-experience-body,.cs-experience-tabs,.cs-experience-facets,.cs-host-controls,.cs-result-scroll,.cs-region-body,.cs-carousel-track,.cs-diagram-pan,.cs-chart-pan,.cs-table-pan,.cs-mermaid-pan,.cs-code-block,.tb-body,details')]
   for(const saved of view?.elements||[]){const el=elements[saved.i];if(el){if(saved.open!==undefined)el.open=saved.open;el.scrollTo({top:saved.top,left:saved.left,behavior:'instant'})}}
 }
-export function ToolCard({spec,resources,streaming,toolsReady=true,persistenceKey,transport,hostNavigation,hostNotice,deckNavigation,children,onDebugSession,debugAuthorizeWrite}){
+export function ToolCard({spec,resources,streaming,toolsReady=true,persistenceKey,transport,hostNavigation,hostNotice,deckNavigation,deckState,children,onDebugSession,debugAuthorizeWrite}){
   const slide=useRef(null),[dotsOutlet,setDotsOutlet]=useState(null)
   const cardSize=useCardSize(),sizeRef=useRef(cardSize)
   const renderMode=useSandboxMode(),modeRef=useRef(renderMode);modeRef.current=renderMode
@@ -31,7 +33,7 @@ export function ToolCard({spec,resources,streaming,toolsReady=true,persistenceKe
   const enabled=useContext(ToolSettings),root=useRef(null),disposeTimer=useRef(null)
   const [confirmation,setConfirmation]=useState(null)
   const [adaptLayout,setAdaptLayout]=useState('list')
-  const [session]=useState(()=>createCardSession(spec,{transport,getRenderMode:()=>modeRef.current,getCardSize:()=>sizeRef.current,storage:persistenceKey?window.sessionStorage:null,persistenceKey,authorizeWrite:async(payload,signal)=>{
+  const [session]=useState(()=>createCardSession(spec,{transport,deckState,getRenderMode:()=>modeRef.current,getCardSize:()=>sizeRef.current,storage:persistenceKey?window.sessionStorage:null,persistenceKey,authorizeWrite:async(payload,signal)=>{
     if(debugAuthorizeWrite)return debugAuthorizeWrite(payload,signal)
     const response=await fetch('/api/tools/prepare',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal})
     const preview=await response.json();if(!response.ok)throw new Error(preview.error||'无法准备操作')
@@ -53,6 +55,11 @@ export function ToolCard({spec,resources,streaming,toolsReady=true,persistenceKe
   },[page.id,session])
   const transition=usePageTransition(slide,session.index,page.id)
   useLayoutEffect(()=>{session.updateRoot(spec,resources)},[spec,resources,session])
+  useLayoutEffect(()=>{
+    if(streaming||!toolsReady)return
+    const visit=p=>{illustrations.preload(p.spec,p.resources);for(const slot of Object.values(p.slots||{}))visit(slot)}
+    for(const p of session.pages)visit(p)
+  })
   useEffect(()=>{let intersecting=false
     const update=()=>session.setActivity({visible:intersecting&&!document.hidden,enabled,complete:!streaming&&toolsReady})
     const observer=new IntersectionObserver(entries=>{intersecting=entries[0]?.isIntersecting;update()})
@@ -83,6 +90,12 @@ export function ToolCard({spec,resources,streaming,toolsReady=true,persistenceKe
  const pileCards=[...(deckNavigation?.cards||[]).slice(0,deckOffset),...session.pages.map(p=>({id:p.id})),...(deckNavigation?.cards||[]).slice(deckOffset+1)]
   const busyBindings=Object.entries(page.bindings).filter(([,b])=>b.status==='loading')
   const hasTools=Object.keys(page.spec.bindings||{}).length>0
+  const taskNotices=Object.entries(page.spec.bindings||{}).flatMap(([id,def])=>{try{
+    const b=session.scope().bindings[id];if(!b?.value?.items?.length)return []
+    if(b.current===false)return [{id,message:'条件已改变，当前仍显示上次结果；更新完成后再使用。'}]
+    const coverage=auditResultCoverage({goal:page.spec.context?.userGoal,input:b.input||{},value:b.value,tool:def.tool})
+    return coverage.status==='mismatch'?[{id,message:coverage.message}]:[]
+  }catch{return []}})
   const overlay=<>    {confirmation&&<section className="cs-write-confirm" role="dialog" aria-modal="false" aria-label="确认外部操作">
       <strong>{confirmation.description}</strong><p>{confirmation.notice}</p>
       {confirmation.connection&&<small>连接：{confirmation.connection}</small>}
@@ -93,6 +106,7 @@ export function ToolCard({spec,resources,streaming,toolsReady=true,persistenceKe
     {(session.busy||busyBindings.some(([id,b])=>b.target==='page'||b.target==='binding'&&page.spec.bindings[id]?.tool==='glm.generate'))&&<Thinking placement="card"/>}
 </>
   const footer=<div className="cs-host-controls" aria-label="卡片操作">
+    {taskNotices.map(n=><small key={n.id} className="cs-task-notice" role="status">{n.message}</small>)}
     {session.busy&&!hasTools&&<div className="cs-host-progress" role="status"><span>正在生成内容</span><button onClick={()=>session.cancel()}>取消</button></div>}
     {hasTools&&<details className="cs-host-tools"><summary>数据与工具{busyBindings.length?" · 更新中":Object.values(page.bindings).some(b=>b.status==='error')?" · 需处理":""}</summary><div className="cs-tool-status" aria-live="polite">
       {Object.entries(page.bindings).filter(([,b])=>b.cache?.status==='hit'||b.cache?.status==='coalesced').map(([id,b])=><span key={'cache-'+id}>{id} · {b.cache.status==='hit'?'复用近期缓存':'合并相同查询'} · {new Date(b.cache.fetchedAt).toLocaleTimeString()}<button type="button" disabled={!enabled||session.busy||b.status==='loading'} onClick={()=>session.retry(id)}>刷新数据</button></span>)}

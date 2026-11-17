@@ -7,6 +7,8 @@ import {referencePaths,visitExpression} from '../../shared/cardspec/dataflow.mjs
 import {evaluate} from '../../shared/cardspec/expression.mjs'
 import {createStore,makeScope} from '../../shared/cardspec/store.mjs'
 import {decisionProfile} from '../../shared/cardspec/decision-profile.mjs'
+import {snapshotInteractionDiagnostics} from '../../shared/cardspec/snapshot-interactions.mjs'
+import {toolFieldDiagnostics} from '../../shared/cardspec/tool-field-diagnostics.mjs'
 
 // An optional annotation on existing describe/read calls, not another model turn
 // or DSL. These are commitments to live UI, distinct from research-only reads.
@@ -22,7 +24,7 @@ export function bindingRecipe(tool,input,intent){
  const load=intent?.load||'visible'
  // Serialize data as an expression, never interpolate arbitrary values as markup.
  const args=input===undefined?'参数对象':canonicalInput(input).replaceAll('<','\\u003c').replaceAll('>','\\u003e')
- return {id,tool,load,pagination:"host-owned; all returned items; no page state/actions",declaration:`<binding id="${id}" tool="${xml(tool)}" input={${args}} load="${load}"/>`,value:`bindings.${id}.value`,...(decisionProfile(tool)?{consumer:`<tool-view binding="${id}"/>`,ownership:'宿主已提供选择、筛选、详情补取、返回与恢复；把consumer直接放在card下，不再声明chosen/favorite/detail状态或重复按钮。参数编辑仅设置binding输入state。'}:{...(presentationFor(tool)?{consumer:`<tool-view binding="${id}"/>`}:{}),refresh:`<action id="refresh_${id}"><invoke binding="${id}"/></action>`}),reuse:'相同工具/参数复用生成前结果；动态输入可用state。保留真实实体ID。',layout:decisionProfile(tool)?decisionProfile(tool).kind==='tickets'?'多程合成一个 <tool-view bindings={{去程:"out",回程:"back"}}/>（引用实际binding ID）；两张票券、独立固定、票价和经停内置。':'海报舞台已内置类型/片长筛选、收藏、两片对比和详情补齐。不需要task参数或外围UI。':'自由布局，已映射工具可用tool-view，多源用task-board。'}
+ return {id,tool,load,pagination:"host-owned; all returned items; no page state/actions",declaration:`<binding id="${id}" tool="${xml(tool)}" input={${args}} load="${load}"/>`,value:`bindings.${id}.value`,...(decisionProfile(tool)?{consumer:`<tool-view binding="${id}"/>`,ownership:'按任务选presentation：summary当前对象摘要、collection候选、decision完整决策。仅decision内置选择/详情/返回；跨工具共享选择由宿主state持有，binding.input读取它。'}:{...(presentationFor(tool)?{consumer:`<tool-view binding="${id}"/>`}:{}),refresh:`<action id="refresh_${id}"><invoke binding="${id}"/></action>`}),reuse:'相同工具/参数复用生成前结果；动态输入可用state。保留真实实体ID。',layout:decisionProfile(tool)?decisionProfile(tool).kind==='tickets'?'购票任务可合并多程到tool-view bindings；了解/探索用summary，多工具和素材用task-board compose，不强制购票工作台。':'选片任务用decision内置海报/筛选/对比；其他任务按目标选择summary/collection，素材与多来源可compose。':'自由布局，已映射工具可用tool-view，多源用task-board。'}
 }
 export function createBindingPlan(){
  const entries=[]
@@ -34,13 +36,24 @@ export function createBindingPlan(){
    if(existing)Object.assign(existing,value);else{if(entries.length>=12)throw Error('binding plan allows at most 12 connections');entries.push(value)}
   },
   unavailable(tool,reason){for(const e of entries)if(e.tool===tool){e.available=false;e.reason=String(reason).slice(0,300)}},
+  failed(tool,input,reason){for(const e of entries)if(e.key===tool+canonicalInput(input??null)){e.available=false;e.reason=String(reason).slice(0,300)}},
   snapshot:()=>structuredClone(entries.map(({key,...e})=>e))
  }
 }
 
 export function bindingPlanDiagnostics(spec,plan=[],records=[]){
  if(!spec)return []
- const diagnostics=[],bindings=Object.entries(spec.bindings||{})
+ const diagnostics=[...snapshotInteractionDiagnostics(spec,records),...toolFieldDiagnostics(spec,records)],bindings=Object.entries(spec.bindings||{})
+ // A live task can otherwise evade every binding check by never describing or
+ // reading any tool. Enforce the narrow zero-binding case; do not prescribe a
+ // source or claim that one binding proves all CUJs complete.
+ const required=(spec.context?.taskRouting?.tasks||[]).filter(t=>t.data==='live'&&t.requiresBinding&&t.tools?.some(c=>c.available))
+ for(const task of required){
+  const relevant=new Set(task.tools.filter(t=>t.available).map(t=>t.id))
+  if(bindings.some(([,b])=>relevant.has(b.tool)))continue
+  const failed=task.execution?.status==='failed'&&task.execution.attempts?.some(a=>a.status==='failed')
+  diagnostics.push({severity:failed?'warning':'error',code:failed?'live_task_source_failed':'live_task_binding_missing',message:`实时任务“${task.query}”没有对应来源的CLI绑定。${failed?'实际取数失败，保留缺口与真实错误；网页资料不能冒充社交样本。':'背景核实或其他任务的绑定不能替代本任务；使用路由候选的bindingRecipe连接数据与UI。'}`})
+ }
  const unconsumed=toolResultDiagnostics(spec,records)
  const reachable=new Set(),hostTriggers=new Set()
  function walk(nodes){for(const n of nodes||[]){
@@ -63,7 +76,7 @@ export function bindingPlanDiagnostics(spec,plan=[],records=[]){
    try{return canonicalInput(evaluate(b.input,makeScope(spec,createStore())))===canonicalInput(intent.input)}catch{return true}
   })
   if(!matches.length){diagnostics.push({severity:'error',code:'binding_plan_missing',message:`${intent.tool}: 已承诺“${intent.purpose}”，但卡片无此binding；保留工具绑定和结果消费者，不能用静态数据替代。`});continue}
-  if(matches.every(([id])=>unconsumed.some(d=>d.message.startsWith(id+':'))))diagnostics.push({severity:'error',code:'binding_plan_unconsumed',message:`${intent.tool}: “${intent.purpose}”的结果未进入UI，读取bindings.<id>.value或同查询的宿主dataset，不只展示status。`})
+  if(matches.every(([id])=>unconsumed.some(d=>d.code==='tool_result_unconsumed'&&d.message.startsWith(id+':'))))diagnostics.push({severity:'error',code:'binding_plan_unconsumed',message:`${intent.tool}: “${intent.purpose}”的结果未进入UI，读取bindings.<id>.value或同查询的宿主dataset，不只展示status。`})
   if(matches.every(([id,b])=>b.load!=='visible'&&!hostTriggers.has(id)&&!steps.some(s=>s.type==='invoke'&&s.binding===id)))diagnostics.push({severity:'error',code:'binding_plan_unreachable',message:`${intent.tool}: 绑定为manual但没有可达invoke入口；为“${intent.purpose}”连接真实动作。`})
   const refreshPromised=/(刷新|refresh)/i.test(intent.purpose)&&!/(不|无需|不要|no |without ).{0,4}(刷新|refresh)/i.test(intent.purpose)
   if(refreshPromised&&matches.every(([id])=>!hostTriggers.has(id)&&!steps.some(s=>s.type==='invoke'&&s.binding===id)))diagnostics.push({severity:'error',code:'binding_plan_refresh_missing',message:`${intent.tool}: 已承诺手动刷新，但没有可达刷新动作。visible仅首次加载；使用真实button onPress→action/invoke，组件回调必须来自其已声明事件契约。`})

@@ -32,6 +32,30 @@ test('ordinary evidence reads do not create live commitments',async()=>{
  const ext=createGenerationTools({catalog,invoke:async()=>({value:envelope('资料')})})
  await ext.execute('cli_read',{id,input},signal);assert.deepEqual(ext.bindingPlan(),[])
 })
+
+test('live task with available sources cannot silently deliver a static framework without a binding',()=>{
+ const empty=compile('<text>待核实框架</text>')
+ empty.context.taskRouting={tasks:[{query:'某产品反馈',data:'live',requiresBinding:true,tools:[{id,available:true}]}]}
+ assert.ok(bindingPlanDiagnostics(empty).some(d=>d.code==='live_task_binding_missing'))
+ const connected=compile(binding+'<text>{bindings.places.value.items.length}</text>'+actions)
+ connected.context.taskRouting=empty.context.taskRouting
+ assert.ok(!bindingPlanDiagnostics(connected).some(d=>d.code==='live_task_binding_missing'))
+ empty.context.taskRouting.tasks[0].requiresBinding=false
+ assert.ok(!bindingPlanDiagnostics(empty).some(d=>d.code==='live_task_binding_missing'))
+ empty.context.taskRouting.tasks[0].requiresBinding=true;empty.context.taskRouting.tasks[0].tools[0].available=false
+ assert.ok(!bindingPlanDiagnostics(empty).some(d=>d.code==='live_task_binding_missing'))
+})
+
+test('failed query releases only its commitment; other queries and a successful retry remain live',async()=>{
+ let fail=true
+ const ext=createGenerationTools({catalog,invoke:async({input})=>{if(fail&&input.query==='empty')throw Object.assign(Error('no results'),{code:'EMPTY_RESULT'});return {value:envelope(input.query)}}})
+ await assert.rejects(ext.execute('cli_read',{id,input:{query:'empty',limit:3},binding:intent},signal),/no results/)
+ await ext.execute('cli_read',{id,input,binding:intent},signal)
+ let p=ext.bindingPlan();assert.equal(p.find(x=>x.input.query==='empty').available,false);assert.equal(p.find(x=>x.input.query==='湘湖').available,true)
+ assert.ok(!bindingPlanDiagnostics(compile(live),p).some(d=>d.severity==='error'))
+ fail=false;await ext.execute('cli_read',{id,input:{query:'empty',limit:3},binding:intent},signal)
+ assert.equal(ext.bindingPlan().find(x=>x.input.query==='empty').available,true)
+})
 test('recipe escapes markup in tool inputs without losing the literal value',()=>{
  const r=bindingRecipe(id,{query:'</binding><button>" & 中文'}),s=compile(r.declaration+'<text>结果</text>')
  assert.equal(s.bindings[r.id].tool,id)

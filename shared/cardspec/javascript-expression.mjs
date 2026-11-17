@@ -1,9 +1,10 @@
+import {TASK_HELPERS} from './task-evidence.mjs'
 import {parseExpressionAt, tokenizer} from 'acorn'
 
 // An authoring syntax, not host eval. Only the IR below crosses to the renderer.
 const denied = new Set(['__proto__', 'prototype', 'constructor'])
 const keyOK = key => !denied.has(String(key))
-const collections = new Set(['filter', 'find', 'map', 'flatMap', 'some', 'every', 'findIndex', 'reduce'])
+const collections = new Set(['filter', 'find', 'map', 'flatMap', 'some', 'every', 'findIndex', 'reduce', 'sort', 'toSorted'])
 const methods = new Set(['includes', 'indexOf', 'slice', 'join', 'concat', 'at', 'startsWith', 'endsWith', 'trim', 'toLowerCase', 'toUpperCase', 'split', 'replace', 'replaceAll', 'toFixed'])
 const statics = {
   Math: new Set(['round','floor','ceil','abs','min','max','sqrt','pow','trunc','sign','log','log2','log10','exp','sin','cos','tan']),
@@ -13,7 +14,7 @@ const statics = {
 }
 const constants = {PI:Math.PI,E:Math.E,SQRT2:Math.SQRT2,LN2:Math.LN2,LN10:Math.LN10}
 const binary = new Set(['+','-','*','/','%','**','==','!=','===','!==','<','<=','>','>=','&&','||','??'])
-const helpers=new Set(['compose','projectView','range','clamp','formatNumber','dateKey','formatDate','monthOf','dayOf','addDays','addMonths'])
+const helpers=new Set([...Object.keys(TASK_HELPERS),'compose','projectView','range','clamp','formatNumber','dateKey','formatDate','monthOf','dayOf','addDays','addMonths'])
 
 export function parseJavaScriptExpression(source) {
   if(source.length>32768)throw Error('expression too long')
@@ -81,11 +82,12 @@ export function parseJavaScriptExpression(source) {
         if(callee.object.type==='Identifier'&&!env.has(callee.object.name)&&statics[callee.object.name]?.has(name))return {type:'call',name:`js:${callee.object.name}.${name}`,args:n.arguments.map(sub)}
         const receiver=sub(callee.object)
         if(collections.has(name)){
+          if(['sort','toSorted'].includes(name)&&!n.arguments.length)return {type:'call',name:'js:sortDefault',args:[receiver],optional:!!callee.optional}
           let callback=n.arguments[0]
           if(name==='filter'&&n.arguments.length===1&&callback?.type==='Identifier'&&callback.name==='Boolean'&&!env.has('Boolean'))callback={type:'ArrowFunctionExpression',async:false,params:[{type:'Identifier',name:'$value'}],body:{type:'CallExpression',callee:{type:'Identifier',name:'Boolean'},arguments:[{type:'Identifier',name:'$value'}]}}
           if(!callback||callback.type!=='ArrowFunctionExpression'||callback.async||callback.body.type==='BlockStatement'||callback.params.some(p=>p.type!=='Identifier')||new Set(callback.params.map(p=>p.name)).size!==callback.params.length)throw Error(`${name} requires a pure expression arrow callback; use logic for statements`)
-          const max=name==='reduce'?4:3
-          if(callback.params.length>max||n.arguments.length>(name==='reduce'?2:1)||name==='reduce'&&n.arguments.length!==2)throw Error(`${name} has invalid arguments; reduce requires an initial value`)
+          const max=['sort','toSorted'].includes(name)?2:name==='reduce'?4:3
+          if(callback.params.length>max||n.arguments.length>(name==='reduce'?2:1))throw Error(`${name} has invalid arguments`)
           const inner=new Map(env),params=callback.params.map(p=>{const id=`$lambda${++serial}_${p.name}`;inner.set(p.name,id);return id})
           return {type:'call',name,args:[receiver,lower(callback.body,inner,depth+1),...n.arguments.slice(1).map(sub)],params,optional:!!callee.optional}
         }
@@ -179,10 +181,12 @@ export function evaluateJavaScriptExpression(ast,scope,budget,helper){
           const rows=ev(n.args[0],env);if(rows===shortCircuit||n.optional&&rows==null)return shortCircuit
           if(!Array.isArray(rows)||rows.length>1000)throw Error(`${name} requires an array of at most 1000 items`)
           const callback=(...values)=>ev(n.args[1],{...env,...Object.fromEntries(n.params.map((p,i)=>[p,values[i]]))})
-          if(name==='reduce')return bounded(rows.reduce(callback,ev(n.args[2],env)))
+          if(['sort','toSorted'].includes(name))return bounded([...rows].sort((a,b)=>{const v=callback(a,b);if(typeof v!=='number'||!Number.isFinite(v))throw Error('sort comparator must return a finite number');return v}))
+          if(name==='reduce')return bounded(n.args.length>2?rows.reduce(callback,ev(n.args[2],env)):rows.reduce(callback))
           if(name==='flatMap'){const out=[];for(let i=0;i<rows.length;i++){const value=callback(rows[i],i,rows),items=Array.isArray(value)?bounded(value):[value];if(out.length+items.length>1000)throw Error('expression result exceeds collection limit');for(const item of items)out.push(item)}return out}
           return bounded(Array.prototype[name].call(rows,callback))
         }
+        if(name==='js:sortDefault'){const value=ev(n.args[0],env);if(n.optional&&value==null)return shortCircuit;if(!Array.isArray(value)||value.length>1000)throw Error('sort requires at most 1000 rows');return bounded([...value].sort())}
         if(name.startsWith('method:')){
           const obj=ev(n.args[0],env);if(obj===shortCircuit||n.optional&&obj==null)return shortCircuit
           const method=name.slice(7),v=args(n.args.slice(1),env)

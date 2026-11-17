@@ -1,5 +1,17 @@
+import {CompactChipGroup} from './CompactFilters.jsx'
+import {ImageNode} from './MediaImage.jsx'
+import {DestinationHost,Destination} from './Destinations.jsx'
+import {RelationLayout} from './RelationLayout.jsx'
+import {editorialGroups,disclosureTitle} from '../../shared/cardspec/editorial-structure.mjs'
+import {attachContentFit} from './content-fit.js'
+import {statPresentation} from './local-composition.mjs'
+import './content-fit.css'
+import {RELATION_PRESENTATIONS} from '../../shared/cardspec/content-skeleton.mjs'
 import {resolveMockDesign} from '../../shared/cardspec/design-mock-layout.mjs'
 import {DetailStage} from './Folio.jsx'
+import {Facts,Checklist} from './Editorial.jsx'
+import {designBriefTokens} from '../../shared/cardspec/design-brief.mjs'
+import {editorialConnections} from '../../shared/cardspec/editorial.mjs'
 import {ListLayout,ListGroup,ListItem} from './ListLayout.jsx'
 import {projectListColumns} from '../../shared/cardspec/list-composition.mjs'
 import {MockComposition} from './MockComposition.jsx'
@@ -41,6 +53,7 @@ import { attachScrollAffordances } from './scroll-affordance.js'
 import { Carousel, Slider, Diagram, Chart } from './Widgets.jsx'
 import { validateWidget } from '../../shared/cardspec/widgets.mjs'
 import { photoKey, safePhotoUrl } from '../../shared/cardspec/images.mjs'
+import {illustrations} from './illustration-queue.mjs'
 import { VISUAL_STYLE_IDS } from '../../shared/cardspec/styles.mjs'
 import { getDesign } from '../../shared/cardspec/designs.mjs'
 import { fragmentProse } from '../../shared/cardspec/prose.mjs'
@@ -57,6 +70,7 @@ import { NavigationProvider, NavigationBar, useNavigationOwner, ExternalNavigati
 import './scroll-affordance.css'
 import { ToolCard } from './ToolCard.jsx'
 import {SandboxPanel} from './SandboxPanel.jsx'
+import {GpuMaterial} from './GpuMaterial.jsx'
 import { ViewStateProvider,useViewState } from './view-state.jsx'
 import { Recovery, RenderBoundary, NodeFailure } from './Recovery.jsx'
 import { useCardSize } from '../CardSize.jsx'
@@ -64,6 +78,8 @@ import { Clock } from './Clock.jsx'
 import { measureExperience } from './experience-metrics.js'
 import './seamless.css'
 import './folio.css'
+import './editorial.css'
+import './design-reference.css'
 
 const scalar = (v) => v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v)
 const safeLink = (value) => {
@@ -78,9 +94,10 @@ function useBackgroundPhoto(query, supplied, streaming, enabled) {
   useEffect(() => {
     if (!enabled || !query || supplied || streaming) return
     const controller = new AbortController()
-    fetch(`/api/photo?query=${encodeURIComponent(query)}&role=background`, { signal: controller.signal })
+    const generated=/^gen:/i.test(query)
+    ;(generated?illustrations.request(query,'background'):fetch(`/api/photo?query=${encodeURIComponent(query)}&role=background`, { signal: controller.signal })
       .then(async (response) => { if (!response.ok) throw new Error('photo unavailable'); return response.json() })
-      .then((value) => setResolved({ key, value }))
+    ).then((value) => {if(!controller.signal.aborted)setResolved({ key, value })})
       .catch(() => { if (!controller.signal.aborted) setResolved({ key, value: { status: 'error' } }) })
     return () => controller.abort()
   }, [key, !!supplied, streaming, enabled])
@@ -152,10 +169,11 @@ function Region({ p:requested, children, identity, session }) {
   // Keep requested scrolling continuous: never paginate a heading away from its explanation.
   const adapt=false
   const cardSize=useCardSize()
-  const p=requested.role==='details'?{...requested,overflow:'details'}:cardSize==='full'&&['scroll','paginate'].includes(requested.overflow)?{...requested,overflow:undefined}:requested
+  const p=requested.role==='details'&&!['inline','destination'].includes(requested.overflow)?{...requested,overflow:'details'}:cardSize==='full'&&['scroll','paginate'].includes(requested.overflow)?{...requested,overflow:undefined}:requested
   const body = useRef(null), dialog = useRef(null), [page, setPage] = useViewState('page',0), [pageSize, setPageSize] = useState(3)
-  const [open, setOpen] = useState(false)
-  useEffect(()=>{if(p.overflow!=='details'||!session)return;const page=session.current();session.setRegionVisibility?.(p.ownerId,open,page);return()=>session.setRegionVisibility?.(p.ownerId,false,page)},[session,p.ownerId,p.overflow,open])
+  const [inlineOpen,setInlineOpen]=useViewState('detailsOpen',false),[modalOpen,setModalOpen]=useState(false)
+  const [open,setOpen]=p.overflow==='inline'?[inlineOpen,setInlineOpen]:[modalOpen,setModalOpen]
+  useEffect(()=>{if(!['details','inline'].includes(p.overflow)||!session)return;const page=session.current();session.setRegionVisibility?.(p.ownerId,open,page);return()=>session.setRegionVisibility?.(p.ownerId,false,page)},[session,p.ownerId,p.overflow,open])
   const previousReset=useRef(scalar(p.resetKey)), detailHeight=useRef(0)
   useLayoutEffect(()=>{const el=body.current;if(!el||p.resetKey===undefined||cardSize!=='auto')return;detailHeight.current=Math.min(200,Math.max(detailHeight.current,el.getBoundingClientRect().height));el.style.minHeight=detailHeight.current+'px'},[p.resetKey,cardSize])
   useLayoutEffect(() => {const value=scalar(p.resetKey);if(previousReset.current!==value){previousReset.current=value;if(body.current)body.current.scrollTop=0;setPage(0)}}, [scalar(p.resetKey)])
@@ -181,16 +199,19 @@ function Region({ p:requested, children, identity, session }) {
   const count = Math.max(1, Math.ceil(children.length / pageSize)), current = Math.min(page, count - 1)
   const navigation={label:p.label || '分页',value:`${current+1} / ${count}`,count,disabledPrevious:current===0,disabledNext:current+1>=count,previous:()=>setPage(current-1),next:()=>setPage(current+1)}
   const builtIn=useNavigationOwner(p.ownerId,p.navigation==='external' && p.overflow==='paginate',navigation)
+  const detailLabel=disclosureTitle(p.label,children.map(c=>({kind:c.props?.contentKind,text:c.props?.contentText})))
+  if(p.overflow==='destination')return <Destination id={identity} ownerId={p.ownerId} label={detailLabel} session={session}>{children}</Destination>
+  if(p.overflow==='inline')return <section className="cs-inline-details" data-cs-node={identity}><button type="button" aria-expanded={open} onClick={()=>setOpen(v=>!v)}>{detailLabel}</button>{open&&<div className="cs-stack">{children}</div>}</section>
   if (p.overflow === 'details') return <div className="cs-details" data-motion={p.motion} data-motion-key={p.motionKey}>
-    <button type="button" onClick={() => setOpen(true)}>{p.label || '查看详情'}</button>
-    <dialog ref={dialog} className="cs-dialog" onCancel={() => setOpen(false)} onClose={() => setOpen(false)} aria-label={p.label || '详情'}>
-      <header><strong>{p.label || '详情'}</strong><button type="button" aria-label="关闭详情" onClick={() => setOpen(false)}>×</button></header>
+    <button type="button" onClick={() => setOpen(true)}>{detailLabel}</button>
+    <dialog ref={dialog} className="cs-dialog" onCancel={() => setOpen(false)} onClose={() => setOpen(false)} aria-label={detailLabel}>
+      <header><strong>{detailLabel}</strong><button type="button" aria-label="关闭详情" onClick={() => setOpen(false)}>×</button></header>
       <div className="cs-stack">{children}</div>
     </dialog>
   </div>
   return <section ref={regionRoot} data-motion={p.motion} data-motion-key={p.motionKey} style={space!==null&&['scroll','paginate'].includes(p.overflow)?{height:space}:undefined} className={`cs-region${p.presentation === 'magazine' ? ' cs-magazine' : ''}`} data-cs-node={identity} data-role={p.role || 'content'} data-overflow={p.overflow} data-adapted-overflow={adapt?'paginate':undefined} data-priority={p.priority || 'required'} data-grow={p.grow || undefined} data-surface={p.surface} data-tone={p.tone}>
     <div className="cs-region-body" ref={body} style={{ gap: `var(--cs-space-${p.space || 'normal'})`, alignItems: p.align, justifyContent: { between: 'space-between', start: 'flex-start', end: 'flex-end' }[p.justify] || p.justify }} aria-label={p.label} tabIndex={p.overflow === 'scroll' || p.overflow === 'paginate' ? 0 : undefined}>
-      {p.overflow === 'paginate' ? children.slice(current * pageSize, (current + 1) * pageSize).map((child) => <div className="cs-page-item" key={child.key}>{child}</div>) : p.presentation === 'magazine' ? children.map(child=><article className="cs-fragment" key={child.key}>{child}</article>) : children}
+      {p.overflow === 'paginate' ? children.slice(current * pageSize, (current + 1) * pageSize).map((child) => <div className="cs-page-item" key={child.key}>{child}</div>) : RELATION_PRESENTATIONS.has(p.presentation) ? <RelationLayout kind={p.presentation}>{children}</RelationLayout> : p.presentation === 'magazine' ? editorialGroups(children.map(c=>c.props?.contentKind)).map(indices=><article className="cs-fragment" key={children[indices[0]].key}>{indices.map(i=>children[i])}</article>) : children}
     </div>
     {p.overflow === 'paginate' && builtIn && <NavigationBar model={navigation} className="cs-pagination"/>}
   </section>
@@ -199,30 +220,6 @@ function ProgressiveList({children,attrs,flow}){
  const size=useCardSize(),pageSize=size==='full'?Math.max(1,children.length):size==='square'?3:6
  const [position,setPosition]=useViewState('listPage',0),page=Math.min(Math.floor(position/pageSize),Math.max(0,Math.ceil(children.length/pageSize)-1))
  return <div className="cs-progressive-list"><ul {...attrs} className="cs-stack cs-list" style={flow}>{children.slice(page*pageSize,(page+1)*pageSize)}</ul>{children.length>pageSize&&<nav className="cs-row" aria-label="列表分组"><button className="cs-button" disabled={!page} onClick={()=>setPosition((page-1)*pageSize)}>上一组</button><span>{page+1} / {Math.ceil(children.length/pageSize)}</span><button className="cs-button" disabled={(page+1)*pageSize>=children.length} onClick={()=>setPosition((page+1)*pageSize)}>下一组</button></nav>}</div>
-}
-function ImageNode({ p, resource, streaming }) {
-  if(resource?.status==='deferred')resource=null
-  const asset=Object.hasOwn(p,'assetRef'),validAsset=typeof p.assetRef==='string'&&/^asset\.v1\.[\w-]+\.[\w-]+$/.test(p.assetRef)&&p.assetRef.length<=3000
-  const key = asset?p.assetRef:photoKey(p.query,p.mediaRole), [resolved, setResolved] = useState(null)
-  useEffect(() => {
-    if (asset || resource || streaming || !p.query) return
-    const controller = new AbortController()
-    fetch(`/api/photo?query=${encodeURIComponent(p.query)}&role=${encodeURIComponent(p.mediaRole || 'hero')}`, { signal:controller.signal })
-      .then(async (r) => { if (!r.ok) throw new Error('photo unavailable'); return r.json() })
-      .then((value) => setResolved({ key, value }))
-      .catch(() => { if (!controller.signal.aborted) setResolved({ key, value:{ status:'error' } }) })
-    return () => controller.abort()
-  }, [key, !!resource, streaming,asset])
-  if(asset)resource=validAsset?{url:'/api/tools/assets/'+encodeURIComponent(p.assetRef),kind:'source-image'}:{status:'error'}
-  resource = resource || (resolved?.key === key ? resolved.value : null)
-  const [status, setStatus] = useState('loading')
-  const src = resource?.url
-  useEffect(() => setStatus('loading'), [src])
-  const failed = status === 'error' || resource?.status === 'error'
-  return <div className="cs-photo"><figure className="cs-image" data-media-role={p.mediaRole || 'hero'} data-loaded={status === 'loaded'}>
-    {src && <img src={src} alt={p.alt || p.query || ''} onLoad={() => setStatus('loaded')} onError={() => setStatus('error')} hidden={failed} />}
-    {(!src || status !== 'loaded') && <span role="status">{failed ? '图片暂不可用' : /^gen:/i.test(p.query||'') ? '生成插画中…' : '图片加载中…'}</span>}
-  </figure><ImageCredit resource={resource} asset={asset}/></div>
 }
 
 function Node({ node, scope, runtime, identity }) {
@@ -270,20 +267,22 @@ function Node({ node, scope, runtime, identity }) {
       if(runtime.fire)runtime.fire(action,extra);else executeAction(runtime.spec,runtime.store,action,extra)
       runtime.notify()
     }}>{(local,dispatch,onError)=>renderChildren(node.children,{...scope,local},{...runtime,localLogic:true,fire:dispatch,error:onError,notify:()=>{}},identity)}</LogicPanel>
-    const children = renderChildren(node.children, scope, p.presentation === 'magazine' ? {...runtime,magazine:true} : runtime, identity, node.type==='region'&&['paginate','scroll'].includes(p.overflow))
+    const childRuntime={...runtime,...(p.presentation==='magazine'?{magazine:true}:{}),embeddedControl:runtime.embeddedControl||['button','pressable','chip','choice-item'].includes(node.type)||node.type==='list-item'&&!!p.onPress}
+    const children = renderChildren(node.children, scope, childRuntime, identity, node.type==='region'&&['paginate','scroll'].includes(p.overflow))
     const attrs = { 'data-cs-on-press':node.props.onPress?.value,'data-cs-on-change':node.props.onChange?.value,'data-motion':p.motion,'data-motion-key':p.motionKey,'data-cs-component': node.type, 'data-cs-node': identity, 'data-tone': p.tone, 'data-size': p.size, 'data-surface': p.surface, 'data-priority': p.priority, 'data-grow': p.grow || undefined, 'data-align':p.align }
     const flow = { gap: `var(--cs-space-${p.space || 'normal'})`, alignItems: p.align, justifyContent: { between: 'space-between', start: 'flex-start', end: 'flex-end' }[p.justify] || p.justify, flexWrap: p.wrap ? 'wrap' : undefined }
     switch (node.type) {
       case 'tool-view': return <ToolView p={p} runtime={runtime} scope={scope} fire={fire}/>
-      case 'task-board': return <TaskBoard p={p} runtime={runtime} scope={scope} fire={fire}/>
+      case 'task-board': return <TaskBoard p={p} runtime={runtime} scope={scope} fire={fire} attrs={attrs}/>
       case 'experience': return <Experience p={p} fire={fire}>{children}</Experience>
       case 'map': return <PointMap p={runtime.plannerSelection&&!p.selectedIds?{...p,selectedIds:runtime.plannerSelection}:p} fire={fire}/>
-      case 'settings': return <CardSettings>{children}</CardSettings>
+      case 'settings': return <CardSettings label={p.label}>{children}</CardSettings>
       case 'choice-grid': return <div {...attrs} className="cs-choice-grid" role="group" aria-label={p.label||'候选'}>{children}</div>
       case 'choice-item': {
         const item=node.plannerChoice&&node.props.args?evaluate(node.props.args,scope):null
         return <ChoiceTile p={{...p,summary:item?.summary||item?.tag, rating:item?.rating}} fire={fire} attrs={attrs}>{children}</ChoiceTile>
       }
+      case 'gpu-material': return <GpuMaterial p={p}/>
       case 'sandbox': return <SandboxPanel p={p} nodeId={node.id} runtime={{...runtime,toolsReady:runtime.session?.complete}}>{children}</SandboxPanel>
       case 'slot': {
         const slot=runtime.page?.slots[node.id],busy=Object.values(runtime.page?.bindings||{}).some(b=>b.status==='loading'&&b.target===`slot:${node.id}`)
@@ -291,6 +290,8 @@ function Node({ node, scope, runtime, identity }) {
         return <section {...attrs} className="cs-tool-slot" data-motion="slide" data-motion-key={slot?.spec?.cardId || "default"} aria-label={p.label||'动态内容'} aria-busy={busy}>{content}{slot&&<EvidenceSources research={slot.spec.research}/>} {busy&&<Thinking/>}</section>
       }
       case 'detail-stage': return <DetailStage p={p} attrs={attrs}>{children}</DetailStage>
+      case 'facts': return <Facts p={p} attrs={attrs}/>
+      case 'checklist': return <Checklist p={p} attrs={attrs} fire={fire}/>
       case 'collection': return <Collection p={p} fire={fire}/>
       case 'region': return <Region p={{...p,ownerId:node.id}} identity={identity} session={runtime.session}>{children}</Region>
       case 'navigation': return <ExternalNavigation target={p.target} identity={identity} label={p.label}/>
@@ -299,9 +300,10 @@ function Node({ node, scope, runtime, identity }) {
       case 'list-group': return <ListGroup p={p} attrs={attrs} heading={node.headerNodes?renderChildren(node.headerNodes,scope,runtime):null}>{children}</ListGroup>
       case 'list-item': return <ListItem p={p} attrs={attrs} flow={flow} identity={identity} fire={fire} streaming={runtime.streaming}>{children}</ListItem>
       case 'stack': case 'box': case 'carousel-item': return <div {...attrs} className="cs-stack" style={flow}>{children}</div>
-      case 'row': case 'chips': return <div {...attrs} className="cs-row" style={flow} role={node.type === 'chips' ? 'group' : undefined} aria-label={p.label}>{children}</div>
-      case 'grid': case 'stats': return <div {...attrs} className="cs-grid" style={{ ...flow, gridTemplateColumns: `repeat(${p.columns || (node.type === 'stats' ? Math.max(1, children.length) : 2)}, minmax(0, 1fr))` }}>{children}</div>
-      case 'grid-item': return <div {...attrs} className="cs-stack" style={{ ...flow, gridColumn: p.span ? `span ${p.span}` : undefined, gridRow: p.rowSpan ? `span ${p.rowSpan}` : undefined }}>{children}</div>
+      case 'chips': return <CompactChipGroup attrs={attrs} flow={flow} label={p.label}>{children}</CompactChipGroup>
+      case 'row': return <div {...attrs} className="cs-row" style={flow} role={node.type === 'chips' ? 'group' : undefined} aria-label={p.label}>{children}</div>
+      case 'grid': case 'stats': return <div {...attrs} className="cs-grid" data-grid-columns={p.columns||(node.type==='stats'?'auto':2)} style={{ ...flow, gridTemplateColumns: `repeat(${p.columns || (node.type === 'stats' ? Math.max(1, children.length) : 2)}, minmax(0, 1fr))` }}>{children}</div>
+      case 'grid-item': return <div {...attrs} className="cs-stack" data-grid-span={p.span} style={{ ...flow, gridColumn: p.span ? `span ${p.span}` : undefined, gridRow: p.rowSpan ? `span ${p.rowSpan}` : undefined }}>{children}</div>
       case 'title': return <span {...attrs} role="heading" aria-level="3" className="cs-title">{children}</span>
       case 'text': {
         if (runtime.magazine && node.children.every(n=>n.type==='run')) {
@@ -336,7 +338,7 @@ function Node({ node, scope, runtime, identity }) {
       case 'countdown': return <div {...attrs}><Countdown p={p}/></div>
       case 'copy': return <div {...attrs}><CopyText p={p} streaming={runtime.streaming}/></div>
       case 'heatmap': return <div {...attrs}><Heatmap p={p} fire={fire}/></div>
-      case 'stat': return <div {...attrs} className="cs-stat"><strong>{scalar(p.value)}</strong><span>{p.label}</span></div>
+      case 'stat': return <div {...attrs} className="cs-stat" data-stat-presentation={statPresentation(p.value,p.presentation)} data-value-length={[...scalar(p.value)].length>10?'long':[...scalar(p.value)].length>5?'medium':'short'}><strong>{scalar(p.value)}</strong><span>{p.label}</span></div>
       case 'divider': return <hr {...attrs} className="cs-divider" />
       case 'spacer': return <div {...attrs} className="cs-spacer" />
       case 'calendar': return <div {...attrs}><Calendar p={{...p,ownerId:node.id}} fire={fire} context={scope.context} /></div>
@@ -344,7 +346,7 @@ function Node({ node, scope, runtime, identity }) {
       case 'slider': return <div {...attrs}><Slider p={p} fire={fire}/></div>
       case 'mindmap': case 'flowchart': return <div {...attrs}><Diagram type={node.type} p={p} fire={fire} streaming={runtime.streaming}/></div>
       case 'chart': return <div {...attrs}>{p.kind==='comparison'?<ComparisonChart p={p} fire={fire}/>:p.kind==='proportion'?<ProportionChart p={p} fire={fire}/>:p.kind==='stacked'||p.data.some(d=>d.series)?<SeriesChart p={p} fire={fire}/>:<Chart p={p} fire={fire}/>}</div>
-      case 'image': return <div {...attrs} data-media-role={p.mediaRole || 'hero'}><ImageNode p={p} streaming={runtime.streaming} resource={runtime.resources?.[photoKey(p.query,p.mediaRole)] || runtime.resources?.[node.id]} /></div>
+      case 'image': return <div {...attrs} data-media-role={p.mediaRole || 'hero'}><ImageNode p={p} embedded={runtime.embeddedControl} streaming={runtime.streaming||runtime.spec.context?.archiveReplay} resource={runtime.resources?.[photoKey(p.query,p.mediaRole)] || runtime.resources?.[node.id]} /></div>
       case 'link': return safeLink(p.url) ? <a {...attrs} href={safeLink(p.url)} target="_blank" rel="noreferrer noopener" aria-label={p.label}>{children.length ? children : p.label || p.url}</a> : <span {...attrs}>链接不可用</span>
       default: throw new Error(`unsupported node ${node.type}`)
     }
@@ -361,7 +363,8 @@ function renderChildren(nodes, scope, runtime, prefix = '', groupItems = false) 
     if (node.type !== 'each') {
       let view=null
       if(runtime.page){const components=runtime.page.viewState.components||=(Object.create(null));view={values:components[identity]||=(Object.create(null)),save:()=>runtime.session?.save()}}
-      return [<RenderBoundary key={identity} resetKey={scope}><ViewStateProvider value={view}><Node identity={identity} node={node} scope={scope} runtime={runtime}/></ViewStateProvider></RenderBoundary>]
+      const contentText=['title','strong'].includes(node.type)?(node.children||[]).filter(n=>n.type==='run').map(n=>scalar(evaluate(n.value,scope))).join(''):undefined
+      return [<RenderBoundary key={identity} resetKey={scope} contentKind={node.type} contentText={contentText}><ViewStateProvider value={view}><Node identity={identity} node={node} scope={scope} runtime={runtime}/></ViewStateProvider></RenderBoundary>]
     }
     const items = evaluate(node.props.items, scope)
     if (!Array.isArray(items) || items.length > 1000) throw new Error('invalid each collection')
@@ -395,6 +398,8 @@ function CardContent({ spec, resources = {}, streaming = false, onPaint, onLayou
   const stores = useRef(new Map()), stage = useRef(null), painted = useRef(false)
   const [, refresh] = useReducer((n) => n + 1, 0), [error, setError] = useState('')
   const [accessories, setAccessories] = useState([])
+  const hasDestinations=nodes=>(nodes||[]).some(n=>n.type==='region'&&n.props?.overflow?.value==='destination'||hasDestinations(n.children))
+  const destinations=hasDestinations(spec?.children)
   const design = getDesign(spec?.design)
   const mockDesign=resolveMockDesign(spec)
   const template = mockDesign?{id:'default'}:projectTemplate(spec?.children,materialPreview==='classic'?undefined:spec?.design)
@@ -402,9 +407,9 @@ function CardContent({ spec, resources = {}, streaming = false, onPaint, onLayou
   const explicitSettings=presentation.nodes.filter(n=>n.type==='settings')
   const supporting=presentation.nodes.filter(isSupportingContent)
   const displayNodes=projectListColumns(projectDecisionActions(presentation.nodes.filter(n=>n.type!=='settings'&&!supporting.includes(n)),spec?.bindings),mockDesign)
-  const composition=mockDesign?null:materialPreview==='classic'||materialPreview==='template-v1'?null:projectComposition(displayNodes,spec?.design||'default',spec?.composition)
+  const composition=mockDesign?null:materialPreview==='classic'||materialPreview==='template-v1'?null:projectComposition(displayNodes,spec?.design||'default',spec?.composition,{size:cardSize})
   const visualStyle = VISUAL_STYLE_IDS.includes(spec?.visualStyle) ? spec.visualStyle : design?.material
-  const background = useBackgroundPhoto(spec?.backgroundQuery, resources[photoKey(spec?.backgroundQuery, 'background')], streaming, !!visualStyle)
+  const background = useBackgroundPhoto(spec?.backgroundQuery, resources[photoKey(spec?.backgroundQuery, 'background')], streaming||spec.context?.archiveReplay, !!visualStyle)
   useEffect(()=>{
     if(streaming||!page)return
     let changed=false
@@ -418,6 +423,7 @@ function CardContent({ spec, resources = {}, streaming = false, onPaint, onLayou
   useEffect(() => attachContentMotion(stage.current), [])
   useLayoutEffect(() => attachComposition(stage.current), [])
   useLayoutEffect(() => attachScrollAffordances(stage.current), [])
+  useLayoutEffect(() => attachContentFit(stage.current), [])
   useEffect(()=>{
     if(streaming||!page||page.experienceRenderDiagnostics?.[cardSize])return
     const timer=setTimeout(()=>{const metrics=measureExperience(stage.current);if(!metrics)return
@@ -448,18 +454,19 @@ function CardContent({ spec, resources = {}, streaming = false, onPaint, onLayou
       plannerNotes=renderChildren(presentation.notes,scope,runtime)
       supportingNotes=supporting.map(n=><details className="cs-card-notes" key={n.id}><summary>{n.props.label?scalar(evaluate(n.props.label,scope)):'资料与说明'}</summary>{renderChildren(n.children,scope,runtime,`/${n.id}`)}</details>)
       if(mockDesign){
-        const mockLayout=projectComposition(displayNodes,spec.design==='folio'?'folio':'default')||{header:[],body:displayNodes,controls:[],footer:[]}
+        const mockLayout=projectComposition(displayNodes,spec.design==='folio'?'folio':'default','auto',{size:cardSize})||{header:[],body:displayNodes,controls:[],footer:[]}
         const grouped=mockLayout.body.some(n=>n.type==='list'&&n.children.some(c=>c.type==='list-group'))
         const overview=grouped?mockLayout.body.filter(n=>['stats','stat','progress'].includes(n.type)):[]
         if(overview.length)mockLayout.body=mockLayout.body.filter(n=>!overview.includes(n))
         children=<MockComposition recipe={spec.design} design={mockDesign} header={[...renderChildren(mockLayout.header,scope,runtime),...settings,...(overview.length?[<CardSettings key="list-overview" label="概览">{renderChildren(overview,scope,runtime)}</CardSettings>]:[])]} body={[...mockLayout.body,...mockLayout.controls].map(node=><div className="cs-composition-item" key={node.id}>{renderChildren([node],scope,runtime)}</div>)} footer={renderChildren(mockLayout.footer,scope,runtime)}/>
       }else if(composition){
+        const connected=editorialConnections(spec,composition.body)
         const items=composition.body.flatMap(node=>{
           if(node.type==='choice-grid'){
             const tiles=renderChildren(node.children,scope,runtime,`/${node.id}`)
             return Array.from({length:Math.ceil(tiles.length/2)},(_,i)=>({id:`${node.id}/row-${i}`,type:'choice-grid',content:<div className="cs-choice-grid" role="group" aria-label="候选">{tiles.slice(i*2,i*2+2)}</div>}))
           }
-          return renderChildren([node],scope,runtime,'',true).map(content=>({id:content.key||node.id,type:node.type,content}))
+          return renderChildren([node],scope,runtime,'',true).map(content=>({id:content.key||node.id,type:node.type,role:node.props?.role?.value,keepNext:connected.has(node.id),content}))
         })
         children=<CompositionLayout composition={composition} header={[...renderChildren(composition.header,scope,runtime),...settings]} items={items} controls={renderChildren(composition.controls,scope,runtime)} footer={renderChildren(composition.footer,scope,runtime)} page={page} session={session}/>
       }else if(template.id!=='default'){
@@ -470,11 +477,11 @@ function CardContent({ spec, resources = {}, streaming = false, onPaint, onLayou
       }
     }
   } catch (e) { children = <div className="cs-error" data-cs-error="">{e.message}</div> }
-  return <div className="cs-shell"><div ref={stage} className="dil-stage cs-stage" data-composition-version={composition?2:undefined} data-composition-family={composition?.family} data-layout-template={composition?"default":template.id} data-template-reason={template.reason} data-motion-level={motionLevel} data-material-version={materialPreview==='classic'?'1':'2'} data-card-size={cardSize} data-theme={spec?.theme || 'editorial'} data-palette={spec?.palette || 'a'} data-streaming={streaming || undefined} data-visual-style={visualStyle} data-design={design ? spec.design : undefined} style={design ? {...design.tokens, colorScheme:design.scheme} : undefined}>
+  return <div className="cs-shell"><div ref={stage} className="dil-stage cs-stage" data-cs-tool-bindings={JSON.stringify(Object.entries(spec?.bindings||{}).map(([id,b])=>({id,tool:b.tool})))} data-composition-version={composition?2:undefined} data-composition-family={composition?.family} data-layout-template={composition?"default":template.id} data-template-reason={template.reason} data-motion-level={motionLevel} data-material-version={materialPreview==='classic'?'1':'2'} data-card-size={cardSize} data-theme={spec?.theme || 'editorial'} data-palette={spec?.palette || 'a'} data-streaming={streaming || undefined} data-visual-style={visualStyle} data-design={design ? spec.design : undefined} data-visual-reference={spec.context?.visualReference?.referenceId} style={{...(design?{...design.tokens,colorScheme:design.scheme}:{}),...designBriefTokens(spec.context?.visualReference)}}>
     {visualStyle && !mockDesign && <div className="cs-background" data-status={background.status} data-position={spec.backgroundPosition || 'center'} aria-hidden="true">
       <PhotoStage photo={background} crop={spec.backgroundPosition} mask={spec.backgroundMask}/><div className="cs-background-scrim"/><div className="cs-ambient"/>{!composition&&template.id==='default'&&materialPreview!=='classic'&&design?.effect&&<HostEffect kind={design.effect}/>}
     </div>}
-    <div className="cs-card">{children}</div>
+    <div className="cs-card">{destinations?<DestinationHost page={page} session={session}>{children}</DestinationHost>:children}</div>
     {footer}{overlay}
     {streaming && <Thinking placement="card" empty={!spec?.children?.length} />}
     {error && <div className="cs-action-error" role="alert">{error}</div>}

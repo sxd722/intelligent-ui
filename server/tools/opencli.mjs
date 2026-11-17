@@ -1,3 +1,4 @@
+import {normalizeToolNarratives} from '../../shared/cardspec/tool-text.mjs'
 import {spawn} from 'node:child_process'
 import {readFile,mkdir,writeFile,unlink} from 'node:fs/promises'
 import {createHash} from 'node:crypto'
@@ -59,7 +60,7 @@ export function normalizeOpenCli(tool,raw,input={}){
  const bounds={truncated:t.resultScope==='first-page'||(envelope?envelope.truncated===true:typeof limit==='number'&&raw.length>=limit)},keys=new Map()
  const items=raw.map((row,i)=>{
   if(!row||typeof row!=='object'||Array.isArray(row))throw new Error('OpenCLI returned a malformed row')
-  const item=clean(row,0,bounds)
+  const item=normalizeToolNarratives(clean(row,0,bounds))
   // Cross-tool IDs are opaque strings in cards, even when upstream APIs use
   // numbers. Only native numeric-ID arguments are converted back at dispatch.
   for(const [key,value] of Object.entries(item))if(typeof value==='number'&&/^(id|uid|.*Id|.*_id)$/.test(key))item[key]=String(value)

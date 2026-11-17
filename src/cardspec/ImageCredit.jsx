@@ -1,10 +1,11 @@
 import React,{useRef} from 'react'
 import {safeLink} from '../../shared/cardspec/result-view.mjs'
 
-export function ImageCredit({resource,asset=false,background=false}){
+export function ImageCredit({resource,asset=false,background=false,embedded=false}){
  const dialog=useRef(null)
  if(!asset&&!['OpenAI','Pexels'].includes(resource?.provider))return null
  const url=safeLink(resource?.photoUrl)
+ if(embedded)return <span className="cs-embedded-image-credit">{asset?'来源图片':resource?.provider==='Pexels'?'Photo: '+(resource.photographer||'Pexels')+' · Pexels':'OpenAI'}</span>
  return <div className={background?'cs-background-credit':'cs-thumbnail-credit'}>
   <button type="button" className="cs-credit-toggle" aria-label={background?'背景图片信息':'图片信息'} title="图片信息" onClick={()=>dialog.current?.showModal()}>ⓘ</button>
   <dialog ref={dialog} className="cs-image-credit-dialog" aria-label="图片信息">

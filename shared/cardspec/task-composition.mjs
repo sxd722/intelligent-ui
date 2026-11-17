@@ -1,5 +1,8 @@
 // Pure, source-aware projection shared by native UI and sandbox inputs.
 // No tool execution, inferred sentiment, ID matching or coordinate conversion.
+import {mapToolPresentation,presentationFor} from './tool-presentations.mjs'
+import {compositionSubject,compositionMedia} from './subject-composition.mjs'
+import {evidenceAnnotations} from './evidence-view.mjs'
 const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v
 export const compositionKey=v=>JSON.stringify(canonical(v))
 const text=v=>typeof v==='string'?v:typeof v==='number'?String(v):''
@@ -20,7 +23,7 @@ export const COMPOSITION_ADAPTERS={
  'opencli.douban.movie-hot':{kind:'entity',id:['id'],title:['title'],body:['description','summary'],metrics:[['rating','评分','']]},
  'opencli.douban.search':{kind:'entity',id:['id'],title:['title','name'],body:['description','summary'],metrics:[['rating','评分','']]},
 }
-export function compositionCapability(tool){const a=Object.hasOwn(COMPOSITION_ADAPTERS,tool)?COMPOSITION_ADAPTERS[tool]:null;return a?{kind:a.kind,fields:['id','title','summary','source','metrics','url'],usage:'compose({role:"bindingId"}, {primary:"role",selectedId:state.selected}) → task-board 或 sandbox.input；相关搜索不等于实体匹配。'}:null}
+export function compositionCapability(tool){const a=Object.hasOwn(COMPOSITION_ADAPTERS,tool)?COMPOSITION_ADAPTERS[tool]:null;return a||presentationFor(tool)?{kind:a?.kind||presentationFor(tool).kind,fields:['id','title','summary','source','metrics','url'],usage:'compose({role:"bindingId"}, {primary:"role",selectedId:state.selected}) → task-board 或 sandbox.input；相关搜索不等于实体匹配。'}:null}
 function normalize(tool,row,role,record,index,ambiguous=false){
  const a=COMPOSITION_ADAPTERS[tool],link=url(row.url),title=text(field(row,a.title))
  const entityId=ambiguous?null:field(row,a.id)??(tool==='opencli.bilibili.search'&&record.input?.type!=='user'?link.match(/^https:\/\/www\.bilibili\.com\/video\/(BV[\w]+)/)?.[1]:tool==='opencli.xiaohongshu.search'?link.match(/^https:\/\/(?:www\.)?xiaohongshu\.com\/(?:explore|search_result)\/([a-f0-9]{24})(?:[/?#]|$)/i)?.[1]:null)
@@ -39,14 +42,16 @@ export function composeTask(sources={},options={},bindings={}){
  if(!sources||typeof sources!=='object'||Array.isArray(sources)||Object.keys(sources).length>8)throw Error('COMPOSITION: use at most eight named bindings')
  const sourceBindings=Object.fromEntries(Object.entries(sources).filter(([,v])=>typeof v==='string'))
  sources=Object.fromEntries(Object.entries(sources).map(([role,value])=>{if(typeof value!=='string')return [role,value];if(!Object.hasOwn(bindings,value))throw Error('COMPOSITION: unknown binding '+value);return [role,bindings[value]]}))
- if(!options||typeof options!=='object'||Array.isArray(options)||Object.keys(options).some(k=>!['primary','selectedId','date','source','query'].includes(k)))throw Error('COMPOSITION: unknown option')
+ if(!options||typeof options!=='object'||Array.isArray(options)||Object.keys(options).some(k=>!['primary','selectedId','date','source','query','annotations','subject','media'].includes(k)))throw Error('COMPOSITION: unknown option')
+ const subject=compositionSubject(options.subject)
+ const annotation=evidenceAnnotations(options.annotations,bindings)
  if(options.primary&&!Object.hasOwn(sources,options.primary))throw Error('COMPOSITION: primary must name a source role')
  const roles={},issues=[],statuses=[],unique=new Map(),duplicates=[]
  for(const [role,record]of Object.entries(sources)){
   if(['__proto__','constructor','prototype'].includes(role))throw Error('COMPOSITION: invalid role')
   roles[role]=[]
   if(Array.isArray(record))throw Error('COMPOSITION: pass bindings.id, not bindings.id.value.items')
-  if(!record||!Object.hasOwn(COMPOSITION_ADAPTERS,record.tool)){issues.push({role,code:'UNMAPPED_SOURCE',message:'该来源尚无语义映射，可使用原 binding 自由编排。'});statuses.push({role,status:'unmapped'});continue}
+  if(!record||!Object.hasOwn(COMPOSITION_ADAPTERS,record.tool)&&!presentationFor(record.tool)){issues.push({role,code:'UNMAPPED_SOURCE',message:'该来源尚无语义映射，可使用原 binding 自由编排。'});statuses.push({role,status:'unmapped'});continue}
   const state=record.status||'idle',current=record.current!==false
   statuses.push({role,tool:record.tool,status:current?state:'stale',updatedAt:record.updatedAt||null})
   if(state==='error'||state==='cancelled')issues.push({role,code:'SOURCE_ERROR',message:String(record.error||'来源读取失败').slice(0,240)})
@@ -54,14 +59,23 @@ export function composeTask(sources={},options={},bindings={}){
   const rows=record.value?.items;if(!Array.isArray(rows)){if(state==='success')issues.push({role,code:'INVALID_RESPONSE',message:'来源返回结构不匹配，可使用原 binding 自由编排。'});continue}
   if(rows.length>500){issues.push({role,code:'SOURCE_LIMIT',message:'来源超过500条，请分页取数。'});continue}
   if(record.value.truncated||record.value.coverage?.complete===false)issues.push({role,code:'PARTIAL_SOURCE',message:'仅包含已获取样本。'})
+  if(!Object.hasOwn(COMPOSITION_ADAPTERS,record.tool)){
+   const mapped=mapToolPresentation(record.tool,record.value)
+   if(!mapped.ok){issues.push({role,code:mapped.error.code,message:mapped.error.message});continue}
+   roles[role]=mapped.items.map((r,index)=>({id:compositionKey([record.tool,record.input||{},r.key]),entityId:r.entityId,title:r.title,summary:r.summary||r.subtitle||'',role,kind:mapped.kind==='weather'?'observation':mapped.kind==='places'?'place':'entity',source:record.tool,url:url(r.url),assetRef:r.raw.assetRef||null,metrics:[],slots:r.slots,raw:r.raw,provenance:[{tool:record.tool,binding:sourceBindings[role]||role,input:record.input||{},fetchedAt:record.updatedAt||null,row:index,entityId:r.entityId}]}))
+   for(const item of roles[role]){const prior=unique.get(item.id);if(prior){prior.provenance.push(...item.provenance);duplicates.push({id:prior.id,role})}else unique.set(item.id,item)}
+   roles[role]=[...new Map(roles[role].map(i=>[i.id,unique.get(i.id)])).values()]
+   continue
+  }
   const identities=new Map(),adapter=COMPOSITION_ADAPTERS[record.tool]
   for(const row of rows){if(!row||typeof row!=='object')continue;const id=field(row,adapter.id);if(id==null)continue;const key=String(id),sign=compositionKey({title:field(row,adapter.title),url:url(row.url),lat:row.lat,lon:row.lon});if(!identities.has(key))identities.set(key,new Set());identities.get(key).add(sign)}
   const ambiguous=new Set([...identities].filter(([,v])=>v.size>1).map(([k])=>k))
   if(ambiguous.size)issues.push({role,code:'AMBIGUOUS_ENTITY_ID',message:'来源重复ID对应不同内容，已分开保留；这些记录不能使用该ID自动关联详情。'})
   for(const [index,row]of rows.entries()){
    if(!row||typeof row!=='object'||Array.isArray(row)){issues.push({role,code:'INVALID_ROW',message:'非对象记录已隔离。'});continue}
-   const item=normalize(record.tool,row,role,record,index,ambiguous.has(String(field(row,adapter.id))))
+   const item=normalize(record.tool,row,role,{...record,bindingId:sourceBindings[role]||record.bindingId},index,ambiguous.has(String(field(row,adapter.id))))
    if(!item){issues.push({role,code:'MISSING_TITLE',message:'无可用标题的记录已隔离。'});continue}
+   item.classification=annotation(record.tool,row)
    // Only exact source identity / canonical URL deduplication. Never title similarity.
    const canonicalUrl=record.tool==='opencli.xiaohongshu.search'&&/^[a-f0-9]{24}$/i.test(item.entityId||'')&&/^https:\/\/(?:www\.)?xiaohongshu\.com\//i.test(item.url)?'https://www.xiaohongshu.com/explore/'+item.entityId:item.url
    const dedupeKey=item.kind==='content'&&canonicalUrl?'content:'+canonicalUrl:item.id
@@ -75,6 +89,7 @@ export function composeTask(sources={},options={},bindings={}){
  const primaryKinds=new Set(candidates.map(i=>i.kind))
  const mode=primaryKinds.has('place')?'map':primaryKinds.has('entity')?'entity':'feed'
  const mergeable=mode==='feed'?all.filter(i=>i.kind==='content'):candidates
+ if(mergeable.length&&annotation.available&&!mergeable.some(i=>i.classification))issues.push({code:'CLASSIFICATION_SNAPSHOT_MISMATCH',message:'分类属于另一批原始记录；当前记录保持未分类。使用匹配来源或显式重新分类，不沿用旧统计。'})
  const focus=mergeable.find(i=>i.id===options.selectedId)||null
  const items=mergeable.filter(i=>(!options.source||i.provenance.some(p=>p.tool===options.source))&&(!options.query||[i.title,i.summary,i.author].join(' ').toLocaleLowerCase().includes(String(options.query).toLocaleLowerCase())))
  const related=focus&&mode!=='feed'?all.filter(i=>i.role!==primary&&i.kind!=='observation').map(i=>({...i,relation:'related-search',subjectId:focus.id})):[]
@@ -82,7 +97,8 @@ export function composeTask(sources={},options={},bindings={}){
  const mapItems=[...candidates,...related.filter(i=>i.kind==='place')].filter(i=>i.coordinate?.system==='WGS84').map(i=>({id:i.id,title:i.title,lat:i.coordinate.lat,lon:i.coordinate.lon,role:i.role}))
  const unlocated=[...candidates,...related.filter(i=>i.kind==='place')].filter(i=>i.kind==='place'&&i.coordinate?.system!=='WGS84').map(i=>i.id)
  const scope=compositionKey(Object.fromEntries(Object.entries(sources).filter(([r])=>r===primary||mode==='feed').map(([r,b])=>[r,{tool:b?.tool,input:b?.input}])) )
- return {version:1,mode,primary,scope,sourceBindings,viewFilter:!!(options.query||options.source||options.selectedId||options.date),items,roles,focus,related,observations,dates:[...new Set(all.filter(i=>i.kind==='observation').map(i=>i.title))],mapItems,unlocated,issues,statuses,
+ const media=compositionMedia(options.media,subject,all)
+ return {version:1,subject,media,mode,primary,scope:subject?compositionKey([subject.id,Object.entries(sources).map(([role,b])=>[role,b?.tool])]):scope,sourceBindings,viewFilter:!!(options.query||options.source||options.selectedId||options.date),items,roles,focus,related,observations,dates:[...new Set(all.filter(i=>i.kind==='observation').map(i=>i.title))],mapItems,unlocated,issues,statuses,
   counts:{fetched:all.length,visible:items.length,duplicates:duplicates.length,bySource:Object.entries(sources).map(([role,r])=>({role,source:r?.tool||'',count:roles[role]?.length||0}))},
   partial:issues.length>0,loading:statuses.some(s=>s.status==='loading'),date:options.date||null}
 }
@@ -94,5 +110,6 @@ export function projectTaskView(view,size='full'){
  const project=item=>({...item,summary:size==='2x2'?'':item.summary,metrics:item.metrics.filter(m=>m.value!==null).slice(0,size==='2x2'?1:3)})
  return {...view,size,items:view.items.slice(0,max).map(project),focus:view.focus?project(view.focus):null,observations:view.observations.slice(0,size==='2x2'?1:3).map(project),remaining:Math.max(0,view.items.length-max)}
 }
-export const COMPOSITION_REFERENCE=`多来源任务只引用binding的id：<derive id="v" value={compose({main:"a",related:"b"},{primary:"main",selectedId:state.selected})}/><task-board view={derived.v} onSelect="pick"/>。a/b必须是已声明binding id，宿主自动读取状态和数据；不要写value/items。task-board自带筛选、候选、关联详情、多选对比及返回，不接受子节点。layout可选auto/map/decision/detail/evidence/compare/plan；只改变构图，不代替取数或分析。需要确认选择时加onApply，事件为event.items/ids/date；规划动作显式invoke生成或用真实计算，不能只更新提示。
-<state id="selected" type="string" initial=""/><action id="pick"><set target="selected" value={event.id}/></action>；target是state的id，不加state.。交互分两种：内容合并的pick只set，不invoke或重新搜索。只有任务明确要求选中实体后补充查询时，才增加state q，相关binding input={{query:state.q}} load="manual"；pick中追加<set target="q" value={event.item.title}/><invoke binding="b" input={{query:next.q}}/>，query替换为工具实际参数名。内容合并时不需要额外搜索。同语义内容合并；异构数据按角色保留；related仅相关搜索，不代表实体匹配。天气可compose选项date:state.date，task-board onDateChange事件为event.date。同一derived.v可传sandbox.input，经actions调用同一pick。未知工具继续原binding自由编排；普通点击不另调模型。`
+export const COMPOSITION_REFERENCE=`多来源共用当前对象：state保存selectedId，derive current取对象；每个binding.input读取current的真实参数，load="visible"。选择只set；宿主按依赖取数/缓存/取消旧请求，不重复invoke。
+用compose({"车次":"rail","天气":"weather"},{subject:derived.current,media:[{query:"train model",alt:"列车示意"}]})传task-board view或sandbox.input。subject是{id,title,summary?}，可来自data或工具；角色只分组不假定同一实体，工具字段/单位/ID/图片由宿主映射；media可query或宿主assetRef，最多6张（gen:最多2张），task-board直接显示，无需重复image。各来源独立失败，旧参数结果不与新对象混合。当前对象视图为紧凑角色摘要，点“查看角色”看全部结果并返回。onSelect返回event.role/entityId/item/input，可将真实业务ID设入state驱动下一工具；不拿本地id拼外部查询。沙箱只做主视觉，input读同一current/view，actions回写宿主选择，initial不重复保存共享选择。
+候选集合仍用compose({main:"a",related:"b"},{primary:"main",selectedId:state.selected})→task-board。无subject时沿用筛选/多选/对比；相关搜索不是实体匹配。annotations只接受dataset.analyze绑定ID，用layout="evidence"统一分类/原文，不另抄统计。未知映射保留来源错误及原始结果，继续用原binding自由编排。普通选择不另调模型。`

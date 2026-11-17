@@ -48,13 +48,13 @@ export function createToolService({streamUpstream,researchSession,keyLoaded,phot
     if(glmActive>=2)throw Error('模型正忙，请稍后重试')
     glmActive++
     try{
-      const policy=generationPolicy(input.prompt,{profile:view.generationProfile,mode:view.generationMode,debugGeneration:view.debugGeneration||view.renderMode==='web',buildMode:view.buildMode,extendedGeneration:view.extendedGeneration===true})
+      const policy=generationPolicy(input.prompt,{profile:view.generationProfile,mode:view.generationMode,debugGeneration:view.debugGeneration||view.renderMode==='web',buildMode:view.buildMode,extendedGeneration:view.extendedGeneration===true,generationMinutes:view.generationMinutes})
       const budget=view.generationLease?inheritedBudget(view.generationLease):(policy.profile==='adaptive-v1'||policy.debugGeneration)?createGenerationBudget(policy):null
       const remaining=budget?.remaining()??policy.timeoutMs
       if(Number.isFinite(remaining))signal=AbortSignal.any([signal,AbortSignal.timeout(Math.max(1,remaining))])
       if(target.startsWith('sandbox:'))throw Error('Sandbox源码随整卡生成；不再支持渲染后的模型调用，请重新生成整张卡片')
       const currentCatalog=await catalog()
-      const research=target==='binding'?null:researchSession?.(emit,{catalog:currentCatalog,budget,modelProfile:view.modelProfile,timeoutMs:policy.timeoutMs,renderMode:target.startsWith('slot:')?'native':view.renderMode,invoke,allowDeck:false,goal:input.prompt,...(budget?{allowPlanning:policy.plan}:view?.generationMode==='experience'?{allowPlanning:false}:{})})
+      const research=target==='binding'?null:researchSession?.(emit,{catalog:currentCatalog,budget,modelProfile:view.modelProfile,timeoutMs:policy.timeoutMs,renderMode:target.startsWith('slot:')?'native':view.renderMode,webGraphics:view.webGraphics,invoke,allowDeck:false,goal:input.prompt,...(budget?{allowPlanning:policy.plan}:view?.generationMode==='experience'?{allowPlanning:false}:{})})
       return await generateCard({streamUpstream,photo,catalog:currentCatalog,research,budget,input,target,view,signal,emit})
     }finally{glmActive--}
   }

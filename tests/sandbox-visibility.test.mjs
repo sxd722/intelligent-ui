@@ -6,7 +6,7 @@ import {build} from 'esbuild'
 import Module from 'node:module'
 import path from 'node:path'
 const output=await build({stdin:{contents:`export {SandboxPanel} from './src/cardspec/SandboxPanel.jsx';export {clients} from './src/cardspec/sandbox-client.js';`,resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'cjs',external:['react'],plugins:[{name:'controlled-sandbox',setup(b){
- b.onLoad({filter:/sandbox-client\.js$/},()=>({contents:`export const clients=[];export function createSandboxClient(){const c={calls:[],closed:0,close(){c.closed++},async request(type,payload){c.calls.push({type,payload});if(type==='init')c.state=payload.state;if(type==='event')c.state={n:c.state.n+1};return {tree:{type:'p',props:{},children:[String(c.state.n)]},state:c.state,revision:c.calls.length,effects:[]}}};clients.push(c);return c}`,loader:'js'}))
+ b.onLoad({filter:/sandbox-client\.js$/},()=>({contents:`export const clients=[];export function createSandboxClient(){const c={calls:[],closed:0,close(){c.closed++},async request(type,payload){c.calls.push({type,payload});if(c.failNext){const e=c.failNext;c.failNext=null;throw Error(e)}if(type==='init')c.state=payload.state;if(type==='event'){c.state={n:c.state.n+1};if(c.wait)await c.wait}return {tree:{type:'p',props:{},children:[String(c.state.n)]},state:c.state,revision:c.calls.length,effects:type==='event'?(c.effects||[]):[]}}};clients.push(c);return c}`,loader:'js'}))
  b.onLoad({filter:/SandboxMode\.jsx$/},()=>({contents:`export const useSandboxMode=()=> 'hybrid'`,loader:'js'}))
  b.onLoad({filter:/design-environment\.js$/},()=>({contents:`export const readDesignEnvironment=()=>({})`,loader:'js'}))
  b.onLoad({filter:/sandbox-document\.mjs$/},()=>({contents:`export const sandboxDocument=()=>'<html></html>'`,loader:'js'}))
@@ -47,4 +47,47 @@ test('sandbox starts once, survives viewport/tab hiding, coalesces input and cle
   assert.equal(clients.length,1);assert.equal(c.calls.filter(x=>x.type==='init').length,1)
   await act(async()=>tree.unmount());tree=null;assert.equal(c.closed,1)
  }finally{if(tree)act(()=>tree.unmount());clients.length=0;for(const [k,v] of Object.entries(old))if(v===undefined)delete globalThis[k];else globalThis[k]=v}
+})
+
+test('preview, untrusted and in-flight lifecycle denials preserve the view; real events resume',async()=>{
+ const old=Object.fromEntries(['IntersectionObserver','window','document'].map(k=>[k,globalThis[k]]))
+ const listeners=new Set(),messages=[],fired=[];let intersect,tree
+ const frame={postMessage:m=>messages.push(m)},host={dataset:{},dispatchEvent(){}}
+ const doc={hidden:false,addEventListener(){},removeEventListener(){}}
+ const spec={context:{renderMode:'hybrid'},actions:{pick:{}},sandboxModules:{demo:{id:'m2',code:'fixture',css:''}}}
+ const view=streaming=>React.createElement(SandboxPanel,{p:{source:'fixture',input:{},initial:{n:4},actions:{pick:'pick'}},nodeId:'demo',runtime:{spec,page:{id:'p1'},streaming,fire:(...args)=>fired.push(args),notify(){}}})
+ const emit=(trusted=true)=>{const r=messages.filter(m=>m.type==='render').at(-1);for(const f of listeners)f({source:frame,data:{sandbox:r.sandbox,type:'event',revision:r.revision,handler:'pick',event:{type:'click',trusted}}})}
+ try{
+  globalThis.document=doc;globalThis.window={document:doc,addEventListener(k,f){if(k==='message')listeners.add(f)},removeEventListener(k,f){listeners.delete(f)}}
+  globalThis.IntersectionObserver=class{constructor(f){intersect=f}observe(){}disconnect(){}}
+  await act(async()=>{tree=create(view(true),{createNodeMock:e=>e.type==='iframe'?{contentWindow:frame}:host})})
+  await act(async()=>intersect([{isIntersecting:true}]))
+  const c=clients[0];c.effects=[{type:'action',name:'pick',payload:{value:'ice'}}]
+  assert.equal(tree.root.findByType('iframe').props.inert,'')
+  const before=c.calls.length
+  await act(async()=>emit());assert.equal(c.calls.length,before);assert.equal(fired.length,0);assert.equal(c.closed,0)
+  await act(async()=>tree.update(view(false)))
+  assert.equal(tree.root.findByType('iframe').props.inert,undefined)
+  await act(async()=>emit(false));assert.equal(c.calls.length,before);assert.equal(c.closed,0)
+  await act(async()=>emit());assert.equal(fired.length,1);assert.equal(fired[0][1].event.value,'ice');assert.equal(c.state.n,5)
+  let release;c.wait=new Promise(r=>release=r)
+  await act(async()=>emit())
+  await act(async()=>intersect([{isIntersecting:false}]))
+  await act(async()=>{release();await c.wait})
+  assert.equal(fired.length,1,'hidden page must not receive in-flight effects')
+  assert.equal(c.state.n,5,'denied event restores last accepted local checkpoint')
+  assert.equal(c.closed,0);assert.equal(tree.root.findAllByType('iframe').length,1)
+  c.wait=null
+  await act(async()=>intersect([{isIntersecting:true}]))
+  await act(async()=>emit());assert.equal(fired.length,2);assert.equal(c.state.n,6)
+  assert.equal(clients.length,1,'no worker or iframe replacement for policy denial')
+  assert.ok(messages.some(m=>m.type==='discard-events'),'denied event releases renderer queue')
+  c.failNext='original model runtime failure'
+  await act(async()=>emit())
+  assert.equal(c.closed,1);assert.equal(tree.root.findAllByType('iframe').length,0)
+  assert.match(JSON.stringify(tree.toJSON()),/original model runtime failure/)
+  await act(async()=>tree.update(view(true)));await act(async()=>tree.update(view(false)))
+  assert.match(JSON.stringify(tree.toJSON()),/original model runtime failure/)
+  assert.doesNotMatch(JSON.stringify(tree.toJSON()),/Sandbox stopped/)
+ }finally{if(tree)await act(async()=>tree.unmount());clients.length=0;for(const[k,v]of Object.entries(old))if(v===undefined)delete globalThis[k];else globalThis[k]=v}
 })

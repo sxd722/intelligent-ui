@@ -1,6 +1,6 @@
 // Debug-only discovery. Handles are derived from rendered component identities
 // (including each keys), never from selectors supplied by the model.
-const selector='button,input,select,textarea,summary,[role="button"],[role="tab"],[role="radio"]'
+const selector='button,input,select,textarea,summary,a[href],[role="button"],[role="tab"],[role="radio"]'
 export function debugControls(card){
  if(!card)return []
  const modal=[...card.querySelectorAll('dialog[open],[role="dialog"][aria-modal="true"]')].filter(el=>el.getClientRects().length&&(el.matches(':modal')||el.getAttribute('aria-modal')==='true')).at(-1)
@@ -18,7 +18,7 @@ export function debugControls(card){
  }).map(el=>{
   const owner=el.closest('[data-cs-node]'),path=owner?.getAttribute('data-cs-node')
   const siblings=all.filter(c=>c.closest('[data-cs-node]')===owner)
-  const role=el.getAttribute('role')||(el.tagName==='INPUT'?(el.type==='range'?'slider':['checkbox','radio'].includes(el.type)?el.type:'textbox'):el.tagName==='TEXTAREA'?'textbox':el.tagName==='SELECT'?'combobox':el.tagName==='SUMMARY'?'button':el.tagName.toLowerCase())
+  const role=el.getAttribute('role')||(el.tagName==='INPUT'?(el.type==='range'?'slider':['checkbox','radio'].includes(el.type)?el.type:'textbox'):el.tagName==='TEXTAREA'?'textbox':el.tagName==='SELECT'?'combobox':el.tagName==='SUMMARY'?'button':el.tagName==='A'?'link':el.tagName.toLowerCase())
   const labelled=(el.getAttribute('aria-labelledby')||'').split(/\s+/).map(id=>document.getElementById(id)?.textContent||'').join(' ').trim()
   const name=(el.getAttribute('aria-label')||labelled||el.labels?.[0]?.textContent||el.innerText||el.textContent||'').replace(/\s+/g,' ').trim()
   const handle=encodeURIComponent(path||`unowned:${role}:${name}`)+':'+siblings.indexOf(el)

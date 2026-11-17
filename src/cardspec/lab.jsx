@@ -1,3 +1,4 @@
+import {GPU_MATERIAL_FIXTURES} from '../../shared/cardspec/gpu-material-fixtures.mjs'
 import {TOOL_VIEW_FIXTURES} from '../../shared/cardspec/tool-view-fixtures.mjs'
 import {IMAGE_PROVIDERS} from '../../shared/cardspec/image-fixture.mjs'
 import {MAP_FIXTURES} from '../../shared/cardspec/map-fixtures.mjs'
@@ -39,7 +40,7 @@ import '../styles/tokens.css'
 import '../styles/themes.css'
 import { RecoveryLab } from './RecoveryLab.jsx'
 import { CardSizeControl } from '../CardSize.jsx'
-const CASES = {imageProviders:IMAGE_PROVIDERS,...KINETIC_FIXTURES,...ADAPTIVE_FIXTURES,...CAPABILITY_FIXTURES,sandbox:SANDBOX_FIXTURE,sandboxPure:SANDBOX_PURE, ...Object.fromEntries(Object.entries({...DETAIL_FIXTURES,...TOOL_VIEW_FIXTURES}).map(([k,v])=>[k,v.source])),...DECK_FIXTURES, ...LOGIC_FIXTURES, ...FIXTURES, ...MOBILE_FIXTURES, ...INTERACTION_FIXTURES, ...TRANSACTION_FIXTURES, ...EXPERIENCE_FIXTURES, ...RICH_FIXTURES,tools:TOOL_DEMO,opencliWeather:OPENCLI_WEATHER,opencliMusic:OPENCLI_MUSIC }
+const CASES = {...GPU_MATERIAL_FIXTURES,imageProviders:IMAGE_PROVIDERS,...KINETIC_FIXTURES,...ADAPTIVE_FIXTURES,...CAPABILITY_FIXTURES,sandbox:SANDBOX_FIXTURE,sandboxPure:SANDBOX_PURE, ...Object.fromEntries(Object.entries({...DETAIL_FIXTURES,...TOOL_VIEW_FIXTURES}).map(([k,v])=>[k,v.source])),...DECK_FIXTURES, ...LOGIC_FIXTURES, ...FIXTURES, ...MOBILE_FIXTURES, ...INTERACTION_FIXTURES, ...TRANSACTION_FIXTURES, ...EXPERIENCE_FIXTURES, ...RICH_FIXTURES,tools:TOOL_DEMO,opencliWeather:OPENCLI_WEATHER,opencliMusic:OPENCLI_MUSIC }
 CASES.compactPlanner=COMPACT_PLANNER
 CASES.sandboxLinked=SANDBOX_LINKED
 Object.assign(CASES,TEMPLATE_FIXTURES)

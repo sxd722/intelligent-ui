@@ -55,7 +55,7 @@ test('composition bounded shape, missing metrics remain null and unknown options
 })
 
 test('named binding references resolve the same typed view without exposing response fields',()=>{
- const named=composeTask({a:'result'},{},{result:video()}),inline=composeTask({a:video()});assert.deepEqual(named.sourceBindings,{a:'result'});assert.deepEqual({...named,sourceBindings:{}},inline)
+ const named=composeTask({a:'result'},{},{result:video()}),inline=composeTask({a:{...video(),bindingId:"result"}});assert.deepEqual(named.sourceBindings,{a:'result'});assert.deepEqual({...named,sourceBindings:{}},inline)
  assert.throws(()=>composeTask({a:'absent'}),/unknown binding/)
  for(const dialect of ['legacy','js-v1']){
  const r=compileCard('<card><binding id="a" tool="opencli.bilibili.search" input={{query:"x"}} initial={{items:[],source:"",fetchedAt:"",truncated:false}}/><derive id="v" value={compose({main:"a"})}/><task-board view={derived.v}/></card>',{final:true,context:{expressionDialect:dialect}})

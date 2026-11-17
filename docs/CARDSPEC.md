@@ -1,5 +1,11 @@
 # CardSpec v1 实现契约
 
+## 内容关系（2026-11-10，本地）
+
+复用 `region presentation="compare|sequence|apply"`，不新增声明语言：compare 的前两个直接子区并置、后续子项全宽；sequence 为步骤组提供序号，组前摘要不编号；apply 让解释、原生输入/操作和反馈邻接。宿主只布局，不改数据、动作或 if/each 作用域。普通内容仍用plain/magazine。关系应放在同一可见区域，次要依据可嵌套details；缺少关系部分仅warning。
+
+已有plan_cards可附 `contentSkeleton:{question,anchors:[...],relation,outcome}`，不强制额外规划；直接生成收到短指引。参数 `contentRelations:"off"` 可关闭新增生成指引和计划字段用于对照，默认开启。旧卡、DIL不需迁移。详见 [固定内容实验](CONTENT-RELATION-SKELETON-2026-11-10.md)，不要将组件存在性当体验或事实通过。
+
 ## 兼容性与入口
 
 `POST /api/chat` 支持两个独立选项：`format: "dil" | "cardspec"`（缺省 cardspec）、`mode: "staged" | "direct" | "experience"`（缺省 direct）。experience 只用于 CardSpec；界面选择 DIL 时保留 direct/staged。页面默认协议为 CardSpec v1；DIL 的原始语法、服务端编译器及 `new Function` 运行时保留。CardSpec 不生成或执行 JavaScript。
@@ -33,6 +39,14 @@ experience 在初始卡和 GLM 下一页先调用一次体验规划，slot 为�
 动作步骤支持可选 `when={布尔表达式}`，false 时跳过且不计算 key/value。条件与操作数使用相同快照/next 规则；条件类型错误会整笔回滚。条件追加用 `<append target="items" when={state.amount>0} value={{id:state.seq,amount:state.amount}}/>`，不要为了处理校验失败而把整个列表替换为单条数组。结束时只有声明、没有任何 UI 节点的卡片会给出 structure 诊断并进入正常修复。
 
 宿主提供 `context.generatedAt/timeZone/localDate`。当前默认 Asia/Shanghai。会话数据不能冒充用户此前的真实历史。当前标签页通过 sessionStorage 保存对话卡片及页面栈，刷新后恢复；运行中的生成标记为中断，不自动重放 GLM。
+
+### 卡组共享状态（2026-11-10，本地）
+
+`<state id="mastery" type="record" initial={{}} scope="deck"/>` 声明当前卡组的共享领域状态。默认 `scope="page"` 保持旧卡行为；同名局部字段不会自动共享。读写仍使用 `state.mastery` 与现有 action，不增加专门的消息或回调协议。
+
+首卡声明共享字段；宿主向兄弟卡传递紧凑的 `context.deckInterface`（字段类型/初值及实体ID）。兄弟卡使用相同 ID、类型和 `scope="deck"`。事务成功后发布共享变更，切卡、返回、刷新恢复共享值；表单草稿和展开状态通常保持局部。不同对话卡组隔离；存储仅当前标签页，不承诺跨设备同步。隔离 slot 不继承此作用域。
+
+CUJ 编号由宿主从原始需求提取；`plan_cards.cards[].journeyIds` 可分配原 R 编号，拆卡不重编号。兄弟卡不负责修复别卡需求。`requirementCoverage` 是单卡证据，`deckCoverage` 汇总只能标记 `locally-checked`；完整跨卡操作与恢复必须另外经过整组浏览器验收。`ready` 表示可交付，不等于全部 CUJ 通过。
 
 ## 可选工具扩展
 

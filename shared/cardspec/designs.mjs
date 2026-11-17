@@ -72,4 +72,4 @@ export const DESIGNS = Object.freeze({
 })
 export const DESIGN_IDS = Object.freeze(Object.keys(DESIGNS))
 export const getDesign = id => Object.hasOwn(DESIGNS, id) ? DESIGNS[id] : null
-export const designReference = () => `design选folio=平面纸感、default=通用、pearl=珠光、atlas=学术、rebel=切纸、parchment=叙事、business=商务、academy=辉石；宿主管材质/构图/动效，不编造数值或关系。`+compositionReference()+FOLIO_REFERENCE
+export const designReference = () => `【明确选择设计】每张新卡必须在根card写一个design字面量，不要只写visualStyle或省略后落到默认。design选择：folio=平面纸感、default=通用工具、pearl=珠光模拟、atlas=学术关系、rebel=切纸活动、parchment=历史叙事、business=专业比较、academy=辉石探索、friendly=轻盈生活、cinematic=电影舞台、editorial=编辑图解、atmospheric=氛围仪表盘。按题材和任务选择一个；default是明确选择而不是兜底省略。context.designPreference指定有效风格时遵循它；已有卡修复保留原风格。design管整体排版与配色，visualStyle只管材质，可省略以采用风格自带材质；无需输出风格分析或增加规划调用。宿主管构图/动效，不编造数值或关系。`+compositionReference()+FOLIO_REFERENCE
